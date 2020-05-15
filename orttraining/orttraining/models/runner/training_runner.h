@@ -64,6 +64,7 @@ class TrainingRunner {
     bool do_eval = false;
     size_t display_loss_steps;
 
+    int device_id = -1;
     // error_function_ is called when evaluating the error for a single sample.
     std::function<void(const std::vector<std::string>& feed_names,
                        const std::vector<OrtValue>& feeds,

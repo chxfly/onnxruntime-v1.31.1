@@ -151,6 +151,7 @@ Status ParseArguments(int argc, char* argv[], BertParameters& params, OrtParamet
       ("cuda_mem_limit_in_gb", "Max cuda memory ort can use, in GB", cxxopts::value<float>()->default_value("-1.0"))
       ("data_parallel_size", "Data parallel group size.", cxxopts::value<int>()->default_value("1"))
       ("horizontal_parallel_size", "Horizontal model parallel group size.", cxxopts::value<int>()->default_value("1"))
+      ("device_id", "Device ID.", cxxopts::value<int>()->default_value("-1"))
       ("enable_grad_norm_clip", "Specify whether to enable gradient clipping for optimizers.",
         cxxopts::value<bool>()->default_value("true"));
   options
@@ -215,6 +216,8 @@ Status ParseArguments(int argc, char* argv[], BertParameters& params, OrtParamet
     if (params.gradient_accumulation_steps_phase2 < 1) {
       return Status(ONNXRUNTIME, INVALID_ARGUMENT, "Invalid gradient_accumulation_steps_phase2 parameter: should be >= 1");
     }
+
+    params.device_id = flags["device_id"].as<int>();
 
     params.do_eval = flags["do_eval"].as<bool>();
     params.evaluation_period = flags["evaluation_period"].as<size_t>();
@@ -442,7 +445,11 @@ void setup_training_params(BertParameters& params) {
 #endif
 
 #ifdef USE_CUDA
-  OrtDevice::DeviceId device_id = static_cast<OrtDevice::DeviceId>(params.mpi_context.local_rank);
+  int id = params.device_id != -1 ? params.device_id : params.mpi_context.local_rank;
+  std::cout<<"Using GPU "<<id<<"!!!!!!!\n";
+
+  OrtDevice::DeviceId device_id = static_cast<OrtDevice::DeviceId>(id);
+  
   size_t cuda_mem_limit = std::numeric_limits<size_t>::max();
   if (params.cuda_mem_limit_in_gb > 0)
     cuda_mem_limit = static_cast<size_t>(params.cuda_mem_limit_in_gb * 1024 * 1024 * 1024);
