@@ -261,4 +261,4 @@ jobs:
       parameters :
         condition : 'succeeded'
 
-    - template: clean-agent-build-directory-step.yml
+    #- template: clean-agent-build-directory-step.yml
