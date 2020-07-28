@@ -69,6 +69,9 @@ class ORTGlueTest(unittest.TestCase):
         self.logging_steps = 10
         self.rtol = 1e-02
 
+    def test_bart_with_mrpc(self):
+        results = self.run_glue(model_name="bart-large", task_name="MRPC", fp16=False)
+
     def test_roberta_with_mrpc(self):
         expected_acc = 0.8676470588235294
         expected_f1 = 0.9035714285714286
@@ -140,6 +143,15 @@ class ORTGlueTest(unittest.TestCase):
                 IODescription('labels', ['batch',], torch.int64, num_classes=2)], [
                 IODescription('loss', [], torch.float32),
                 IODescription('logits', ['batch', 2], torch.float32)])
+        elif model_name.startswith('bart'):
+            hidden_size = 1024
+            model_desc = ModelDescription([
+                IODescription('input_ids', ['batch', 'max_seq_len_in_batch'], torch.int64, num_classes=model.config.vocab_size),
+                IODescription('attention_mask', ['batch', 'max_seq_len_in_batch'], torch.int64, num_classes=2),
+                IODescription('labels', ['batch',], torch.int64, num_classes=2)], [
+                IODescription('loss', [], torch.float32),
+                IODescription('logits', ['batch', 2], torch.float32),
+                IODescription('hidden_states', ['batch', 'max_seq_len_in_batch', hidden_size], torch.float32)])
         else:
             raise RuntimeError("unsupported base model name {}.".format(model_name))
 
@@ -194,6 +206,10 @@ class ORTGlueTest(unittest.TestCase):
             model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
             cache_dir=model_args.cache_dir,
         )
+
+        config.encoder_layers = 1
+        config.num_hidden_layers = 1
+        config.decoder_layers = 1
 
         model = AutoModelForSequenceClassification.from_pretrained(
             model_args.model_name_or_path,
