@@ -18,7 +18,7 @@
 #include "orttraining/core/graph/mixed_precision_transformer.h"
 #include "orttraining/core/graph/tensorboard_transformer.h"
 #include "orttraining/core/graph/pipeline_transformer.h"
-#include "orttraining/core/graph/gradient_builder_base.h"
+#include "orttraining/core/graph/gradient/gradient_builder_base.h"
 
 //Gist Encoding
 #include "orttraining/core/optimizer/gist_encode_decode.h"

@@ -13,7 +13,7 @@
 #include "core/common/common.h"
 #include "core/graph/graph.h"
 #include "core/graph/model.h"
-#include "orttraining/core/graph/gradient_builder_base.h"
+#include "orttraining/core/graph/gradient/gradient_builder_base.h"
 #include "orttraining/core/graph/optimizer_builder.h"
 #include "orttraining/core/graph/optimizer_graph_builder.h"
 #include "orttraining/core/graph/allreduce_optimizer_graph_builder.h"

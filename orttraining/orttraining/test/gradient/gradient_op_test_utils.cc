@@ -5,7 +5,7 @@
 #include "core/session/inference_session.h"
 #include "orttraining/core/session/training_session.h"
 #include "orttraining/core/framework/gradient_graph_builder.h"
-#include "orttraining/core/graph/gradient_config.h"
+#include "orttraining/core/graph/gradient/gradient_config.h"
 #include "default_providers.h"
 
 namespace onnxruntime {

@@ -10,7 +10,7 @@
 #include "orttraining/core/graph/loss_function_registry.h"
 #include "orttraining/core/graph/optimizer_graph_output_key.h"
 #include "orttraining/core/graph/optimizer_config.h"
-#include "orttraining/core/graph/gradient_config.h"
+#include "orttraining/core/graph/gradient/gradient_config.h"
 
 namespace onnxruntime {
 namespace training {

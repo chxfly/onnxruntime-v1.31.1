@@ -5,8 +5,8 @@
 
 #include <unordered_map>
 #include <functional>
-#include "gradient_builder_base.h"
-#include "generic_registry.h"
+#include "orttraining/core/graph/gradient/gradient_builder_base.h"
+#include "orttraining/core/graph/generic_registry.h"
 
 namespace onnxruntime {
 namespace training {

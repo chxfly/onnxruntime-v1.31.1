@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-#include "gradient_builder_base.h"
+#include "orttraining/core/graph/gradient/gradient_builder_base.h"
 
 namespace onnxruntime {
 namespace training {

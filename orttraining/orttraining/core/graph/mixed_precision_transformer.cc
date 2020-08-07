@@ -4,7 +4,7 @@
 #include "orttraining/core/graph/mixed_precision_transformer.h"
 #include "core/graph/graph_utils.h"
 #include "core/graph/graph_viewer.h"
-#include "orttraining/core/graph/gradient_builder_base.h"
+#include "orttraining/core/graph/gradient/gradient_builder_base.h"
 #include "core/optimizer/insert_cast_transformer.h"
 #include "core/optimizer/initializer.h"
 #include "onnx/defs/attr_proto_util.h"

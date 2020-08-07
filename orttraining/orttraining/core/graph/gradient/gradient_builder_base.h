@@ -7,7 +7,7 @@
 #include <string>
 #include "core/graph/graph.h"
 #include "orttraining/core/graph/graph_augmenter.h"
-#include "orttraining/core/graph/gradient_config.h"
+#include "orttraining/core/graph/gradient/gradient_config.h"
 #include "orttraining/core/graph/recompute_graph_utils.h"
 #include "onnx/defs/attr_proto_util.h"
 

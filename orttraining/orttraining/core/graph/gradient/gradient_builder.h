@@ -1,16 +1,32 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 #pragma once
-#include "gradient_builder_base.h"
+
+#include <cmath>
+#include <numeric>
+#include <list>
+
+#include "onnx/defs/attr_proto_util.h"
+#include "onnx/defs/tensor_proto_util.h"
+
+#include "core/framework/tensorprotoutils.h"
+#include "core/providers/common.h"
+#include "orttraining/core/framework/distributed_run_context.h"
+#include "orttraining/core/graph/gradient/gradient_builder_registry.h"
+#include "orttraining/core/graph/gradient/gradient_builder_base.h"
+#include "orttraining/core/graph/graph_augmenter.h"
 
 namespace onnxruntime {
 namespace training {
-// TODO: maybe group the gradient builders and split them into different files.
+
 #define DECLARE_GRADIENT_BUILDER(name)                         \
   class name : public GradientBuilderBase {                    \
     using GradientBuilderBase::GradientBuilderBase;            \
     std::vector<NodeDef> GetGradientDefsImpl() const override; \
   };
+
+#define IMPLEMENT_GRADIENT_BUILDER(name) \
+  std::vector<NodeDef> name::GetGradientDefsImpl() const
 
 DECLARE_GRADIENT_BUILDER(GetCastGradient)
 DECLARE_GRADIENT_BUILDER(GetSinGradient)

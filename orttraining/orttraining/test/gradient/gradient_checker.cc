@@ -18,7 +18,7 @@ limitations under the License.
 #include "gradient_checker.h"
 #include "gradient_op_test_utils.h"
 #include "orttraining/core/framework/gradient_graph_builder.h"
-#include "orttraining/core/graph/gradient_config.h"
+#include "orttraining/core/graph/gradient/gradient_config.h"
 #include "test/util/include/test_random_seed.h"
 #include <random>
 namespace onnxruntime {
