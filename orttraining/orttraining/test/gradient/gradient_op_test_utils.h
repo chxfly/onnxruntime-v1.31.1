@@ -11,6 +11,19 @@ using TestDataVector = std::tuple<std::vector<std::vector<TensorInfo>>, // Input
                                   std::vector<std::vector<TensorInfo>>, // output data
                                   std::vector<std::vector<onnx::AttributeProto>>>; //attribute
 
+// static bool IsErrorWithinTolerance(float error, float tolerance) {
+//   return !std::isnan(error) && !std::isnan(tolerance) && error <= tolerance;
+// }
+
+// #define EXPECT_IS_TINIER_THAN(max_error, tolerance)         \
+//   EXPECT_TRUE(IsErrorWithinTolerance(max_error, tolerance)) \
+//       << "max_error: " << max_error                         \
+//       << "; tolerance: " << tolerance                       \
+//       << "; ORT test random seed: " << GetTestRandomSeed() << "; "
+
+// #define EXPECT_IS_TINY(max_error) \
+//   EXPECT_IS_TINIER_THAN(max_error, 1.5e-2f)
+
 class GradientOpTester : public OpTester {
  public:
   explicit GradientOpTester(const char* op,
