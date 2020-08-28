@@ -569,7 +569,8 @@ def save_checkpoint(model, checkpoint_dir, checkpoint_prefix="ORT_checkpoint", c
 
     assert os.path.exists(checkpoint_dir), "ERROR: Checkpoint directory doesn't exist: {}".format(checkpoint_dir)
 
-    checkpoint_name = get_checkpoint_name(checkpoint_prefix, model.deepspeed_zero_stage_, model.world_rank, model.world_size)
+    checkpoint_name = get_checkpoint_name(checkpoint_prefix, model.deepspeed_zero_stage_, model.world_rank, model.world_size, 
+        model.horizontal_parallel_size, model.pipeline_parallel_size)
     checkpoint_file = os.path.join(checkpoint_dir, checkpoint_name)
 
     if os.path.exists(checkpoint_file):
@@ -578,7 +579,8 @@ def save_checkpoint(model, checkpoint_dir, checkpoint_prefix="ORT_checkpoint", c
     torch.save(checkpoint_state_dict, checkpoint_file)
 
 def _load_single_checkpoint(model, checkpoint_dir, checkpoint_prefix, is_partitioned, strict):
-    checkpoint_name = get_checkpoint_name(checkpoint_prefix, is_partitioned, model.world_rank, model.world_size)
+    checkpoint_name = get_checkpoint_name(checkpoint_prefix, is_partitioned, model.world_rank, model.world_size, 
+        model.horizontal_parallel_size, model.pipeline_parallel_size)
     checkpoint_file = os.path.join(checkpoint_dir, checkpoint_name)
 
     if is_partitioned:
@@ -851,7 +853,8 @@ class ORTTrainer():
 
             if self._extra_postprocess:
                 self._extra_postprocess(self.onnx_model_)
-
+        # print("Saving onnx model:")
+        # onnx.save(self.onnx_model_, '/bert_ort/aibhanda/faireseq_t5/checkpoints/t5_small_torch.onnx')
         self._init_session()
 
     def train(self):
@@ -885,15 +888,18 @@ class ORTTrainer():
         for name in session_state:
             torch_state[name] = torch.from_numpy(session_state[name])
 
+        # import pdb; pdb.set_trace()
         # extract untrained weights and buffer
         for n in self.onnx_model_.graph.initializer:
             if n.name not in torch_state:
                 torch_state[n.name] = torch.from_numpy(numpy_helper.to_array(n))
 
-        # Need to remove redundant initializers and name suffices to map back to original torch state names
-        torch_state_to_return = {key: torch_state[key] for key in self.original_model_state_keys if key in torch_state} \
-                                if self.original_model_state_keys \
-                                else torch_state
+        # # Need to remove redundant initializers and name suffices to map back to original torch state names
+        # torch_state_to_return = {key: torch_state[key] for key in self.original_model_state_keys if key in torch_state} \
+        #                         if self.original_model_state_keys \
+        #                         else torch_state
+        torch_state_to_return = torch_state
+
         return torch_state_to_return
 
     def load_state_dict(self, state_dict, strict=False):
@@ -1013,6 +1019,7 @@ class ORTTrainer():
             assert len(self.input_desc_with_lr) == len(input)
             input_descs = self.input_desc_with_lr
 
+        # save_checkpoint(self, "/bert_ort/aibhanda/faireseq_t5/checkpoints/1step_2H/before")
         self.current_step += 1
 
         # handle gradient accumulation in fully optimized mode
@@ -1062,6 +1069,7 @@ class ORTTrainer():
         else:
             results = [session_run_results[output_desc.name_] for output_desc in self.model_desc_.outputs_]
 
+        # save_checkpoint(self, "/bert_ort/aibhanda/faireseq_t5/checkpoints/1step_2H/after")
         return results[0] if len(results) == 1 else results
 
     def __call__(self, *args, **kwargs):
