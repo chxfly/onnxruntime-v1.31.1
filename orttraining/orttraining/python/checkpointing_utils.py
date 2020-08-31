@@ -1,6 +1,7 @@
 import os
 from collections import OrderedDict
 import torch
+import tempfile
 
 def list_checkpoint_files(checkpoint_dir, checkpoint_prefix, extension='.ort.pt'):
     ckpt_file_names = [f for f in os.listdir(checkpoint_dir) if f.startswith(checkpoint_prefix)]
@@ -12,24 +13,36 @@ def list_checkpoint_files(checkpoint_dir, checkpoint_prefix, extension='.ort.pt'
 
 def get_checkpoint_name(prefix, zero_enabled, world_rank=0, world_size=1, horizontal_parallel_size=1, pipeline_parallel_size=1):
     data_parallel_size = world_size / horizontal_parallel_size / pipeline_parallel_size
+    # need to change to this below
+    # data_parallel_size = int(world_size / horizontal_parallel_size / pipeline_parallel_size)
     parallellism_info = 'D.{data_parallel_size}.H.{horizontal_parallel_size}.P.{pipeline_parallel_size}'
     SINGLE_CHECKPOINT_FILENAME='{prefix}.ort.pt'
     MULTIPLE_CHECKPOINT_FILENAME='{prefix}.rank.{world_rank}.{world_size}.' + parallellism_info + '.ort.pt'
     
     is_partitioned = zero_enabled or (horizontal_parallel_size > 1) or (pipeline_parallel_size > 1)
-    # if is_partitioned:
-    #     filename=MULTIPLE_CHECKPOINT_FILENAME.format(prefix=prefix, world_rank=world_rank, world_size=(world_size-1),
-    #         data_parallel_size=data_parallel_size, 
-    #         horizontal_parallel_size=horizontal_parallel_size, 
-    #         pipeline_parallel_size=pipeline_parallel_size)
-    # else:
-    #     filename=SINGLE_CHECKPOINT_FILENAME.format(prefix=prefix)
-    filename=MULTIPLE_CHECKPOINT_FILENAME.format(prefix=prefix, world_rank=world_rank, world_size=(world_size-1),
-        data_parallel_size=data_parallel_size, 
-        horizontal_parallel_size=horizontal_parallel_size, 
-        pipeline_parallel_size=pipeline_parallel_size)
+    if is_partitioned:
+        filename=MULTIPLE_CHECKPOINT_FILENAME.format(prefix=prefix, world_rank=world_rank, world_size=(world_size-1),
+            data_parallel_size=data_parallel_size, 
+            horizontal_parallel_size=horizontal_parallel_size, 
+            pipeline_parallel_size=pipeline_parallel_size)
+    else:
+        filename=SINGLE_CHECKPOINT_FILENAME.format(prefix=prefix)
+    # filename=MULTIPLE_CHECKPOINT_FILENAME.format(prefix=prefix, world_rank=world_rank, world_size=(world_size-1),
+    #     data_parallel_size=data_parallel_size, 
+    #     horizontal_parallel_size=horizontal_parallel_size, 
+    #     pipeline_parallel_size=pipeline_parallel_size)
 
     return filename
+
+# l=[]
+# for i in range(64):
+#     l.append(get_checkpoint_name("ORT_checkpoint", True, i, 64, 16, 1))
+# import random
+# r_l = l[:]
+# random.shuffle(r_l)
+# print(r_l)
+# s_l = sorted(r_l, key=lambda x: int(x.split('.rank.')[-1].split(".")[0]))
+# assert l == s_l
 
 def split_state_dict(state_dict):
     optimizer_keys = ['Moment_', 'Update_Count_', 'Step_']
@@ -46,7 +59,7 @@ def split_state_dict(state_dict):
     
     return split_sd
 
-def is_equal(A, B):
+def is_equal_dict(A, B):
     try:
         assert A.keys() == B.keys()
         for k in A.keys():
@@ -60,15 +73,9 @@ def is_equal_tensor(A, B):
 
 class CombineZeroCheckpoint(object):
     def __init__(self, checkpoint_files, clean_state_dict = None):
-
-        assert len(checkpoint_files) > 0, "No checkpoint files passed."
-
         self.checkpoint_files = checkpoint_files
         self.clean_state_dict = clean_state_dict
-        self.world_size = int(self.checkpoint_files[0].split('rank')[1].split('.')[2]) +1
-        print(f"World size = {self.world_size}, expecting {self.world_size} files.")        
-        assert len(self.checkpoint_files) == self.world_size, "Could not find {} files".format(self.world_size)
-        
+                
         self.weight_shape_map = dict()
     
     def _is_sharded(self, name):
@@ -104,15 +111,14 @@ class CombineZeroCheckpoint(object):
                 state_dict[weight_name] = state_dict[weight_name].reshape(set_size)
         return state_dict
   
-    def aggregate_checkpoints(self):
-        checkpoint_dir=os.path.dirname(self.checkpoint_files[0])
-        checkpoint_prefix = self.checkpoint_files[0].split('.rank')[0]
+    def aggregate_checkpoints(self, ranks = None):
         self.aggregate_state_dict=dict()
-
         is_fp16 = False
         weight_offset = dict()
-        for i in range(self.world_size):
-            checkpoint_name = get_checkpoint_name(checkpoint_prefix, True, i, self.world_size)
+        if ranks == None:
+            ranks = range(len(self.checkpoint_files))
+        for i in ranks:
+            checkpoint_name = self.checkpoint_files[i]
             print("Loading state dict from: {}".format(checkpoint_name))
             rank_state_dict = torch.load(checkpoint_name, map_location=torch.device("cpu"))
             if 'model' in rank_state_dict:
@@ -181,19 +187,8 @@ class CombineZeroCheckpoint(object):
 
 class CombineMegatronCheckpoint(object):
     def __init__(self, checkpoint_files, clean_state_dict = None):
-
-        assert len(checkpoint_files) > 0, "No checkpoint files passed."
-
         self.checkpoint_files = checkpoint_files
         self.clean_state_dict = clean_state_dict
-        filename = os.path.basename(self.checkpoint_files[0])
-        self.checkpoint_prefix = self.checkpoint_files[0].split('.rank')[0]
-        self.world_size = int(filename.split('rank')[1].split('.')[2]) +1
-        self.D_size = int(filename.split('.D.')[1].split('.')[0])
-        self.H_size = int(filename.split('.H.')[1].split('.')[0])
-        self.P_size = int(filename.split('.P.')[1].split('.')[0])
-        # print(f"World size = {self.world_size}.")        
-        # assert len(self.checkpoint_files) == self.world_size, "Could not find {} files".format(self.world_size)
     
     def _has_fp16_weights(self, state_dict):
         for k in state_dict.keys():
@@ -218,7 +213,7 @@ class CombineMegatronCheckpoint(object):
         param_name = param_name.split('_row')[0].split('_column')[0]
         param_name = param_name + '_fp16' if is_fp16==True else param_name
         return param_name, horizontal_rank, row_split, column_split
-
+    
     def _aggregate(self, param_dict):
         sharded_params=set()
         for k,v in param_dict.items():
@@ -235,8 +230,9 @@ class CombineMegatronCheckpoint(object):
                     del(self.aggregate_state_dict[param_name])
 
                 if param_name in self.aggregate_state_dict:
-                    # Found a previous shard of the param, concatenate shards ordered by ranks
-                    self.aggregate_state_dict[param_name] = torch.cat((self.aggregate_state_dict[param_name], v), axis)
+                    if not k.startswith('Update_Count'):
+                        # Found a previous shard of the param, concatenate shards ordered by ranks
+                        self.aggregate_state_dict[param_name] = torch.cat((self.aggregate_state_dict[param_name], v), axis)
                 else:
                     self.aggregate_state_dict[param_name] = v
             
@@ -245,15 +241,19 @@ class CombineMegatronCheckpoint(object):
                     # stale initializer that must be ignored
                     continue
                 if k in self.aggregate_state_dict:
-                    assert (self.aggregate_state_dict[k] == v).all(), "Unsharded params must have the same value"
+                    # disabled until megatron bug is fixed
+                    # assert (self.aggregate_state_dict[k] == v).all(), "Unsharded params must have the same value"
+                    print(f"Mismatch for param :{k}")
                 else:
                     self.aggregate_state_dict[k] = v
 
-    def aggregate_checkpoints(self):
+    def aggregate_checkpoints(self, ranks=None):
         self.aggregate_state_dict=dict()
-        for i in range(len(self.checkpoint_files)):
+        if ranks == None:
+            ranks = range(len(self.checkpoint_files))
+        for i in ranks:
             checkpoint_name = self.checkpoint_files[i]
-            print("Loading state dict from: {}".format(checkpoint_name))
+            print("Megatron Aggregator: Loading state dict from: {}".format(checkpoint_name))
             rank_state_dict = torch.load(checkpoint_name, map_location=torch.device("cpu"))
             
             if 'model' in rank_state_dict:
@@ -266,11 +266,111 @@ class CombineMegatronCheckpoint(object):
 
             self._aggregate(rank_state_dict['fp16_param'])
             #need to debug
-            # self._aggregate(rank_state_dict['fp32_param'])
+            self._aggregate(rank_state_dict['fp32_param'])
             self._aggregate(rank_state_dict['optimizer'])           
 
         return self.aggregate_state_dict
 
+class CombineCheckpoint(object):
+    def __init__(self, checkpoint_files, clean_state_dict = None):
+
+        assert len(checkpoint_files) > 0, "No checkpoint files passed."
+
+        self.checkpoint_files = checkpoint_files
+        self.clean_state_dict = clean_state_dict
+        filename = os.path.basename(self.checkpoint_files[0])
+        self.checkpoint_prefix = self.checkpoint_files[0].split('.rank')[0]
+        self.world_size = int(filename.split('rank')[1].split('.')[2]) +1
+        self.D_size = int(filename.split('.D.')[1].split('.')[0])
+        self.H_size = int(filename.split('.H.')[1].split('.')[0])
+        self.P_size = int(filename.split('.P.')[1].split('.')[0])
+        print(f"World size = {self.world_size}.")        
+        assert len(self.checkpoint_files) == self.world_size, "Could not find {} files".format(self.world_size)
+
+        self.checkpoint_files = sorted(self.checkpoint_files, key=lambda x: int(x.split('.rank.')[-1].split(".")[0]))
+
+    def get_parallellism_groups(self):
+        horizontal_parallel_size = self.H_size
+        world_size = self.world_size
+        data_parallel_size = self.D_size
+
+        num_data_groups = int(world_size / data_parallel_size)
+        data_groups = {}
+        for data_group_id in range(num_data_groups):
+            data_group_ranks=[]
+            for r in range(data_parallel_size):
+                data_group_ranks.append(data_group_id + horizontal_parallel_size * r)
+            print("Data Group: {} : {}".format(data_group_id, data_group_ranks))
+            data_groups[data_group_id] = data_group_ranks
+       
+        num_hori_groups = int(world_size / horizontal_parallel_size)
+        hori_groups = {}
+        for hori_group_id in range(num_hori_groups):
+            hori_group_ranks=[]
+            for r in range(horizontal_parallel_size):
+                hori_group_ranks.append(hori_group_id * horizontal_parallel_size + r)
+            print("Horizntal Group: {} : {}".format(hori_group_id, hori_group_ranks))
+            hori_groups[hori_group_id] = hori_group_ranks
+        
+        return data_groups, hori_groups
+
+    def aggregate_checkpoints(self):
+        D_groups, H_groups = self.get_parallellism_groups()
+        combine_zero = len(D_groups[0]) > 1
+        combine_megatron = len(H_groups[0]) > 1
+
+        save_dir = os.path.join(tempfile.gettempdir(), "ort_checkpoint_dir")
+        
+        zero_ckpt_agg = CombineZeroCheckpoint(self.checkpoint_files, self.clean_state_dict)
+        aggregate_data_checkpoint_files = []
+        aggregate_state = None
+        if combine_zero:
+            for group_id in range(len(D_groups)):
+                aggregate_data_checkpoints = zero_ckpt_agg.aggregate_checkpoints(D_groups[group_id])
+
+                if not combine_megatron: # no need to combine other data groups
+                    aggregate_state = aggregate_data_checkpoints
+                    break 
+
+                filename = self.checkpoint_prefix + '.data_group.' + str(group_id) + '.ort.pt'
+                filepath = os.path.join(save_dir, filename)
+                torch.save(aggregate_data_checkpoints, filepath)
+                aggregate_data_checkpoint_files.append(filepath)
+        
+        if len(aggregate_data_checkpoint_files) == 0:
+            aggregate_data_checkpoint_files = self.checkpoint_files
+        
+        if combine_megatron:            
+            megatron_ckpt_agg = CombineMegatronCheckpoint(aggregate_data_checkpoint_files, self.clean_state_dict)
+            aggregate_state = megatron_ckpt_agg.aggregate_checkpoints()
+
+        return aggregate_state
+
+def megatron_test_combined():
+    checkpoint_dir="/bert_ort/aibhanda/faireseq_t5/checkpoints/FP32_D1_H2_P1_1/"
+    # checkpoint_dir="/bert_ort/aibhanda/faireseq_t5/checkpoints/1step_2D/after/"
+    checkpoint_prefix="ORT_checkpoint"
+    pytorch_ckpt_file="/bert_ort/aibhanda/faireseq_t5/checkpoints/FP32_D1_H4_P1/pytorch_state.pyt"
+    checkpoint_files = list_checkpoint_files(checkpoint_dir, checkpoint_prefix)
+    # checkpoint_files = sorted(checkpoint_files)
+    sd0 = torch.load(checkpoint_files[0], map_location='cpu')['model']
+    sd1 = torch.load(checkpoint_files[1], map_location='cpu')['model']
+
+    ckpt_agg = CombineCheckpoint(checkpoint_files)
+    agg_sd = ckpt_agg.aggregate_checkpoints()
+
+    # missing_keys = ['decoder.t5_stack.embed_tokens.weight', 'decoder.embed_tokens.weight']
+    pyt_sd = torch.load(pytorch_ckpt_file, map_location='cpu')
+    verified_keys = 0
+    for k, v in pyt_sd.items():
+        try:
+            assert(
+                v.size() == agg_sd[k.split('model_.')[1]].size())
+            verified_keys += 1
+        except:
+            print('Skipping: '+k)
+   
+    return 1
 
 def megatron_test_4H():
     checkpoint_dir="/bert_ort/aibhanda/faireseq_t5/checkpoints/FP32_D1_H4_P1_1/"
@@ -420,13 +520,13 @@ def megatron_test_Z_H():
     ssd2 = split_state_dict(sd2)
     ssd3 = split_state_dict(sd3)
     
-    assert is_equal(ssd0['fp32_param'], ssd2['fp32_param'])
-    assert is_equal(ssd1['fp32_param'], ssd3['fp32_param'])
+    assert is_equal_dict(ssd0['fp32_param'], ssd2['fp32_param'])
+    assert is_equal_dict(ssd1['fp32_param'], ssd3['fp32_param'])
 
     return 1
 
 def megatron_test_3():
-    horizontal_parallel_size = 4
+    horizontal_parallel_size = 2
     world_size = 4
     data_parallel_size = int(world_size/horizontal_parallel_size)
 
@@ -458,8 +558,10 @@ def megatron_test_3():
         
 
 
-megatron_test_before_after()
+# megatron_test_before_after()
 # megatron_test_2H()
 # megatron_test_2()
 # megatron_test_Z_H()
 # megatron_test_3()
+megatron_test_combined()
+
