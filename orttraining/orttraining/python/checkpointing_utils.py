@@ -279,7 +279,8 @@ class CombineCheckpoint(object):
         self.checkpoint_files = checkpoint_files
         self.clean_state_dict = clean_state_dict
         filename = os.path.basename(self.checkpoint_files[0])
-        self.checkpoint_prefix = self.checkpoint_files[0].split('.rank')[0]
+        # self.checkpoint_prefix = self.checkpoint_files[0].split('.rank')[0]
+        self.checkpoint_prefix = filename.split('.rank')[0]
         self.world_size = int(filename.split('rank')[1].split('.')[2]) +1
         self.D_size = int(filename.split('.D.')[1].split('.')[0])
         self.H_size = int(filename.split('.H.')[1].split('.')[0])
@@ -320,6 +321,7 @@ class CombineCheckpoint(object):
         combine_megatron = len(H_groups[0]) > 1
 
         save_dir = os.path.join(tempfile.gettempdir(), "ort_checkpoint_dir")
+        os.makedirs(save_dir, exist_ok = True) 
         
         zero_ckpt_agg = CombineZeroCheckpoint(self.checkpoint_files, self.clean_state_dict)
         aggregate_data_checkpoint_files = []
@@ -344,17 +346,25 @@ class CombineCheckpoint(object):
             megatron_ckpt_agg = CombineMegatronCheckpoint(aggregate_data_checkpoint_files, self.clean_state_dict)
             aggregate_state = megatron_ckpt_agg.aggregate_checkpoints()
 
+        # remove temp files created
+        for f in aggregate_data_checkpoint_files:
+            os.remove(f)
+        os.rmdir(save_dir)
+
         return aggregate_state
 
 def megatron_test_combined():
-    checkpoint_dir="/bert_ort/aibhanda/faireseq_t5/checkpoints/FP32_D1_H2_P1_1/"
+    # checkpoint_dir="/bert_ort/aibhanda/faireseq_t5/checkpoints/FP32_D1_H2_P1_1/"
     # checkpoint_dir="/bert_ort/aibhanda/faireseq_t5/checkpoints/1step_2D/after/"
+    checkpoint_dir="/bert_ort/aibhanda/faireseq_t5/checkpoints/FP32_D2_H2_P1_zero/"
     checkpoint_prefix="ORT_checkpoint"
     pytorch_ckpt_file="/bert_ort/aibhanda/faireseq_t5/checkpoints/FP32_D1_H4_P1/pytorch_state.pyt"
     checkpoint_files = list_checkpoint_files(checkpoint_dir, checkpoint_prefix)
-    # checkpoint_files = sorted(checkpoint_files)
+    checkpoint_files = sorted(checkpoint_files)
     sd0 = torch.load(checkpoint_files[0], map_location='cpu')['model']
     sd1 = torch.load(checkpoint_files[1], map_location='cpu')['model']
+    sd2 = torch.load(checkpoint_files[2], map_location='cpu')['model']
+    sd3 = torch.load(checkpoint_files[3], map_location='cpu')['model']
 
     ckpt_agg = CombineCheckpoint(checkpoint_files)
     agg_sd = ckpt_agg.aggregate_checkpoints()
