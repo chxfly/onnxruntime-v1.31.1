@@ -112,7 +112,10 @@ Status AttentionBase::CheckInputs(const TensorShape& input_shape,
       }
     } else if (mask_dims.size() == 2) {
       if (static_cast<int>(mask_dims[0]) != batch_size || static_cast<int>(mask_dims[1]) != past_sequence_length + sequence_length) {
-        return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Inputs 'mask_index' with raw attention mask shall have shape batch_size x (past_sequence_length + sequence_length)");
+        // Add operator supports broadcasting. Here we handle a case that 2nd dimension has length of 1.
+        if (!(static_cast<int>(mask_dims[0]) == batch_size && static_cast<int>(mask_dims[1]) == 1)) {
+          return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Inputs 'mask_index' with raw attention mask shall have shape batch_size x (past_sequence_length + sequence_length)");
+        }
       }
     } else {
       return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Input 'mask_index' is expected to have 1 or 2 dimensions, got ",

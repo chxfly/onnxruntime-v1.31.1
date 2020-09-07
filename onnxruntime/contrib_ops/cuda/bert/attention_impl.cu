@@ -679,6 +679,13 @@ bool QkvToContext(
 
   bool use_2d_attention_mask = (nullptr != mask_index && nullptr != mask_index_dims && mask_index_dims->size() == 2);
 
+  // Handle a case that using broadcasting (all values will be 1), which has same effect as no mask.
+  if (use_2d_attention_mask && mask_index_dims[1] == 1) {
+    use_2d_attention_mask = false;
+    mask_index = nullptr;
+  }
+
+
   // compute Q*K' (as K'*Q), scaled by 1/sqrt(H) and store in scratch1: BxNxSxS*
   // Q: BxNxSxH, K (present_k): BxNxS*xH, Q*K': BxNxSxS*
   const float rsqrt_head_size = 1.f / sqrt(static_cast<float>(head_size));
