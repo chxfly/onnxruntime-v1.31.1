@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "test/providers/provider_test_utils.h"
+#include "test/providers/compare_provider_test_utils.h"
 
 namespace onnxruntime {
 namespace test {
@@ -37,6 +38,7 @@ void RunTest(int64_t axis, const std::vector<int64_t> split_sizes, const ShapeAn
   }
   std::unordered_set<std::string> excluded_providers;
   if (!is_tensorrt_supported) {
+    excluded_providers.insert(kCpuExecutionProvider);
     excluded_providers.insert(kTensorrtExecutionProvider);
   }
   test.Run(expect_failure ? ExpectResult::kExpectFailure : ExpectResult::kExpectSuccess, err_msg, excluded_providers);
@@ -223,6 +225,24 @@ TEST(SplitOperatorTest, Axis1EqualSplitFloat_Large) {
   outputs.push_back({{2, 1}, {9.f, 18.f}});
 
   RunTest<float>(axis, {}, input, outputs, false);
+}
+
+TEST(SplitOperatorTest, Axis1EqualSplitFloat_Large2) {
+  const int64_t axis = -1;
+  std::vector<ShapeAndFloatData> outputs;
+
+  int A = 50, B = 20, C = 2304, D = 768;
+
+  // input shape and data
+  RandomValueGenerator random{};
+  const auto X_data = random.Uniform<float>({A, B, C}, -10.0, 10.0);
+  ShapeAndFloatData input = {{A, B, C}, X_data};
+
+  outputs.push_back({{A, B, D}, std::vector<float>(A * B * D, 0.f)});
+  outputs.push_back({{A, B, D}, std::vector<float>(A * B * D, 0.f)});
+  outputs.push_back({{A, B, D}, std::vector<float>(A * B * D, 0.f)});
+
+  RunTest<float>(axis, {}, input, outputs, false, true);
 }
 
 TEST(SplitOperatorTest, Axis1UnequalSplitFloat) {

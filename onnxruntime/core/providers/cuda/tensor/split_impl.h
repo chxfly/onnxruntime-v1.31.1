@@ -9,16 +9,15 @@
 namespace onnxruntime {
 namespace cuda {
 
-template <typename T_INT64, typename T_OUTPUT>
-Status SplitImpl(const size_t element_size,
+Status SplitImpl(const size_t element_size, 
                  const int block_size_including_axis_dim,
                  const int block_size_inside_axis_dim,
-                 T_INT64 split_sizes,
-                 T_INT64 split_sizes_range,
-                 const int64_t* axis_dimension_input_output_mapping,
+                 const int64_t* split_sizes,
+                 const int64_t* split_sizes_range,
                  const int num_outputs,
                  const void* input_data,
-                 T_OUTPUT output_ptr,
+                 //void** output_ptr,
+                 TArray<void*, 3> output_ptr,
                  const size_t N);
 
 }  // namespace cuda
