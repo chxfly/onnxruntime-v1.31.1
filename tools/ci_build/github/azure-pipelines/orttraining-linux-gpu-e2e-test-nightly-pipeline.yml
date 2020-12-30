@@ -39,24 +39,6 @@ jobs:
     displayName: 'Map test data'
     condition: succeededOrFailed() # ensure all tests are run
 
-  # Hit OOM with run_training_pipeline_e2e_tests.py - slightly above 16GB limit.
-  # leave this code here for further investigation.
-  # https://msdata.visualstudio.com/Vienna/_workitems/edit/956642
-  - script: |
-      docker run \
-        --gpus all \
-        --shm-size=1024m \
-        --rm \
-        --volume $(Build.BinariesDirectory):/build \
-        --volume /bert_data:/bert_data \
-        --volume /bert_ort:/bert_ort \
-        onnxruntime_e2e_test_image \
-          /build/RelWithDebInfo/run_training_pipeline_e2e_tests.py \
-            --cwd /build/RelWithDebInfo
-    displayName: 'Run run_training_pipeline_e2e_tests.py'
-    condition: succeededOrFailed() # ensure all tests are run
-    timeoutInMinutes: 10
-
   - script: |
       docker run \
         --gpus all \
@@ -83,7 +65,7 @@ jobs:
         --volume $(Build.BinariesDirectory):/build \
         --volume /bert_data:/bert_data \
         onnxruntime_e2e_test_image \
-          mpirun -n 4 /bert_ort/liqun/onnxruntime/build/Linux/RelWithDebInfo/onnxruntime_training_bert \
+          mpirun -n 4 /build/RelWithDebInfo/onnxruntime_training_bert \
           --ort_log_severity 1 --optimizer=Lamb --learning_rate=3e-3 --max_seq_length=128 --max_predictions_per_seq=20 \
           --warmup_ratio=0.2843 --warmup_mode=Poly \
           --model_name /bert_data/bert_models/nv/bert-large/bert-large-uncased_L_24_H_1024_A_16_V_30528_S_512_Dp_0.1_optimized_layer_norm_opset12 \
@@ -96,6 +78,24 @@ jobs:
     condition: succeededOrFailed() # ensure all tests are run
     timeoutInMinutes: 10
   
+  # Hit OOM with run_training_pipeline_e2e_tests.py - slightly above 16GB limit.
+  # leave this code here for further investigation.
+  # https://msdata.visualstudio.com/Vienna/_workitems/edit/956642
+  - script: |
+      docker run \
+        --gpus all \
+        --shm-size=1024m \
+        --rm \
+        --volume $(Build.BinariesDirectory):/build \
+        --volume /bert_data:/bert_data \
+        --volume /bert_ort:/bert_ort \
+        onnxruntime_e2e_test_image \
+          /build/RelWithDebInfo/run_training_pipeline_e2e_tests.py \
+            --cwd /build/RelWithDebInfo
+    displayName: 'Run run_training_pipeline_e2e_tests.py'
+    condition: succeededOrFailed() # ensure all tests are run
+    timeoutInMinutes: 10
+
   - script: |
       docker run \
         --gpus all \
