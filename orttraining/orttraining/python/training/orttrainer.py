@@ -148,7 +148,7 @@ class ORTTrainer(object):
                 "'loss_fn' must be either 'None' or 'torch.nn.Module'"
             self._torch_model = model
             self.loss_fn = loss_fn
-            # TODO: Subject to change after checkpoint redesign
+            # TODO: Remove when experimental checkpoint functions are removed.
             self._torch_state_dict_keys = list(model.state_dict().keys())
         elif isinstance(model, onnx.ModelProto):
             assert loss_fn is None, "'loss_fn' must not be specified when 'model' is an ONNX model"
@@ -195,16 +195,8 @@ class ORTTrainer(object):
                         break
                 assert dtype is not None, f"ONNX model with unknown output type ({o_desc.name})"
 
-        # Set GPU device and memory limit
-        if 'cuda' in self.options.device.id.lower():
-            mem_limit = self.options.device.mem_limit
-            if  mem_limit > 0:
-                ort.set_cuda_mem_limit(self.options.device.mem_limit)
-            ort.set_cuda_device_id(_utils.get_device_index(self.options.device.id))
-
-        # TODO: Subject to change after checkpoint redesign
+        # TODO: Remove when experimental checkpoint functions are removed.
         self._state_dict = {}
-        self._optim_state_dict = {}
 
         self._train_step_info = TrainStepInfo(self.optim_config)
         self._training_session = None
@@ -637,8 +629,6 @@ class ORTTrainer(object):
         ort_parameters.weights_to_train = trainable_params
         ort_parameters.optimizer_attributes_map = optimizer_attributes_map
         ort_parameters.optimizer_int_attributes_map = optimizer_int_attributes_map
-        if bool(self._optim_state_dict):
-            ort_parameters.set_optimizer_initial_state(self._optim_state_dict)
         if bool(optimizer_state_dict):
             ort_parameters.set_optimizer_initial_state(optimizer_state_dict)
 
@@ -658,10 +648,30 @@ class ORTTrainer(object):
         # old ort session may already exists and occupies GPU memory when creating new session, this may cause OOM error.
         # for example, load_state_dict will be called before returing the function, and it calls _init_session again
         del self._training_session
+
+        # Set provider-specific options if needed
+        def get_providers():
+            providers = ort.get_available_providers()
+
+            if 'cuda' in self.options.device.id.lower():
+                cuda_ep_options = {"device_id": _utils.get_device_index(self.options.device.id)}
+                if self.options.device.mem_limit > 0:
+                    cuda_ep_options["cuda_mem_limit"] = self.options.device.mem_limit
+
+                cuda_ep_name = "CUDAExecutionProvider"
+
+                if cuda_ep_name not in providers:
+                    raise RuntimeError(
+                        "ORTTrainer options specify a CUDA device but the {} provider is unavailable.".format(
+                            cuda_ep_name))
+
+                providers[providers.index(cuda_ep_name)] = (cuda_ep_name, cuda_ep_options)
+
+            return providers
+
         # TrainingSession
-        self._training_session = ort.TrainingSession(self._onnx_model.SerializeToString(),
-                                                     ort_parameters,
-                                                     session_options)
+        self._training_session = ort.TrainingSession(self._onnx_model.SerializeToString(), ort_parameters,
+                                                     session_options, get_providers())
 
         # I/O bindings
         self._train_io_binding = self._training_session.io_binding()
@@ -738,7 +748,7 @@ class ORTTrainer(object):
             self._model_desc_outputs_with_gradient_accumulation = [
                 *self.model_desc.outputs, self.model_desc.gradient_accumulation]
 
-        # TODO: Subject to change after checkpoint redesign
+        # TODO: Remove when experimental checkpoint functions are removed
         if self._state_dict:
             checkpoint.experimental_load_state_dict(self, self._state_dict, self._load_state_dict_strict)
             self._state_dict_debug = self._state_dict
