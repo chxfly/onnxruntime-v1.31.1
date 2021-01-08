@@ -1390,7 +1390,7 @@ def run_training_pipeline_e2e_tests(cwd):
                '--max_predictions_per_seq=20',
                '--warmup_ratio=0.2843',
                '--warmup_mode=Poly',
-               '--model_name', '/bert_ort/bert_models/nv/bert-large/' +
+               '--model_name', '/bert_data/bert_models/nv/bert-large/' +
                'bert-large-uncased_L_24_H_1024_A_16_V_30528_S_512_Dp_0.1_optimized_layer_norm_opset12',
                '--train_data_dir', '/bert_data/128/books_wiki_en_corpus/train',
                '--test_data_dir', '/bert_data/128/books_wiki_en_corpus/test',
