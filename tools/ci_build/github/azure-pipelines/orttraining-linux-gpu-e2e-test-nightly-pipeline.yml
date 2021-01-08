@@ -41,6 +41,7 @@ jobs:
   - script: |
       docker run \
         --gpus all \
+        --shm-size=1024m \
         --rm \
         --volume $(Build.BinariesDirectory):/build \
         --volume /bert_data:/bert_data \
@@ -60,6 +61,7 @@ jobs:
   - script: |
       docker run \
         --gpus all \
+        --shm-size=1024m \
         --rm \
         --volume $(Build.BinariesDirectory):/build \
         --volume /bert_data:/bert_data \
