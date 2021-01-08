@@ -1435,10 +1435,10 @@ def run_onnxruntime_tests(args, source_dir, ctest_path, build_dir, configs):
 
         # TODO: temporarily disable this test to restore pipeline health. This test fails due to
         # an OOM regression. Invetigation undergoing.
-        # if args.enable_training and args.use_cuda and args.enable_training_pipeline_e2e_tests:
-        #     # run distributed pipeline test on 4-GPU CI machine.
-        #     run_training_pipeline_e2e_tests(cwd=cwd)
-        #     continue
+        if args.enable_training and args.use_cuda and args.enable_training_pipeline_e2e_tests:
+            # run distributed pipeline test on 4-GPU CI machine.
+            run_training_pipeline_e2e_tests(cwd=cwd)
+            continue
 
         if args.android:
             run_android_tests(args, source_dir, config, cwd)
