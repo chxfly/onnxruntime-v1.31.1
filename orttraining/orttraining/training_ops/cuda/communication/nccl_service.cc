@@ -240,10 +240,12 @@ void NcclService::Initialize() {
   ncclUniqueId id;
   if (mpi_rank == 0) NCCL_CALL(ncclGetUniqueId(&id));
   MPI_CHECK(MPI_Bcast((void*)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
+
+  comm_ = nullptr;
   NCCL_CALL(ncclCommInitRank(&comm_, mpi_size, id, mpi_rank));
 
   std::cout << "NCCL_CALL(ncclCommInitRank(&comm_, mpi_size, id, mpi_rank)); passed" << std::endl;
-  std::cout << "comm_: " << std::endl;
+  std::cout << "comm_: " << comm_ << std::endl;
   // std::cout << "id, mpi_rank: " << id << "\t" << mpi_rank << std::endl;
 }
 
