@@ -1400,7 +1400,7 @@ def run_training_pipeline_e2e_tests(cwd):
                '--allreduce_in_fp16',
                '--gradient_accumulation_steps', '48',
                '--num_train_steps', '96',
-               '--train_batch_size', '50']
+               '--train_batch_size', '20']
 
     # TODO: currently the CI machine only has 4 GPUs for parallel tests.
     # Fill in more pipeline partition options when the machine has different GPUs counts.
