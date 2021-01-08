@@ -189,6 +189,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 #endif
 
   for (const auto& node_exec_plan : exec_plan_vec) {
+    LOGS(logger, INFO) << "Begin execution1";
     if (terminate_flag_) {
       LOGS(logger, WARNING) << "Exiting due to terminate flag being set to true.";
       return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Exiting due to terminate flag being set to true.");
@@ -296,6 +297,8 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
                                input_activation_sizes, input_parameter_sizes, node_name_for_profiling);
     }
 
+    LOGS(logger, INFO) << "Begin execution2";
+
     Status compute_status;
     {
 #ifdef CONCURRENCY_VISUALIZER
@@ -326,6 +329,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 #endif
     }
 
+    LOGS(logger, INFO) << "Begin execution3";
     if (!compute_status.IsOK()) {
       std::ostringstream ss;
       ss << "Non-zero status code returned while running " << node.OpType() << " node. Name:'" << node.Name()
