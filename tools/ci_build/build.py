@@ -1408,7 +1408,7 @@ def run_training_pipeline_e2e_tests(cwd):
         return
 
     # Test 4-way pipeline parallel
-    pp_command = ['mpirun', '-n', str(ngpus), '-x NCCL_DEBUG=INFO'] + command + \
+    pp_command = ['mpirun', '-n', str(ngpus)] + command + \
         [
             '--pipeline_parallel_size', '4', '--cut_group_info',
             '1149:407-1219/1341/1463/1585/1707/1829,' +
@@ -1419,7 +1419,7 @@ def run_training_pipeline_e2e_tests(cwd):
     run_subprocess(pp_command, cwd=cwd)
 
     # Test 2-way data parallel + 2-way pipeline parallel
-    pp_dp_command = ['mpirun', '-n', str(ngpus), '-x NCCL_DEBUG=INFO']
+    pp_dp_command = ['mpirun', '-n', str(ngpus)]
     pp_dp_command = pp_dp_command + command
     pp_dp_command = pp_dp_command + ['--data_parallel_size', '2', '--pipeline_parallel_size',
                                      '2', '--cut_group_info',
