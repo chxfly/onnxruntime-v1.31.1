@@ -203,6 +203,8 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 
     const auto& node = *graph_viewer.GetNode(node_exec_plan.node_index);
 
+    // LOGS(logger, INFO) << node.Name();
+
 #ifdef CONCURRENCY_VISUALIZER
     series.write_flag(node.Name().c_str());
 #endif

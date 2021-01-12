@@ -143,5 +143,6 @@ template bool CudaCall<cufftResult, true>(cufftResult retCode, const char* exprS
 
 #ifdef ORT_USE_NCCL
 template bool CudaCall<ncclResult_t, false>(ncclResult_t retCode, const char* exprString, const char* libName, ncclResult_t successCode, const char* msg);
+template bool CudaCall<ncclResult_t, true>(ncclResult_t retCode, const char* exprString, const char* libName, ncclResult_t successCode, const char* msg);
 #endif
 }  // namespace onnxruntime

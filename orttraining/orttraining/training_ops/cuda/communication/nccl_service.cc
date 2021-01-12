@@ -175,6 +175,7 @@ void NcclService::SubmitSendAndWait(void* ptr, size_t size, int peer) {
   // Pointer to enqueued task.
   const NcclTask* task;
 
+  std::cout << "waiting SubmitSendAndWait: " << rank_ << "-" << peer << std::endl;
   // Submit task.
   {
     std::lock_guard<std::mutex> guard(mutex_);
@@ -192,12 +193,14 @@ void NcclService::SubmitSendAndWait(void* ptr, size_t size, int peer) {
     std::unique_lock<std::mutex> lock(mutex_);
     cv_.wait(lock, [&] { return task->is_finished; });
   }
+  std::cout << "completed SubmitSendAndWait: " << rank_ << "-" << peer << std::endl;
 };
 
 void NcclService::SubmitRecvAndWait(void* ptr, size_t size, int peer) {
   // Wait until NCCL service is launched.
   WaitForLaunch();
 
+  std::cout << "waiting SubmitRecvAndWait: " << rank_ << "-" << peer << std::endl;
   // Pointer to euqueued task.
   const NcclTask* task;
   {
@@ -216,6 +219,7 @@ void NcclService::SubmitRecvAndWait(void* ptr, size_t size, int peer) {
     std::unique_lock<std::mutex> lock(mutex_);
     cv_.wait(lock, [&] { return task->is_finished; });
   }
+  std::cout << "completed SubmitRecvAndWait: " << rank_ << "-" << peer << std::endl;
 };
 
 void NcclService::Initialize() {
@@ -278,26 +282,36 @@ void NcclService::Launch() {
           continue;
         }
 
+        std::cout << "schedule_[time_].batch.size(): " << rank_ << "-" << schedule_[time_].batch.size() << std::endl;
+
         // Start NCCL parallel communication.
-        NCCL_CALL(ncclGroupStart());
+        NCCL_CALL_THROW(ncclGroupStart());
         for (auto& task : schedule_[time_].batch) {
           ORT_ENFORCE(task.is_enqueued, "Unscheduled task cannot be run. Use SubmitSendAndWait or SubmitRecvAndWait to schedule tasks.");
+          int peer = task.peers.front();
           switch (task.type) {
             case NcclTask::Type::SEND:
               ORT_ENFORCE(task.peers.size() == 1, "Send can only send data to one rank.");
-              NCCL_CALL(ncclSend(task.ptr, task.size, ncclChar, task.peers.front(), comm_, stream_));
+              std::cout << "SubmitSendAndWait: " << rank_ << "-" << peer <<  " calling NCCL_CALL(ncclSend(...));" << std::endl; 
+              NCCL_CALL_THROW(ncclSend(task.ptr, task.size, ncclChar, task.peers.front(), comm_, stream_));
+              std::cout << "SubmitSendAndWait: " << rank_ << "-" << peer <<  " completed NCCL_CALL(ncclSend(...));" << std::endl; 
               break;
             case NcclTask::Type::RECV:
               ORT_ENFORCE(task.peers.size() == 1, "Recv can only send data to one rank.");
-              NCCL_CALL(ncclRecv(task.ptr, task.size, ncclChar, task.peers.front(), comm_, stream_));
+              std::cout << "SubmitRecvAndWait: " << rank_ << "-" << peer <<  "calling NCCL_CALL(ncclRecv(...));" << std::endl; 
+              NCCL_CALL_THROW(ncclRecv(task.ptr, task.size, ncclChar, task.peers.front(), comm_, stream_));
+              std::cout << "SubmitRecvAndWait: " << rank_ << "-" << peer <<  "completed NCCL_CALL(ncclRecv(...));" << std::endl; 
               break;
             default:
               ORT_NOT_IMPLEMENTED("NCCL service currently only support ncclSend and ncclRecv.");
           }
           task.is_finished = true;
         }
-        NCCL_CALL(ncclGroupEnd());
 
+        std::cout << "waiting NCCL_CALL(ncclGroupEnd());" << rank_ << "-" << std::endl;
+        NCCL_CALL_THROW(ncclGroupEnd());
+
+        std::cout << "waiting CUDA_CALL(cudaStreamSynchronize(stream_)): " << rank_ << "-" << time_ << std::endl;
         // Make sure all NCCL computation are done.
         // Since the Submit*andWait are blocked by the following "cv_.notify_all()",
         // all NCCL Send and Recv called above are all finished before Submit*andWait returning.
@@ -305,6 +319,7 @@ void NcclService::Launch() {
         // when we call NCCL Send's and Recv's.
         CUDA_CALL(cudaStreamSynchronize(stream_));
 
+        std::cout << "completed CUDA_CALL(cudaStreamSynchronize(stream_)): " << time_ << std::endl;
         // This round of communication is done.
         // We can start waiting for the tasks to be fully scheduled.
         ++time_;

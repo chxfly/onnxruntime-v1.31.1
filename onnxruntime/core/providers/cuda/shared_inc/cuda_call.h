@@ -30,7 +30,7 @@ bool CudaCall(ERRTYPE retCode, const char* exprString, const char* libName, ERRT
 #define CUFFT_CALL_THROW(expr) (CudaCall<cufftResult, true>((expr), #expr, "CUFFT", CUFFT_SUCCESS))
 
 #ifdef ORT_USE_NCCL
-#define NCCL_CALL(expr) (CudaCall<ncclResult_t, false>((expr), #expr, "NCCL", ncclSuccess))
+#define NCCL_CALL(expr) (CudaCall<ncclResult_t, true>((expr), #expr, "NCCL", ncclSuccess))
 #define NCCL_CALL_THROW(expr) (CudaCall<ncclResult_t, true>((expr), #expr, "NCCL", ncclSuccess))
 #endif
 
