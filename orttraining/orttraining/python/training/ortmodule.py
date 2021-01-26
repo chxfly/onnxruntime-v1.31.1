@@ -8,6 +8,7 @@ import torch
 import warnings
 import numpy as np
 from inspect import signature
+from collections import OrderedDict
 
 from torch.utils.dlpack import from_dlpack
 
@@ -138,12 +139,13 @@ class ORTModule(torch.nn.Module):
         self._gradient_session = None
         self._gradient_io_binding = None
         self._output_buffers = {}
+        self._grad_ordering = None
 
         # Log level
         self._loglevel = getattr(logging, 'WARNING')
 
         # Debug flags
-        self._save_onnx = False
+        self._save_onnx = True
         self._save_onnx_prefix = ''
 
     def cpu(self: T) -> T:
@@ -224,6 +226,23 @@ class ORTModule(torch.nn.Module):
             self._onnx_gradient = onnx.load_model_from_string(
                 self._module_gradient_graph_builder.get_gradient_model())
             self._onnx_graphs_info = self._module_gradient_graph_builder.get_split_graphs_info()
+            self._fwd_ordering = self._onnx_graphs_info.ordered_initializer_names
+            print("Frontend param ordering:")
+            for k in self._fwd_ordering:
+                print(k)
+            self._ort_torch_param_map = {k: '_original_module.' + k
+                                         for k in self._fwd_ordering}
+
+            torch_param_map = {}
+            for name, param in self.named_parameters():
+                torch_param_map[name] = param
+            self._ordered_param_list = []
+            for k in self._fwd_ordering:
+                self._ordered_param_list.append(torch_param_map[self._ort_torch_param_map[k]])
+
+            if self._save_onnx:
+                onnx.save(self._onnx_gradient,
+                          self._save_onnx_prefix + '_gradient.onnx')
 
             providers = None
             provider_options = None
@@ -248,9 +267,6 @@ class ORTModule(torch.nn.Module):
                 self._output_buffers[output.name] = _onnx_value_info_to_buffer_tensor(
                     output, str(self._device))
 
-            if self._save_onnx:
-                onnx.save(self._onnx_gradient,
-                          self._save_onnx_prefix + '_gradient.onnx')
 
         # Use a custom torch.autograd.Function to associate self.backward_graph as the
         # gradient implementation for self.forward_graph.
@@ -318,7 +334,141 @@ class ORTModule(torch.nn.Module):
                             for backward_output in backward_outputs[:len(self._onnx_graphs_info.initializer_grad_names_to_train)]]
                 return tuple(results)
 
-        return _ORTModuleFunction.apply(*self._convert_forward_input_to_list(self._original_module, *inputs, **kwargs))
+                # Use a custom torch.autograd.Function to associate self.backward_graph as the
+
+        # gradient implementation for self.forward_graph.
+        class _ORTModuleFunctionHead(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, param0):
+                '''Performs forward pass based on user input and PyTorch initializer
+                '''
+                print("Running forward: Head")
+                ctx._param0_size = param0.size()
+                ctx._param0_dtype = param0.dtype
+                dummy = torch.tensor([1.0], requires_grad=True)
+                return dummy
+
+            @staticmethod
+            def backward(ctx, *grad_output):
+                '''Performs backward pass based on grad wrt output and internal state
+                '''
+                print("Running backward: Head")
+                intermediate_grad_buffer = torch.zeros(ctx._param0_size, device=str(self._device), dtype=ctx._param0_dtype)
+                intermediate_grad_ortvalue = onnxruntime.OrtValue.ortvalue_from_data_ptr(list(intermediate_grad_buffer.size()), _utils.dtype_torch_to_numpy(
+                        intermediate_grad_buffer.dtype), intermediate_grad_buffer.device.type, _get_device_index(intermediate_grad_buffer.device), intermediate_grad_buffer.data_ptr())
+
+                # Run
+                self._gradient_session.continue_run_backward(intermediate_grad_ortvalue, True)
+
+                # Return initializer gradients
+                results = [_ort_output_to_torch_tensor(intermediate_grad_ortvalue)]
+                return tuple(results)
+
+        # Use a custom torch.autograd.Function to associate self.backward_graph as the
+        # gradient implementation for self.forward_graph.
+        class _ORTModuleFunctionMid(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, dummy, paramI):
+                '''Performs forward pass based on user input and PyTorch initializer
+                '''
+                print("Running forward: Mid")
+                ctx._paramI_size = paramI.size()
+                ctx._paramI_dtype = paramI.dtype
+                return dummy
+
+            @staticmethod
+            def backward(ctx, *grad_output):
+                '''Performs backward pass based on grad wrt output and internal state
+                '''
+                print("Running backward: Mid")
+                intermediate_grad_buffer = torch.zeros(ctx._paramI_size, device=str(self._device), dtype=ctx._paramI_dtype)
+                intermediate_grad_ortvalue = onnxruntime.OrtValue.ortvalue_from_data_ptr(list(intermediate_grad_buffer.size()), _utils.dtype_torch_to_numpy(
+                        intermediate_grad_buffer.dtype), intermediate_grad_buffer.device.type, _get_device_index(intermediate_grad_buffer.device), intermediate_grad_buffer.data_ptr())
+
+                # Run
+                self._gradient_session.continue_run_backward(intermediate_grad_ortvalue, False)
+
+                # Return dummy and initializer gradients
+                results = [torch.tensor([1])]
+                results += [_ort_output_to_torch_tensor(intermediate_grad_ortvalue)]
+                return tuple(results)
+
+        # Use a custom torch.autograd.Function to associate self.backward_graph as the
+        # gradient implementation for self.forward_graph.
+        class _ORTModuleFunctionTail(torch.autograd.Function):
+            @staticmethod
+            def forward(ctx, paramN, dummy, *inputs, **kwargs):
+                '''Performs forward pass based on user input and PyTorch initializer
+                '''
+                print("Running forward: Tail")
+                ctx._paramN_size = paramN.size()
+                ctx._paramN_dtype = paramN.dtype
+
+                inputs_with_initializers = list(inputs)
+                for param in self._original_module.named_parameters():
+                    inputs_with_initializers.append(param[1])
+
+                # Use IO binding, bind inputs and non-user outputs.
+                _create_iobinding(self._gradient_io_binding, inputs_with_initializers,
+                                  self._onnx_gradient,
+                                  self._device,
+                                  self._output_buffers,
+                                  len(self._onnx_graphs_info.user_output_names))
+
+                # Run
+                self._gradient_session.run_with_iobinding(
+                    self._gradient_io_binding, self._run_options)
+
+                # Return model output
+                user_outputs = tuple(
+                    self._output_buffers[name] for name in self._onnx_graphs_info.user_output_names)
+                return user_outputs[0] if len(user_outputs) == 1 else user_outputs
+
+            @staticmethod
+            def backward(ctx, *grad_output):
+                '''Performs backward pass based on grad wrt output and internal state
+
+                Internal state is composed of:
+                    * Tensor stashed (in a particular order) during forward:
+                        * (partial) user input, (partial) initializers and intermediate tensors
+
+                TODO: Input gradient is hard-coded to torch.tensor([1.])
+                '''
+                print("Running backward: Tail")
+                # Push user output grads to ONNX backend.
+                grad_output_dict = dict(
+                    zip(self._onnx_graphs_info.user_output_grad_names, grad_output))
+                backward_grad_output = [grad_output_dict[name]
+                                        for name in self._onnx_graphs_info.backward_output_grad_names]
+                backward_grad_output_ortvalue = []
+                for grad_output in backward_grad_output:
+                    backward_grad_output_ortvalue.append(onnxruntime.OrtValue.ortvalue_from_data_ptr(list(grad_output.size()), _utils.dtype_torch_to_numpy(
+                        grad_output.dtype), grad_output.device.type, _get_device_index(grad_output.device), grad_output.data_ptr()))
+
+                intermediate_grad_buffer = torch.zeros(ctx._paramN_size, device=str(self._device), dtype=ctx._paramN_dtype)
+                intermediate_grad_ortvalue = onnxruntime.OrtValue.ortvalue_from_data_ptr(list(intermediate_grad_buffer.size()), _utils.dtype_torch_to_numpy(
+                        intermediate_grad_buffer.dtype), intermediate_grad_buffer.device.type, _get_device_index(intermediate_grad_buffer.device), intermediate_grad_buffer.data_ptr())
+
+                # Run
+                self._gradient_session.run_backward(
+                    backward_grad_output_ortvalue, intermediate_grad_ortvalue)
+
+                # Return input+dummy and initializer gradients
+                results = [_ort_output_to_torch_tensor(intermediate_grad_ortvalue)]
+                results += [torch.tensor(
+                    [1])] * (len(self._onnx_graphs_info.user_input_names)+1)
+                return tuple(results)
+
+        # input_list = self._ordered_param_list[0]
+        dummy = _ORTModuleFunctionHead.apply(self._ordered_param_list[0])
+
+        for p in self._ordered_param_list[1:-1]:
+            dummy = _ORTModuleFunctionMid.apply(dummy, p)
+
+        # input_list = self._convert_forward_input_to_list(self._original_module, *inputs, **kwargs) + self._ordered_param_list[0]
+        # return _ORTModuleFunctionTail.apply(dummy, self._ordered_param_list[-1])
+        return _ORTModuleFunctionTail.apply(self._ordered_param_list[-1], dummy, *self._convert_forward_input_to_list(self._original_module, *inputs, **kwargs))
+        # return _ORTModuleFunction.apply(*self._convert_forward_input_to_list(self._original_module, *inputs, **kwargs))
 
     @_utils.timeit(enabled=__TEMP_ENABLE_METHOD_TIMING__)
     def _convert_forward_input_to_list(self, module, *inputs, **kwargs):
@@ -340,8 +490,8 @@ class ORTModule(torch.nn.Module):
         result = [tensor for tensor in input_tensors if tensor is not None]
 
         # Initializers
-        for param in self._original_module.named_parameters():
-            result.append(param[1])
+        # for param in self._original_module.named_parameters():
+        #     result.append(param[1])
 
         return result
 

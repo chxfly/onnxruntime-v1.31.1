@@ -19,11 +19,24 @@ ONNX_OPERATOR_KERNEL_EX(
     Yield);
 
 Status Yield::ComputeInternal(OpKernelContext* ctx) const {
+  auto* context_ = static_cast<OpKernelContextInternal*>(ctx);
   // FW output should be ready by this point, they are currently exposed as graph output
   // !!! Potential TODO here: If graph output approach doesn't work, need to place the Yield Input tensors into some shared location
 
   // Do we need to synchronize here?
   // cudaStreamSynchronize(0);
+
+  if (push_input_) {
+    ORT_ENFORCE(ctx->InputCount() == 1);
+    // auto p_tensor = ctx->Input<Tensor>(0);
+    // Tensor* c_tensor = p_tensor;
+    // void* data  = c_tensor->MutableDataRaw();
+    // auto ort_value = onnxruntime::make_unique<OrtValue>();
+    // ort_value->Init(data, DataTypeImpl::GetType<Tensor>(),
+    //                 DataTypeImpl::GetType<Tensor>()->GetDeleteFunc());
+    auto ort_value = context_->GetInputMLValue(0);
+    onnxruntime::contrib::OrtMessageQueue::GetInstance().PushOutputGrad(*ort_value);
+  }
 
   // single event for InferenceSession::RunInBackgroundAndWaitForYield() that FW graph is done
   const int64_t main_thread_event_id = 0;

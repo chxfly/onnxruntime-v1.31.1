@@ -301,7 +301,7 @@ Status ModuleGradientGraphBuilder::BuildGradientGraph() {
   // Build gradient graph to backward graph.
   GradientGraphConfiguration gradient_graph_config{};
   gradient_graph_config.use_invertible_layernorm_grad = config_.use_invertible_layernorm_grad;
-  gradient_graph_config.set_gradients_as_graph_outputs = true;
+  gradient_graph_config.set_gradients_as_graph_outputs = false;
   std::unordered_set<std::string> y_node_arg_names(split_graphs_info_.user_output_names.begin(),
                                                    split_graphs_info_.user_output_names.end());
   GradientGraphBuilder grad_graph_builder(&gradient_graph, y_node_arg_names, x_node_arg_names, "",
@@ -334,9 +334,11 @@ void ModuleGradientGraphBuilder::AddYieldOp() {
   std::unordered_set<std::string> non_backward_user_output_grad_names;
   for (auto node_index : gradient_node_topology_list) {
     auto& node = *gradient_graph.GetNode(node_index);
+    std::cout << "Node: " << node.Name() << "\n";
     for (const auto& node_arg : node.OutputDefs()) {
       if (user_output_grad_names.find(node_arg->Name()) != user_output_grad_names.end()) {
         non_backward_user_output_grad_names.insert(node_arg->Name());
+        std::cout<<"Grad NodeArg:"<<node_arg->Name() <<"\n";
       }
     }
   }
@@ -367,7 +369,37 @@ void ModuleGradientGraphBuilder::AddYieldOp() {
     yield_output_node_args.emplace_back(gradient_graph.GetNodeArg(name));
   }
 
-  gradient_graph.AddNode("YieldOp", "Yield", "Yield Op", yield_input_node_args, yield_output_node_args, {}, kMSDomain);
+  gradient_graph.AddNode("YieldOp_fw_op", "Yield", "Yield Op", yield_input_node_args, yield_output_node_args, {}, kMSDomain);
+
+  // Add Yield ops after each grad output is ready
+  std::cout<<"Adding Grad Yield ops\n";
+  // Get initializer gradients
+  std::unordered_map<std::string, std::string> grad_name_map{};
+  split_graphs_info_.initializer_grad_names_to_train.clear();
+  for (const auto& initializer_name : split_graphs_info_.initializer_names_to_train) {
+    std::string initializer_gradient_name = initializer_name + "_grad";
+    split_graphs_info_.initializer_grad_names_to_train.emplace_back(initializer_gradient_name);
+    grad_name_map[initializer_gradient_name] = initializer_name;
+  }
+
+  auto& grad_names = split_graphs_info_.initializer_grad_names_to_train;
+  for (auto node_index : gradient_node_topology_list) {
+    auto& node = *gradient_graph.GetNode(node_index);
+    // std::cout << "Node: " << node.Name() << "\n";
+    for (const auto& node_arg : node.OutputDefs()) {
+      if (std::find(grad_names.begin(), grad_names.end(), node_arg->Name()) != grad_names.end()) {
+        std::vector<NodeArg*> yield_input_node_arg;
+        std::vector<NodeArg*> yield_output_node_arg;
+        yield_input_node_arg.emplace_back(gradient_graph.GetNodeArg(node_arg->Name()));
+        Node& yield_node = gradient_graph.AddNode("YieldOp_" + node_arg->Name(), "Yield", "Yield Op", yield_input_node_arg, yield_output_node_arg, {}, kMSDomain);
+        yield_node.AddAttribute("push_input", static_cast<int64_t>(1));
+        split_graphs_info_.ordered_initializer_names.emplace_back(grad_name_map[node_arg->Name()]);
+        std::cout<<"Yield for Grad:"<< node_arg->Name() <<"\n";
+      }
+    }
+  }
+  //reverse the order to correctly get forward order
+  std::reverse(split_graphs_info_.ordered_initializer_names.begin(), split_graphs_info_.ordered_initializer_names.end());
 }
 
 void ModuleGradientGraphBuilder::ReorderOutputs() {
@@ -402,14 +434,14 @@ void ModuleGradientGraphBuilder::ReorderOutputs() {
   }
 
   // Add initializer gradients to graph outputs.
-  split_graphs_info_.initializer_grad_names_to_train.clear();
-  for (const auto& initializer_name : split_graphs_info_.initializer_names_to_train) {
-    std::string initializer_gradient_name = initializer_name + "_grad";
-    ORT_ENFORCE(gradient_output_arg_map.find(initializer_gradient_name) != gradient_output_arg_map.end(),
-                "Trainable initializer grad is not found on gradient graph.");
-    split_graphs_info_.initializer_grad_names_to_train.emplace_back(initializer_gradient_name);
-    new_output_args.emplace_back(gradient_output_arg_map[initializer_gradient_name]);
-  }
+  // split_graphs_info_.initializer_grad_names_to_train.clear();
+  // for (const auto& initializer_name : split_graphs_info_.initializer_names_to_train) {
+  //   std::string initializer_gradient_name = initializer_name + "_grad";
+  //   ORT_ENFORCE(gradient_output_arg_map.find(initializer_gradient_name) != gradient_output_arg_map.end(),
+  //               "Trainable initializer grad is not found on gradient graph.");
+  //   split_graphs_info_.initializer_grad_names_to_train.emplace_back(initializer_gradient_name);
+  //   // new_output_args.emplace_back(gradient_output_arg_map[initializer_gradient_name]);
+  // }
 
   gradient_graph.SetOutputs(new_output_args);
 }

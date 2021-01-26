@@ -38,6 +38,7 @@ struct SplitGraphsInfo {
   std::vector<std::string> intermediate_tensor_names{};
   std::vector<std::string> user_output_grad_names{};
   std::vector<std::string> backward_output_grad_names{};
+  std::vector<std::string> ordered_initializer_names{};
 };
 
 class ModuleGradientGraphBuilder {

@@ -373,7 +373,8 @@ void addObjectMethodsForTraining(py::module& m) {
       .def_readwrite("backward_intializer_names_as_input", &SplitGraphsInfo::backward_intializer_names_as_input)
       .def_readwrite("intermediate_tensor_names", &SplitGraphsInfo::intermediate_tensor_names)
       .def_readwrite("user_output_grad_names", &SplitGraphsInfo::user_output_grad_names)
-      .def_readwrite("backward_output_grad_names", &SplitGraphsInfo::backward_output_grad_names);
+      .def_readwrite("backward_output_grad_names", &SplitGraphsInfo::backward_output_grad_names)
+      .def_readwrite("ordered_initializer_names", &SplitGraphsInfo::ordered_initializer_names);
 
   py::class_<ModuleGradientGraphBuilder> module_gradient_graph_builder(m, "ModuleGradientGraphBuilder");
   module_gradient_graph_builder.def(py::init([]() { return onnxruntime::make_unique<ModuleGradientGraphBuilder>(); }))

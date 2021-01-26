@@ -2298,7 +2298,10 @@ Return true if all elements are true and false otherwise.
           "T",
           OpSchema::Variadic,
           /*is_homogeneous*/ false,
-          /*min_arity*/ 1)
+          /*min_arity*/ 0)
+      .Attr("push_input", "Whether to push input to queue",
+            AttributeProto::INT,
+            static_cast<int64_t>(0))
       .TypeConstraint(
           "T",
           OpSchema::all_tensor_types(),

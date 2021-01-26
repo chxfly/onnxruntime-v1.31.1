@@ -164,13 +164,22 @@ class Session:
         """
         self._sess.run_with_iobinding(iobinding._iobinding, run_options)
 
-    def run_backward(self, backward_output_grads):
+    def run_backward(self, backward_output_grads, intermediate_grad_output):
         """
          Compute the baward part of the graph starting from Yield Op.
 
          :param backward_output_grads: Output gradients for backward.
         """
-        self._sess.run_backward([ortvalue._ortvalue for ortvalue in backward_output_grads])
+        self._sess.run_backward([ortvalue._ortvalue for ortvalue in backward_output_grads],
+                                intermediate_grad_output._ortvalue)
+
+    def continue_run_backward(self, intermediate_grad_output, is_last):
+        """
+         Compute the baward part of the graph starting from Yield Op.
+
+         :param backward_output_grads: Output gradients for backward.
+        """
+        self._sess.continue_run_backward(intermediate_grad_output._ortvalue, is_last)
 
 
 class InferenceSession(Session):
