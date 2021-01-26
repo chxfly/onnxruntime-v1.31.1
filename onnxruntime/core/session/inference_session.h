@@ -299,7 +299,9 @@ class InferenceSession {
                                                         std::vector<OrtValue>& user_outputs) ORT_MUST_USE_RESULT;
 
   // For ORTModule.backward()
-  common::Status ContinueRunInBackground(const std::vector<OrtValue>& backward_output_grads) ORT_MUST_USE_RESULT;
+  common::Status ContinueRunInBackgroundAndWaitForYield(OrtValue& intermediate_grad_output, bool is_last) ORT_MUST_USE_RESULT;
+
+  common::Status ContinueRunInBackground(const std::vector<OrtValue>& backward_output_grads, OrtValue& intermediate_grad_output) ORT_MUST_USE_RESULT;
 
   /**
     * @return pair.first = OK; FAIL otherwise. pair.second is non-NULL when pair.first = OK.

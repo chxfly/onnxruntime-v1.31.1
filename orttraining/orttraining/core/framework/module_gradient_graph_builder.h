@@ -43,6 +43,7 @@ struct SplitGraphsInfo {
   std::vector<std::string> user_output_names{};
   // The user output grad names that are actual required by the backward graph.
   std::vector<std::string> backward_output_grad_names{};
+  std::vector<std::string> ordered_initializer_names{};
 };
 
 class ModuleGradientGraphBuilder {

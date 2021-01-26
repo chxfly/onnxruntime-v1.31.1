@@ -10,8 +10,14 @@ namespace contrib {
 
 class Yield final : public OpKernel {
  public:
-  Yield(const OpKernelInfo& info) : OpKernel(info) {}
+  Yield(const OpKernelInfo& info) : OpKernel(info) {
+    int64_t push_input = info.GetAttrOrDefault<int64_t>("push_input", 0);
+    push_input_ = (push_input == 1);
+  }
   Status Compute(OpKernelContext* context) const override;
+
+  private:
+  bool push_input_;
 };
 
 }  // namespace contrib

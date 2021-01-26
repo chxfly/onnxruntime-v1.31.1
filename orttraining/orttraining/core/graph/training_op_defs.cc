@@ -2288,7 +2288,10 @@ Return true if all elements are true and false otherwise.
              /*min_arity*/ 1)
       .Output(0, "OutputGrad", "Output gradients.", "T", OpSchema::Variadic,
               /*is_homogeneous*/ false,
-              /*min_arity*/ 1)
+              /*min_arity*/ 0)
+      .Attr("push_input", "Whether to push input to queue",
+            AttributeProto::INT,
+            static_cast<int64_t>(0))
       .TypeConstraint("T", OpSchema::all_tensor_types(), "Allow inputs and outputs to be any kind of tensor.")
       .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
         // Assume that the inputs and outputs are matching, those outputs that has grads comes first.
