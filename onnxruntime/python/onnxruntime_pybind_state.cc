@@ -1860,16 +1860,20 @@ including arg name, arg type (contains both type and shape).)pbdoc")
 
         return user_outputs;
       })
-      .def("continue_run_backward", [](PyInferenceSession* sess, OrtValue& intermediate_grad_output, bool is_last) -> void {
+      .def("continue_run_backward", [](PyInferenceSession* sess, bool is_last) -> OrtValue {
+        OrtValue intermediate_grad_output;
         Status status = sess->GetSessionHandle()->ContinueRunInBackgroundAndWaitForYield(intermediate_grad_output, is_last);
         if (!status.IsOK()) {
           throw std::runtime_error("Error in execution: " + status.ErrorMessage());
         }
+        return intermediate_grad_output;
       })
-      .def("run_backward", [](PyInferenceSession* sess, const std::vector<OrtValue>& backward_output_grads, OrtValue& intermediate_grad_output) -> void {
+      .def("run_backward", [](PyInferenceSession* sess, const std::vector<OrtValue>& backward_output_grads) -> OrtValue {
+        OrtValue intermediate_grad_output;
         Status status = sess->GetSessionHandle()->ContinueRunInBackground(backward_output_grads, intermediate_grad_output);
         if (!status.IsOK())
           throw std::runtime_error("Error in execution: " + status.ErrorMessage());
+        return intermediate_grad_output;
       });
 
   py::enum_<onnxruntime::ArenaExtendStrategy>(m, "ArenaExtendStrategy", py::arithmetic())

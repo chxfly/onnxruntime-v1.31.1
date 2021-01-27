@@ -285,15 +285,6 @@ void ModuleGradientGraphBuilder::ReorderOutputs() {
     }
   }
 
-  // Add initializer gradients to graph outputs.
-  // split_graphs_info_.initializer_grad_names_to_train.clear();
-  // for (const auto& initializer_name : split_graphs_info_.initializer_names_to_train) {
-  //   std::string initializer_gradient_name = initializer_name + "_grad";
-  //   ORT_ENFORCE(gradient_output_arg_map.find(initializer_gradient_name) != gradient_output_arg_map.end(),
-  //               "Trainable initializer grad is not found on gradient graph.");
-  //   split_graphs_info_.initializer_grad_names_to_train.emplace_back(initializer_gradient_name);
-  //   // new_output_args.emplace_back(gradient_output_arg_map[initializer_gradient_name]);
-  // }
 
   gradient_graph.SetOutputs(new_output_args);
 }

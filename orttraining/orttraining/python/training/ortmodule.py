@@ -59,6 +59,7 @@ def _get_default_device_str(type):
 def _create_iobinding(io_binding, inputs, model, device):
     '''Creates IO binding for a `model` inputs and output'''
     for idx, value_info in enumerate(model.graph.input):
+        print("Input:"+value_info.name)
         io_binding.bind_input(value_info.name, inputs[idx].device.type,
                               _get_device_index(inputs[idx].device),
                               _utils.dtype_torch_to_numpy(inputs[idx].dtype),
@@ -66,6 +67,7 @@ def _create_iobinding(io_binding, inputs, model, device):
                               inputs[idx].data_ptr())
 
     for idx, value_info in enumerate(model.graph.output):
+        print("Output:"+value_info.name)
         io_binding.bind_output(value_info.name, device.type, device_id=_get_device_index(device))
 
 def _onnx_value_info_to_buffer_tensor(value_info, device):
@@ -325,12 +327,9 @@ class ORTModule(torch.nn.Module):
                 '''Performs backward pass based on grad wrt output and internal state
                 '''
                 print("Running backward: Head")
-                intermediate_grad_buffer = torch.zeros(ctx._param0_size, device=str(self._device), dtype=ctx._param0_dtype)
-                intermediate_grad_ortvalue = onnxruntime.OrtValue.ortvalue_from_data_ptr(list(intermediate_grad_buffer.size()), _utils.dtype_torch_to_numpy(
-                        intermediate_grad_buffer.dtype), intermediate_grad_buffer.device.type, _get_device_index(intermediate_grad_buffer.device), intermediate_grad_buffer.data_ptr())
 
                 # Run
-                self._gradient_session.continue_run_backward(intermediate_grad_ortvalue, True)
+                intermediate_grad_ortvalue = self._gradient_session.continue_run_backward(True)
 
                 # Return initializer gradients
                 results = [_ort_output_to_torch_tensor(intermediate_grad_ortvalue)]
@@ -353,12 +352,8 @@ class ORTModule(torch.nn.Module):
                 '''Performs backward pass based on grad wrt output and internal state
                 '''
                 print("Running backward: Mid")
-                intermediate_grad_buffer = torch.zeros(ctx._paramI_size, device=str(self._device), dtype=ctx._paramI_dtype)
-                intermediate_grad_ortvalue = onnxruntime.OrtValue.ortvalue_from_data_ptr(list(intermediate_grad_buffer.size()), _utils.dtype_torch_to_numpy(
-                        intermediate_grad_buffer.dtype), intermediate_grad_buffer.device.type, _get_device_index(intermediate_grad_buffer.device), intermediate_grad_buffer.data_ptr())
-
                 # Run
-                self._gradient_session.continue_run_backward(intermediate_grad_ortvalue, False)
+                intermediate_grad_ortvalue = self._gradient_session.continue_run_backward(False)
 
                 # Return dummy and initializer gradients
                 results = [torch.tensor([1])]
@@ -380,20 +375,13 @@ class ORTModule(torch.nn.Module):
                 for param in self._original_module.named_parameters():
                     inputs_with_initializers.append(param[1])
 
-                # Use IO binding, bind inputs and non-user outputs.
-                _create_iobinding(self._gradient_io_binding, inputs_with_initializers,
-                                  self._onnx_gradient,
-                                  self._device,
-                                  self._output_buffers,
-                                  len(self._onnx_graphs_info.user_output_names))
+                # Use IO binding
+                _create_iobinding(self._gradient_io_binding, inputs_with_initializers, self._onnx_gradient, self._device)
 
-                # Run
-                self._gradient_session.run_with_iobinding(
-                    self._gradient_io_binding, self._run_options)
-
-                # Return model output
-                user_outputs = tuple(
-                    self._output_buffers[name] for name in self._onnx_graphs_info.user_output_names)
+                # Run and return user outputs.
+                user_outputs = tuple(_ort_output_to_torch_tensor(forward_output) \
+                    for forward_output in self._gradient_session.run_forward(self._gradient_io_binding, self._run_options))
+                print(user_outputs)
                 return user_outputs[0] if len(user_outputs) == 1 else user_outputs
 
             @staticmethod
@@ -407,23 +395,16 @@ class ORTModule(torch.nn.Module):
                 TODO: Input gradient is hard-coded to torch.tensor([1.])
                 '''
                 print("Running backward: Tail")
+
+                # Use IO binding
                 # Push user output grads to ONNX backend.
-                grad_output_dict = dict(
-                    zip(self._onnx_graphs_info.user_output_grad_names, grad_output))
-                backward_grad_output = [grad_output_dict[name]
-                                        for name in self._onnx_graphs_info.backward_output_grad_names]
                 backward_grad_output_ortvalue = []
-                for grad_output in backward_grad_output:
+                for grad_output in grad_output[:len(self._onnx_graphs_info.backward_output_grad_names)]:
                     backward_grad_output_ortvalue.append(onnxruntime.OrtValue.ortvalue_from_data_ptr(list(grad_output.size()), _utils.dtype_torch_to_numpy(
                         grad_output.dtype), grad_output.device.type, _get_device_index(grad_output.device), grad_output.data_ptr()))
 
-                intermediate_grad_buffer = torch.zeros(ctx._paramN_size, device=str(self._device), dtype=ctx._paramN_dtype)
-                intermediate_grad_ortvalue = onnxruntime.OrtValue.ortvalue_from_data_ptr(list(intermediate_grad_buffer.size()), _utils.dtype_torch_to_numpy(
-                        intermediate_grad_buffer.dtype), intermediate_grad_buffer.device.type, _get_device_index(intermediate_grad_buffer.device), intermediate_grad_buffer.data_ptr())
-
-                # Run
-                self._gradient_session.run_backward(
-                    backward_grad_output_ortvalue, intermediate_grad_ortvalue)
+                # Run and get results
+                intermediate_grad_ortvalue = self._gradient_session.run_backward(backward_grad_output_ortvalue)
 
                 # Return input+dummy and initializer gradients
                 results = [_ort_output_to_torch_tensor(intermediate_grad_ortvalue)]
@@ -439,7 +420,7 @@ class ORTModule(torch.nn.Module):
 
         # input_list = self._convert_forward_input_to_list(self._original_module, *inputs, **kwargs) + self._ordered_param_list[0]
         # return _ORTModuleFunctionTail.apply(dummy, self._ordered_param_list[-1])
-        return _ORTModuleFunctionTail.apply(self._ordered_param_list[-1], dummy, *self._convert_forward_input_to_list(self._original_module, *inputs, **kwargs))
+        return _ORTModuleFunctionTail.apply(self._ordered_param_list[-1], dummy, *self._convert_gradient_graph_input_to_list(self._original_module, *inputs, **kwargs))
         # return _ORTModuleFunction.apply(*self._convert_forward_input_to_list(self._original_module, *inputs, **kwargs))
 
     @_utils.timeit(enabled=__TEMP_ENABLE_METHOD_TIMING__)

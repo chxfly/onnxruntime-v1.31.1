@@ -1694,6 +1694,7 @@ common::Status InferenceSession::Run(IOBinding& io_binding) {
 
 common::Status InferenceSession::RunInBackgroundAndWaitForYield(const RunOptions& run_options, IOBinding& io_binding,
                                                                 std::vector<OrtValue>& user_outputs) {
+  std::cout << "Running forward\n";
   bg_thread_ = std::thread([&]() {
     common::Status s = Run(run_options, io_binding.GetInputNames(), io_binding.GetInputs(), io_binding.GetOutputNames(),
                            &io_binding.GetOutputs(), &io_binding.GetOutputsDeviceInfo());
@@ -1702,16 +1703,19 @@ common::Status InferenceSession::RunInBackgroundAndWaitForYield(const RunOptions
     const int64_t main_thread_event_id = 0;
     onnxruntime::contrib::OrtEventPool::GetInstance().SignalEvent(main_thread_event_id);
   });
+  std::cout<<"Wait started\n";
 
   // wait for event from yeild op
   const int64_t main_thread_event_id = 0;
   onnxruntime::contrib::OrtEventPool::GetInstance().ResetAndWaitEvent(main_thread_event_id);
-
+  std::cout<<"Wait ended\n";
   onnxruntime::contrib::OrtMessageQueue::GetInstance().PopAll(user_outputs);
+  std::cout<<"Popped all\n";
   return Status::OK();
 }
 
 common::Status InferenceSession::ContinueRunInBackgroundAndWaitForYield(OrtValue& intermediate_grad_output, bool is_last) {
+  std::cout << "Running continue backward\n";
   // resume background thread
   const int64_t background_thread_event_id = 1;
   onnxruntime::contrib::OrtEventPool::GetInstance().SignalEvent(background_thread_event_id);
@@ -1720,7 +1724,7 @@ common::Status InferenceSession::ContinueRunInBackgroundAndWaitForYield(OrtValue
   const int64_t main_thread_event_id = 0;
   onnxruntime::contrib::OrtEventPool::GetInstance().ResetAndWaitEvent(main_thread_event_id);
 
-  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().PopOutputGrad();
+  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().Pop();
   intermediate_grad_output = std::move(value);
   
   if(is_last){
@@ -1738,6 +1742,7 @@ common::Status InferenceSession::ContinueRunInBackgroundAndWaitForYield(OrtValue
 }
 
 common::Status InferenceSession::ContinueRunInBackground(const std::vector<OrtValue>& backward_output_grads, OrtValue& intermediate_grad_output) {
+  std::cout << "Running backward\n";
   for (const auto& ort_value : backward_output_grads) {
     onnxruntime::contrib::OrtMessageQueue::GetInstance().Push(ort_value);
   }
@@ -1750,7 +1755,7 @@ common::Status InferenceSession::ContinueRunInBackground(const std::vector<OrtVa
   const int64_t main_thread_event_id = 0;
   onnxruntime::contrib::OrtEventPool::GetInstance().ResetAndWaitEvent(main_thread_event_id);
 
-  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().PopOutputGrad();
+  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().Pop();
   intermediate_grad_output = std::move(value);
 
   return Status::OK();

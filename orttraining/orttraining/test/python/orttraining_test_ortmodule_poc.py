@@ -14,12 +14,15 @@ class NeuralNet(torch.nn.Module):
 
         self.fc1 = torch.nn.Linear(input_size, hidden_size)
         self.relu = torch.nn.ReLU()
-        self.fc2 = torch.nn.Linear(hidden_size, num_classes)
+        self.fc2 = torch.nn.Linear(hidden_size, hidden_size)
+        self.fc3 = torch.nn.Linear(hidden_size, num_classes)
 
     def forward(self, input1):
         out = self.fc1(input1)
         out = self.relu(out)
         out = self.fc2(out)
+        out = self.relu(out)
+        out = self.fc3(out)
         return out
 
 
@@ -40,7 +43,11 @@ def train(args, model, device, optimizer, loss_fn, train_loader, epoch):
         data = data.reshape(data.shape[0], -1)
 
         optimizer.zero_grad()
+        for name, p in model.named_parameters():
+            print(name)
+            print(p.grad)
         probability = model(data)
+        # loss = model(data)
 
         if args.view_graphs:
             import torchviz
@@ -55,6 +62,9 @@ def train(args, model, device, optimizer, loss_fn, train_loader, epoch):
         total_loss += loss.item()
 
         loss.backward()
+        for name, p in model.named_parameters():
+            print(name)
+            print(p.grad)
         optimizer.step()
 
         # Stats
@@ -113,14 +123,14 @@ def my_loss(x, target, is_train=True):
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-    parser.add_argument('--train-steps', type=int, default=-1, metavar='N',
+    parser.add_argument('--train-steps', type=int, default=1, metavar='N',
                         help='number of steps to train. Set -1 to run through whole dataset (default: -1)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
     parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                         help='input batch size for training (default: 32)')
-    parser.add_argument('--test-batch-size', type=int, default=64, metavar='N',
-                        help='input batch size for testing (default: 64)')
+    parser.add_argument('--test-batch-size', type=int, default=32, metavar='N',
+                        help='input batch size for testing (default: 32)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=42, metavar='S',
