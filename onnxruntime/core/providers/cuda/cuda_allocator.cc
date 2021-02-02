@@ -72,7 +72,7 @@ TorchCUDAAllocator::TorchCUDAAllocator(OrtDevice::DeviceId device_id, const char
           OrtMemoryInfo(name, OrtAllocatorType::OrtDeviceAllocator,
                         OrtDevice(OrtDevice::GPU, OrtDevice::MemType::DEFAULT, device_id),
                         device_id, OrtMemTypeDefault)) {
-  Env::Default().LoadDynamicLibrary("/data/anaconda/envs/sh36/lib/python3.6/site-packages/torch/lib/libc10_cuda.so", &libtorch_);
+  Env::Default().LoadDynamicLibrary("/bert_ort/aibhanda/DC/lib/python3.6/site-packages/torch/lib/libc10_cuda.so", &libtorch_);
   ORT_ENFORCE(libtorch_ != nullptr, "libc10_cuda missing");
   /*
   U _ZN3c104cuda20CUDACachingAllocator10emptyCacheEv

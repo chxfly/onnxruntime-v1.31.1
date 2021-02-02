@@ -288,12 +288,14 @@ class ORTModule(torch.nn.Module):
                 # Run and get results
                 self._gradient_session.run_backward(backward_grad_output_ortvalue)
                 backward_outputs = self._gradient_io_binding.get_outputs()
-
+                # print("after sess run: {}".format(onnxruntime.OrtValue.use_count(backward_outputs[-1])))
                 # Return input and initializer gradients
                 results = [torch.tensor([1])] * len(self._onnx_graphs_info.user_input_names)
                 results += [_ort_output_to_torch_tensor(backward_output) \
                     for backward_output in backward_outputs[:len(self._onnx_graphs_info.initializer_grad_names_to_train)]]
+                # print("after dlpack conversion: {}".format(onnxruntime.OrtValue.use_count(backward_outputs[-1])))
                 self._gradient_io_binding.clear_binding_outputs()
+                # print("after clear iobinding output: {}".format(onnxruntime.OrtValue.use_count(backward_outputs[-1])))
                 return tuple(results)
 
         return _ORTModuleFunction.apply(*self._convert_gradient_graph_input_to_list(self._original_module, *inputs, **kwargs))

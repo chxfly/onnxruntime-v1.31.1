@@ -109,7 +109,7 @@ void IOBinding::ClearOutputs() {
 
 const std::vector<std::string>& IOBinding::GetOutputNames() const { return output_names_; }
 
-std::vector<OrtValue>& IOBinding::GetOutputs() { return outputs_; }
+std::vector<OrtValue>& IOBinding::GetOutputs() { std::cout<< "In get outputs: " <<outputs_.back().UseCount() << "\n"; return outputs_; }
 
 const std::vector<OrtDevice>& IOBinding::GetOutputsDeviceInfo() const {
   return outputs_device_info_;

@@ -480,3 +480,10 @@ class OrtValue:
         Valid only for OrtValues holding Tensors. Throws for OrtValues holding non-Tensors.
         '''
         return self._ortvalue.to_dlpack()
+
+    def use_count(self):
+        '''
+        Returns a DLPack object from the OrtValue.
+        Valid only for OrtValues holding Tensors. Throws for OrtValues holding non-Tensors.
+        '''
+        return self._ortvalue.use_count()

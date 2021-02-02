@@ -1330,6 +1330,9 @@ void addObjectMethods(py::module& m, Environment& env) {
         DLManagedTensor* dlmanaged_tensor = ort_value_to_dlpack(*ort_value);
         return py::reinterpret_steal<py::object>(
             PyCapsule_New(dlmanaged_tensor, "dltensor", dlpack_capsule_destructor));
+      })
+      .def("use_count", [](OrtValue* ort_value) -> long {
+        return ort_value->UseCount();
       });
 
   py::class_<SessionIOBinding> session_io_binding(m, "SessionIOBinding");

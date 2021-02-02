@@ -76,6 +76,10 @@ struct OrtValue {
     fence_ = v.fence_;
   }
 
+  long UseCount() const {
+    return data_.use_count();
+  }
+
  private:
   std::shared_ptr<void> data_;
   onnxruntime::MLDataType type_{nullptr};
