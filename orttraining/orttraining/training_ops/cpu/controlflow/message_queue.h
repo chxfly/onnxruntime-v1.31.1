@@ -26,6 +26,11 @@ class OrtMessageQueue final {
     return ort_value;
   }
 
+  OrtValue Front() {
+    OrtValue ort_value = ort_values.front();
+    return ort_value;
+  }
+
   void PopAll(std::vector<OrtValue>& results) {
     while (!ort_values.empty()) {
       OrtValue ort_value = ort_values.front();

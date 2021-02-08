@@ -2283,10 +2283,12 @@ Return true if all elements are true and false otherwise.
       .SinceVersion(1)
       .SetSupportLevel(OpSchema::SupportType::EXPERIMENTAL)
       .SetDoc("Yield Op.")
-      .Input(0, "UserOutput", "User outputs.", "T", OpSchema::Variadic,
+      .Input(0, "ControlInput", "Control Input.", "T", OpSchema::Single)
+      .Input(1, "UserOutput", "User outputs.", "T", OpSchema::Variadic,
              /*is_homogeneous*/ false,
              /*min_arity*/ 1)
-      .Output(0, "OutputGrad", "Output gradients.", "T", OpSchema::Variadic,
+      .Output(0, "ControlOutput", "Control Output.", "T", OpSchema::Single)
+      .Output(1, "OutputGrad", "Output gradients.", "T", OpSchema::Variadic,
               /*is_homogeneous*/ false,
               /*min_arity*/ 0)
       .Attr("push_input", "Whether to push input to queue",

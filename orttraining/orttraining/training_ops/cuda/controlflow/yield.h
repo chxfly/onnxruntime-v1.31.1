@@ -11,14 +11,8 @@ namespace cuda {
 
 class Yield final : public CudaKernel {
  public:
-  Yield(const OpKernelInfo& info) : CudaKernel(info) {
-    int64_t push_input = info.GetAttrOrDefault<int64_t>("push_input", 0);
-    push_input_ = (push_input == 1);
-  }
+  Yield(const OpKernelInfo& info) : CudaKernel(info) {}
   Status ComputeInternal(OpKernelContext* context) const override;
-
-  private:
-  bool push_input_;
 };
 
 }  // namespace cuda

@@ -43,9 +43,9 @@ def train(args, model, device, optimizer, loss_fn, train_loader, epoch):
         data = data.reshape(data.shape[0], -1)
 
         optimizer.zero_grad()
-        for name, p in model.named_parameters():
-            print(name)
-            print(p.grad)
+        # for name, p in model.named_parameters():
+        #     print(name)
+        #     print(p.grad)
         probability = model(data)
         # loss = model(data)
 
@@ -62,9 +62,9 @@ def train(args, model, device, optimizer, loss_fn, train_loader, epoch):
         total_loss += loss.item()
 
         loss.backward()
-        for name, p in model.named_parameters():
-            print(name)
-            print(p.grad)
+        # for name, p in model.named_parameters():
+        #     print(name)
+            # print(p.grad)
         optimizer.step()
 
         # Stats
@@ -141,7 +141,7 @@ def main():
                         help='how many batches to wait before logging training status (default: 300)')
     parser.add_argument('--view-graphs', action='store_true', default=False,
                         help='views forward and backward graphs')
-    parser.add_argument('--epochs', type=int, default=5, metavar='N',
+    parser.add_argument('--epochs', type=int, default=1, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='WARNING',
                         help='Log level (default: WARNING)')

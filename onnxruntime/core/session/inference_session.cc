@@ -1469,6 +1469,7 @@ Status InferenceSession::Run(const RunOptions& run_options,
                              const std::vector<std::string>& feed_names, const std::vector<OrtValue>& feeds,
                              const std::vector<std::string>& output_names, std::vector<OrtValue>* p_fetches,
                              const std::vector<OrtDevice>* p_fetches_device_info) {
+  // std::cout<<"In sess run\n";
   TimePoint tp;
   if (session_profiler_.IsEnabled()) {
     tp = session_profiler_.StartTime();
@@ -1698,24 +1699,25 @@ common::Status InferenceSession::RunInBackgroundAndWaitForYield(const RunOptions
   bg_thread_ = std::thread([&]() {
     common::Status s = Run(run_options, io_binding.GetInputNames(), io_binding.GetInputs(), io_binding.GetOutputNames(),
                            &io_binding.GetOutputs(), &io_binding.GetOutputsDeviceInfo());
+    ORT_ENFORCE(s.IsOK(), s.ErrorMessage());
 
     // Do I need to signal main thread for the completion???
     const int64_t main_thread_event_id = 0;
     onnxruntime::contrib::OrtEventPool::GetInstance().SignalEvent(main_thread_event_id);
   });
-  std::cout<<"Wait started\n";
+  // std::cout<<"Wait started\n";
 
   // wait for event from yeild op
   const int64_t main_thread_event_id = 0;
   onnxruntime::contrib::OrtEventPool::GetInstance().ResetAndWaitEvent(main_thread_event_id);
-  std::cout<<"Wait ended\n";
+  // std::cout<<"Wait ended\n";
   onnxruntime::contrib::OrtMessageQueue::GetInstance().PopAll(user_outputs);
-  std::cout<<"Popped all\n";
+  // std::cout<<"Popped all\n";
   return Status::OK();
 }
 
 common::Status InferenceSession::ContinueRunInBackgroundAndWaitForYield(OrtValue& intermediate_grad_output, bool is_last) {
-  std::cout << "Running continue backward\n";
+  // std::cout << "Running continue backward\n";
   // resume background thread
   const int64_t background_thread_event_id = 1;
   onnxruntime::contrib::OrtEventPool::GetInstance().SignalEvent(background_thread_event_id);
@@ -1724,10 +1726,11 @@ common::Status InferenceSession::ContinueRunInBackgroundAndWaitForYield(OrtValue
   const int64_t main_thread_event_id = 0;
   onnxruntime::contrib::OrtEventPool::GetInstance().ResetAndWaitEvent(main_thread_event_id);
 
-  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().Pop();
+  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().Front();
   intermediate_grad_output = std::move(value);
   
   if(is_last){
+    // std::cout<<"resume background thread\n";
     // resume background thread
     const int64_t background_thread_event_id = 1;
     onnxruntime::contrib::OrtEventPool::GetInstance().SignalEvent(background_thread_event_id);
@@ -1755,7 +1758,7 @@ common::Status InferenceSession::ContinueRunInBackground(const std::vector<OrtVa
   const int64_t main_thread_event_id = 0;
   onnxruntime::contrib::OrtEventPool::GetInstance().ResetAndWaitEvent(main_thread_event_id);
 
-  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().Pop();
+  OrtValue value = onnxruntime::contrib::OrtMessageQueue::GetInstance().Front();
   intermediate_grad_output = std::move(value);
 
   return Status::OK();

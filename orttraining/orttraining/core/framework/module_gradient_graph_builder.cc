@@ -218,6 +218,11 @@ void ModuleGradientGraphBuilder::AddYieldOp() {
 
   std::vector<NodeArg*> yield_input_node_args;
   std::vector<NodeArg*> yield_output_node_args;
+  NodeArg* control_input = gradient_graph.GetNodeArg(split_graphs_info_.user_output_names[0]);
+  NodeArg* control_output = &gradient_graph.GetOrCreateNodeArg(gradient_graph.GenerateNodeArgName(control_input->Name() + "_yield"), control_input->TypeAsProto());
+  std::cout<<"Added user output yield:"<<control_input->Name() <<" : " << control_output->Name()<<"\n";
+  yield_input_node_args.emplace_back(control_input);
+  yield_output_node_args.emplace_back(control_output);
   for (const auto& name : split_graphs_info_.user_output_names) {
     yield_input_node_args.emplace_back(gradient_graph.GetNodeArg(name));
   }
@@ -240,21 +245,58 @@ void ModuleGradientGraphBuilder::AddYieldOp() {
   }
 
   auto& grad_names = split_graphs_info_.initializer_grad_names_to_train;
-  for (auto node_index : gradient_node_topology_list) {
+  std::string last_yield_node_arg;
+  std::unordered_map<std::string, NodeArg*> control_output_mapping;
+  for (auto it = std::begin(gradient_node_topology_list); it != std::end(gradient_node_topology_list); ++it) {
+    auto node_index = *it;
     auto& node = *gradient_graph.GetNode(node_index);
     // std::cout << "Node: " << node.Name() << "\n";
     for (const auto& node_arg : node.OutputDefs()) {
       if (std::find(grad_names.begin(), grad_names.end(), node_arg->Name()) != grad_names.end()) {
+        auto& next_node = *gradient_graph.GetNode(*std::next(it,1));
+        std::cout<<"Next Node:" << next_node.Name()<<"\n";
+        NodeArg* control_input = next_node.MutableInputDefs()[0];
+        NodeArg* control_output = &gradient_graph.GetOrCreateNodeArg(gradient_graph.GenerateNodeArgName(control_input->Name() + "_yield"), control_input->TypeAsProto());
+        
+        std::cout<<"Added grad output yield:"<< node_arg->Name() << " : " <<control_input->Name() <<" : " << control_output->Name()<<"\n";
+        control_output_mapping[control_input->Name()] = control_output;
         std::vector<NodeArg*> yield_input_node_arg;
         std::vector<NodeArg*> yield_output_node_arg;
+        yield_input_node_arg.emplace_back(control_input);
         yield_input_node_arg.emplace_back(gradient_graph.GetNodeArg(node_arg->Name()));
+        yield_output_node_arg.emplace_back(control_output);
+        yield_output_node_arg.emplace_back(&gradient_graph.GetOrCreateNodeArg(gradient_graph.GenerateNodeArgName(node_arg->Name() + "_yield"), node_arg->TypeAsProto()));
         Node& yield_node = gradient_graph.AddNode("YieldOp_" + node_arg->Name(), "Yield", "Yield Op", yield_input_node_arg, yield_output_node_arg, {}, kMSDomain);
         yield_node.AddAttribute("push_input", static_cast<int64_t>(1));
         split_graphs_info_.ordered_initializer_names.emplace_back(grad_name_map[node_arg->Name()]);
         std::cout<<"Yield for Grad:"<< node_arg->Name() <<"\n";
+        last_yield_node_arg = yield_output_node_arg[0]->Name();
+        next_node.MutableInputDefs()[0] = control_output;
       }
     }
   }
+
+  // If an NodeArg is output of one of nodes, it's not the user output gradient needed by backward graph.
+  // for (auto node_index : gradient_node_topology_list) {
+  //   auto& node = *gradient_graph.GetNode(node_index);
+  //   for (auto& node_arg : node.MutableOutputDefs()) {
+  //     if (control_output_mapping.find(node_arg->Name()) != control_output_mapping.end()) {
+  //       // replace the nodearg
+  //       node_arg = control_output_mapping[node_arg->Name()];
+  //       std::cout<<"Grad NodeArg:"<<node_arg->Name() <<"\n";
+  //     }
+  //   }
+  // }
+
+  // Add group node
+  std::vector<NodeArg*> group_input_node_arg;
+  group_input_node_arg.emplace_back(gradient_graph.GetNodeArg(last_yield_node_arg));
+  TypeProto* group_done_argdef = onnxruntime::make_unique<TypeProto>().get();
+  group_done_argdef->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_BOOL);
+  split_graphs_info_.group_output_node_arg_ = &gradient_graph.GetOrCreateNodeArg("complete", group_done_argdef);
+  gradient_graph.AddNode("GroupOp", "Group", "Group Op", group_input_node_arg,
+                          {split_graphs_info_.group_output_node_arg_}, {}, kMSDomain);
+
   //reverse the order to correctly get forward order
   std::reverse(split_graphs_info_.ordered_initializer_names.begin(), split_graphs_info_.ordered_initializer_names.end());
 }
@@ -284,6 +326,8 @@ void ModuleGradientGraphBuilder::ReorderOutputs() {
       new_output_args.emplace_back(gradient_output_arg_map[input_gradient_name]);
     }
   }
+
+  new_output_args.emplace_back(split_graphs_info_.group_output_node_arg_);
 
 
   gradient_graph.SetOutputs(new_output_args);
