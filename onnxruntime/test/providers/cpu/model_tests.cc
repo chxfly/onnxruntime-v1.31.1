@@ -808,9 +808,9 @@ TEST_P(ModelTest, Run) {
 #endif
 
 // TENSORRT/TRT/Nuphar has too many test failures in the single node tests
-#if !defined(_WIN32) && !defined(USE_TENSORRT) && !defined(USE_NUPHAR) && !defined(USE_OPENVINO)
+// #if !defined(_WIN32) && !defined(USE_TENSORRT) && !defined(USE_NUPHAR) && !defined(USE_OPENVINO)
     paths.push_back("/data/onnx");
-#endif
+// #endif
     while (!paths.empty()) {
       std::basic_string<ORTCHAR_T> node_data_root_path = paths.back();
       paths.pop_back();
