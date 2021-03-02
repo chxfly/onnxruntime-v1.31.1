@@ -674,8 +674,11 @@ def test_input_requires_grad_backward_creates_input_grad_as_required1(use_fp16, 
 
     assert not x1_requires_grad or ort_x1.grad is not None
     assert not x2_requires_grad or ort_x2.grad is not None
-    assert not x1_requires_grad or torch.allclose(ort_x1.grad, pt_x1.grad)
-    assert not x2_requires_grad or torch.allclose(ort_x2.grad, pt_x2.grad)
+
+    if x1_requires_grad:
+        _test_helpers.assert_torch_allclose(ort_x1.grad, pt_x1.grad, use_fp16=use_fp16)
+    if x2_requires_grad:
+        _test_helpers.assert_torch_allclose(ort_x2.grad, pt_x2.grad, use_fp16=use_fp16)
     _test_helpers.assert_gradients_match_and_reset_gradient(ort_model, pt_model, use_fp16=use_fp16)
 
 def test_gpu_reserved_memory_with_torch_no_grad():
