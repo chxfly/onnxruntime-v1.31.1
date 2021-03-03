@@ -148,7 +148,7 @@ def _get_name(name):
 
 def assert_torch_allclose(ort_tensor, pt_tensor, use_fp16=False, rtol=None, atol=None):
     if rtol is None:
-        rtol = 5e-3 if use_fp16 else 1e-5
+        rtol = 1e-2 if use_fp16 else 1e-5
     if atol is None:
         atol = 1e-3 if use_fp16 else 1e-6
     
