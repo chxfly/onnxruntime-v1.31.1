@@ -661,7 +661,7 @@ def test_input_requires_grad_backward_creates_input_grad_as_required1(x1_require
     pt_y1, pt_y2 = run_step(pt_model, pt_x1, pt_x2)
     ort_y1, ort_y2 = run_step(ort_model, ort_x1, ort_x2)
 
-    # assert torch.allclose(ort_y1, pt_y1)  # TODO: this assert is failing, need to investigate!!
+    assert torch.allclose(ort_y1, pt_y1)
     assert torch.allclose(ort_y2, pt_y2)
     assert not x1_requires_grad or ort_x1.grad is not None
     assert not x2_requires_grad or ort_x2.grad is not None

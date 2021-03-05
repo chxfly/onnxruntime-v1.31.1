@@ -135,11 +135,11 @@ CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& in
     external_stream_ = true;
     stream_ = static_cast<cudaStream_t>(info.user_compute_stream);
   } else {
-    if (info.external_allocator_info.UseExternalAllocator()) {
+    // if (info.external_allocator_info.UseExternalAllocator()) {
       stream_ = nullptr;
-    } else {
-      CUDA_CALL_THROW(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
-    }
+    // } else {
+    //   CUDA_CALL_THROW(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
+    // }
   }
 
   size_t free = 0;
