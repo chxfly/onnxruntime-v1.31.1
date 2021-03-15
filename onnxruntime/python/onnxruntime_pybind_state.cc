@@ -429,8 +429,11 @@ static void AddTensorAsPyObj(const OrtValue& val, std::vector<py::object>& pyobj
 }
 
 static inline void RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) {
+  std::cout << "RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) 111" << std::endl;
   auto p = f.CreateProvider();
+  std::cout << "RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) 222" << std::endl;
   OrtPybindThrowIfError(sess->RegisterExecutionProvider(std::move(p)));
+  std::cout << "RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) 333" << std::endl;
 }
 
 #ifdef USE_CUDA
@@ -519,11 +522,13 @@ static void RegisterExecutionProviders(InferenceSession* sess, const std::vector
                 }();
 
       // This variable is never initialized because the APIs by which is it should be initialized are deprecated, however they still 
-      // exist are are in-use. Neverthless, it is used to return CUDAAllocator, hence we must try to initialize it here if we can
+      // exist and are in-use. Neverthless, it is used to return CUDAAllocator, hence we must try to initialize it here if we can
       // since FromProviderOptions might contain external CUDA allocator.
       external_allocator_info = info.external_allocator_info;
+      std::cout << "RegisterExecutionProviders(InferenceSession* sess, const std::vector<std::string>& provider_types 1111" << std::endl;
       RegisterExecutionProvider(
           sess, *onnxruntime::CreateExecutionProviderFactory_CUDA(info));
+      std::cout << "RegisterExecutionProviders(InferenceSession* sess, const std::vector<std::string>& provider_types 2222" << std::endl;
 #endif
     } else if (type == kRocmExecutionProvider) {
 #ifdef USE_ROCM

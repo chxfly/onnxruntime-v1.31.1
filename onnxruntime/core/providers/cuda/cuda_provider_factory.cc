@@ -35,6 +35,7 @@ std::unique_ptr<IExecutionProvider> CUDAProviderFactory::CreateProvider() {
 }
 
 std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_CUDA(const CUDAExecutionProviderInfo& info) {
+  std::cout << "CreateExecutionProviderFactory_CUDA(const CUDAExecutionProviderInfo& info) 111" << std::endl;
   return std::make_shared<onnxruntime::CUDAProviderFactory>(info);
 }
 

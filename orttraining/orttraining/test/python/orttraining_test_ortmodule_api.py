@@ -439,6 +439,18 @@ def test_gradient_correctness():
         assert torch.allclose(ort_prediction, pt_prediction)
         _test_helpers.assert_gradients_match_and_reset_gradient(ort_model, pt_model)
 
+def test_pytorch_fallback_basic():
+    import numpy
+    import onnxruntime as rt, SessionOptions
+    options = SessionOptions()
+    sess = rt.InferenceSession("testdata/pyop_1.onnx") #, options, providers=["CUDAExecutionProvider"])
+    input_name = sess.get_inputs()[0].name
+    x = 7.0
+    x = x.astype(numpy.float32)
+    pred_onx = sess.run(["Y"], {input_name: x})[0]
+    print(pred_onx)
+
+
 def test_multiple_forward_only_calls():
     device = 'cuda'
     N, D_in, H, D_out = 32, 784, 500, 10
