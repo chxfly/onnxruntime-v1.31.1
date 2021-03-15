@@ -1385,9 +1385,9 @@ def run_onnxruntime_tests(args, source_dir, ctest_path, build_dir, configs):
             if not args.disable_ml_ops:
                 run_subprocess([sys.executable, 'onnxruntime_test_python_mlops.py'], cwd=cwd, dll_path=dll_path)
 
-            if args.enable_training and args.use_cuda:
-                # run basic frontend tests
-                run_training_python_frontend_tests(cwd=cwd)
+            # if args.enable_training and args.use_cuda:
+            #     # run basic frontend tests
+            #     run_training_python_frontend_tests(cwd=cwd)
 
             try:
                 import onnx  # noqa
@@ -1937,17 +1937,17 @@ def main():
         num_parallel_jobs = os.cpu_count() if args.parallel == 0 else args.parallel
         build_targets(args, cmake_path, build_dir, configs, num_parallel_jobs, args.target)
 
-    if args.test:
-        run_onnxruntime_tests(args, source_dir, ctest_path, build_dir, configs)
+    # if args.test:
+    #     run_onnxruntime_tests(args, source_dir, ctest_path, build_dir, configs)
 
-        # run nuphar python tests last, as it installs ONNX 1.5.0
-        if args.enable_pybind and not args.skip_onnx_tests and args.use_nuphar:
-            nuphar_run_python_tests(build_dir, configs)
+    #     # run nuphar python tests last, as it installs ONNX 1.5.0
+    #     if args.enable_pybind and not args.skip_onnx_tests and args.use_nuphar:
+    #         nuphar_run_python_tests(build_dir, configs)
 
-        # run node.js binding tests
-        if args.build_nodejs and not args.skip_nodejs_tests:
-            nodejs_binding_dir = os.path.normpath(os.path.join(source_dir, "nodejs"))
-            run_nodejs_tests(nodejs_binding_dir)
+    #     # run node.js binding tests
+    #     if args.build_nodejs and not args.skip_nodejs_tests:
+    #         nodejs_binding_dir = os.path.normpath(os.path.join(source_dir, "nodejs"))
+    #         run_nodejs_tests(nodejs_binding_dir)
 
     if args.build:
         if args.build_wheel:
