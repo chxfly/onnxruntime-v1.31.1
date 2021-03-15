@@ -337,6 +337,24 @@ stages:
         inputs:
           ArtifactName: onnxruntime_gpu
 
+      - script: |
+          sudo apt-get update
+          sudo apt-get install python3-pip python-dev
+        condition: succeededOrFailed()
+        displayName: 'sudo apt-get install python3-pip python-dev'
+
+      - script: |
+          python3 -m pip install twine
+        displayName: 'python3 -m pip install twine'
+        condition: succeededOrFailed()
+        timeoutInMinutes: 20
+
+      - script: |
+          python3 -m twine upload --username $(ortpypitrainingnightlyusername) --password $(ortpypitrainingnightlypassword) $(Build.ArtifactStagingDirectory)/Release/dist/*.whl
+        displayName: 'python3 -m twine upload --username $(ortpypitrainingnightlyusername) --password ??? $(Build.ArtifactStagingDirectory)/Release/dist/*.whl'
+        condition: succeededOrFailed()
+        timeoutInMinutes: 20
+
       - template: component-governance-component-detection-steps.yml
         parameters:
           condition: 'succeeded'
