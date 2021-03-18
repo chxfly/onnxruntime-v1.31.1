@@ -385,13 +385,11 @@ InferenceSession::~InferenceSession() {
 }
 
 common::Status InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) {
-  std::cout << "InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) 111" << std::endl;
   if (p_exec_provider == nullptr) {
     return Status(common::ONNXRUNTIME, common::FAIL, "Received nullptr for exec provider");
   }
 
   std::lock_guard<onnxruntime::OrtMutex> l(session_mutex_);
-  std::cout << "InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) 222" << std::endl;
   if (is_inited_) {
     // adding an EP is pointless as the graph as already been partitioned so no nodes will be assigned to
     // the new EP
@@ -399,11 +397,9 @@ common::Status InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExec
     return common::Status(common::ONNXRUNTIME, common::FAIL,
                           "Execution providers must be registered before the session is initialized.");
   }
-  std::cout << "InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) 333" << std::endl;
   const std::string& provider_type = p_exec_provider->Type();
 
   p_exec_provider->RegisterAllocator(allocator_manager_);
-  std::cout << "InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) 444" << std::endl;
   // Some session option values (default or user provided) may not work with some EPs.
   // Rather than put the onus on the user to know these, make the appropriate change while logging the change.
   if (provider_type == onnxruntime::kDmlExecutionProvider) {
@@ -439,7 +435,7 @@ common::Status InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExec
       p_exec_provider->SetComputeStream(trt_ep->GetComputeStream());
     }
   }
-  std::cout << "InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) 555" << std::endl;
+
   VLOGS(*session_logger_, 1) << "Adding execution provider of type: " << provider_type;
   auto p_data_xfr = p_exec_provider->GetDataTransfer();
   if (p_data_xfr) {
@@ -448,7 +444,7 @@ common::Status InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExec
       return st;
     }
   }
-  std::cout << "InferenceSession::RegisterExecutionProvider(std::unique_ptr<IExecutionProvider> p_exec_provider) 666" << std::endl;
+
   p_exec_provider->SetLogger(session_logger_);
   return execution_providers_.Add(provider_type, std::move(p_exec_provider));
 }

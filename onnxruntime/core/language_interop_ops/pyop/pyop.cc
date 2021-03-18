@@ -34,9 +34,11 @@
 #include <mutex>
 #include <functional>
 #include <unordered_map>
-
+#include <pybind11/pybind11.h>
+#include "core/util/dlpack_convertor.h"
+// #include <pybind11/stl.h>
 using namespace std;
-
+namespace py = pybind11;
 namespace onnxruntime {
 
 PyOpLibProxy& PyOpLibProxy::GetInstance() {
@@ -129,25 +131,68 @@ bool ExtractOutput(PyObject* pyObj,
                    vector<unique_ptr<char[]>>& outputs,
                    vector<int32_t>& outputs_elem_size,
                    vector<vector<int64_t>>& outputs_dim) {
-  if (!PyArray_Check(pyObj)) {
-    return false;
-  }
+  // if (!PyArray_Check(pyObj)) {
+  //   return false;
+  // }
 
-  outputs_dim.push_back({});
-  auto np_array = reinterpret_cast<PyArrayObject*>(pyObj);
-  outputs_elem_size.push_back(static_cast<int32_t>(PyArray_ITEMSIZE(np_array)));
+  // outputs_dim.push_back({});
+  // auto np_array = reinterpret_cast<PyArrayObject*>(pyObj);
+  // outputs_elem_size.push_back(static_cast<int32_t>(PyArray_ITEMSIZE(np_array)));
 
-  for (int i = 0; i < PyArray_NDIM(np_array); ++i) {
-    outputs_dim.back().push_back(PyArray_SHAPE(np_array)[i]);
-  }
+  // for (int i = 0; i < PyArray_NDIM(np_array); ++i) {
+  //   outputs_dim.back().push_back(PyArray_SHAPE(np_array)[i]);
+  // }
 
+  // auto data_len = std::accumulate(begin(outputs_dim.back()),
+  //                                 end(outputs_dim.back()),
+  //                                 static_cast<int64_t>(outputs_elem_size.back()),
+  //                                 std::multiplies<int64_t>());
+
+  // outputs.push_back(unique_ptr<char[]>(new char[data_len]));
+  // memcpy(static_cast<void*>(outputs.back().get()), PyArray_DATA(np_array), data_len);
+  // return true;
+
+  // OrtValue* ort_value;
+  // try {
+  //   if (py::isinstance<OrtValue>(*pyObj)) {
+  //     ort_value = py::cast<OrtValue*>(pyObj);
+  //   }
+  // } catch (const std::exception& ex) {
+  //   std::ostringstream ss;
+  //   ss << "Error casting results "
+  //      << ": expected to return list of op nodes, instead received type ''"
+  //      << py::str(pyObj.get_type()) << "': " << py::str(pyObj);
+  //   throw std::runtime_error(ss.str());
+  // }
+  // auto* ort_value = reinterpret_cast<OrtValue*>(pyObj);
+  // const Tensor& tensor = ort_value->Get<Tensor>();
+  const void* iter = PyLong_AsVoidPtr(pyObj);
+  // const auto& shape = tensor.Shape();
+  // auto num_items = shape.Size();
+  outputs_dim.push_back({2, 2});
+  // for (size_t i = 0; i < shape.NumDimensions(); ++i) {
+  //   outputs_dim.back().push_back(shape[i]);
+  // }
+  // ORT_ENFORCE(tensor.GetElementType() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+  outputs_elem_size.push_back(static_cast<int32_t>(sizeof(float)));
+  // outputs_dim.push_back({});
+  //   if (!PyArray_Check(pyObj)) {
+  //     return false;
+  //   }
+
+  //   outputs_dim.push_back({});
+  //   auto np_array = reinterpret_cast<PyArrayObject*>(pyObj);
+  //   outputs_elem_size.push_back(static_cast<int32_t>(PyArray_ITEMSIZE(np_array)));
+
+  //   for (int i = 0; i < PyArray_NDIM(np_array); ++i) {
+  //     outputs_dim.back().push_back(PyArray_SHAPE(np_array)[i]);
+  //   }
   auto data_len = std::accumulate(begin(outputs_dim.back()),
                                   end(outputs_dim.back()),
                                   static_cast<int64_t>(outputs_elem_size.back()),
                                   std::multiplies<int64_t>());
-
   outputs.push_back(unique_ptr<char[]>(new char[data_len]));
-  memcpy(static_cast<void*>(outputs.back().get()), PyArray_DATA(np_array), data_len);
+  memcpy(static_cast<void*>(outputs.back().get()), iter, data_len);
   return true;
 }
 
@@ -180,11 +225,23 @@ void PyOpLibProxy::ReleaseInstance(void* instance) {
   Scope scope({static_cast<PyObject*>(instance)});
 }
 
+void dlpack_capsule_destructor(PyObject* data) {
+  DLManagedTensor* dlmanged_tensor = (DLManagedTensor*)PyCapsule_GetPointer(data, "dltensor");
+  if (dlmanged_tensor) {
+    // the dlmanged_tensor has not been consumed, call deleter ourselves.
+    dlmanged_tensor->deleter(const_cast<DLManagedTensor*>(dlmanged_tensor));
+  } else {
+    // the dlmanged_tensor has been consumed,
+    // PyCapsule_GetPointer has set an error indicator.
+    PyErr_Clear();
+  }
+}
+
 bool PyOpLibProxy::InvokePythonFunc(void* raw_inst,
                                     const char* function,
-                                    const vector<const void*>& inputs,
-                                    const vector<int32_t>& inputs_type,
-                                    const vector<vector<int64_t>>& inputs_dim,
+                                    const vector<OrtValue*>& inputs,
+                                    const vector<int32_t>& /*inputs_type*/,
+                                    const vector<vector<int64_t>>& /*inputs_dim*/,
                                     vector<unique_ptr<char[]>>& outputs,
                                     vector<int32_t>& outputs_elem_size,
                                     vector<vector<int64_t>>& outputs_dim,
@@ -205,7 +262,11 @@ bool PyOpLibProxy::InvokePythonFunc(void* raw_inst,
   scope.Add(pyFunc);
   auto pyArgs = PyTuple_New(inputs.size());
   for (size_t i = 0; i < inputs.size(); ++i) {
-    PyTuple_SetItem(pyArgs, i, MakePyObj(inputs[i], inputs_type[i], inputs_dim[i]));
+    DLManagedTensor* dlmanaged_tensor = onnxruntime::python::ort_value_to_dlpack(*inputs[0]);
+    //py::object o = py::reinterpret_steal<py::object>(
+    PyObject* o = PyCapsule_New(dlmanaged_tensor, "dltensor", dlpack_capsule_destructor);
+    PyTuple_SetItem(pyArgs, i, o);
+    // PyTuple_SetItem(pyArgs, i, MakePyObj(inputs[i], inputs_type[i], inputs_dim[i]));
   }
 
   scope.Add(pyArgs);
@@ -216,6 +277,7 @@ bool PyOpLibProxy::InvokePythonFunc(void* raw_inst,
   }
 
   scope.Add(pyResult);
+  logging_func("InvokePythonFunc: i am fine");
   if (PyArray_Check(pyResult)) {
     ExtractOutput(pyResult, outputs, outputs_elem_size, outputs_dim);
   } else if (PyTuple_Check(pyResult)) {
@@ -239,14 +301,10 @@ PyCustomKernel::PyCustomKernel(Ort::CustomOpApi ort,
                                const std::string& compute,
                                PyOpLogFunc logging_func) : ort_(ort), attrs_(attrs), module_(module), class_name_(class_name), compute_(compute), logging_func_(logging_func) {
   std::string err;
-  std::cout << "PyCustomKernel::PyCustomKernel 111111111111" << std::endl;
   auto state = PyOpLibProxy::GetInstance().GetGil();
-  std::cout << "PyCustomKernel::PyCustomKernel 22222222" << std::endl;
   ORT_ENFORCE(PyOpLibProxy::GetInstance().Initialized(), "Py library not properly initialized.");
   instance_ = PyOpLibProxy::GetInstance().NewInstance(module.c_str(), class_name_.c_str(), attrs_);
-  std::cout << "PyCustomKernel::PyCustomKernel 333333333333" << std::endl;
   PyOpLibProxy::GetInstance().PutGil(state);
-  std::cout << "PyCustomKernel::PyCustomKernel 44444444444444" << std::endl;
   ORT_ENFORCE(nullptr != instance_, PyOpLibProxy::GetInstance().GetLastErrorMessage(err));
 }
 
@@ -265,29 +323,28 @@ void PyCustomKernel::GetOutputShape(OrtKernelContext*, size_t, OrtTensorTypeAndS
 void PyCustomKernel::Compute(OrtKernelContext* context) {
   ORT_ENFORCE(nullptr != context);
   auto inputs_count = (size_t) reinterpret_cast<onnxruntime::OpKernelContextInternal*>(context)->InputCount();
-  std::vector<const void*> inputs;
+  std::vector<OrtValue*> inputs;
   std::vector<std::unique_ptr<char[]>> outputs;
   std::vector<int32_t> inputs_type, outputs_elem_size;
   std::vector<std::vector<int64_t>> inputs_dim, outputs_dim;
 
   for (size_t i = 0; i < inputs_count; ++i) {
     auto ort_value = ort_.KernelContext_GetInput(context, i);
-    inputs.push_back(const_cast<MLValue*>(ort_value)->Get<Tensor>().DataRaw());
+    inputs.push_back(const_cast<OrtValue*>(ort_value));
     inputs_type.push_back(GetType(ort_value));
     inputs_dim.push_back(const_cast<MLValue*>(ort_value)->Get<Tensor>().Shape().GetDims());
   }
 
   std::string err;
   auto state = PyOpLibProxy::GetInstance().GetGil();
-  std::cout << "PyCustomKernel::Compute 11111" << std::endl;
   ORT_ENFORCE(PyOpLibProxy::GetInstance().InvokePythonFunc(instance_, compute_.c_str(), inputs, inputs_type,
                                                            inputs_dim, outputs, outputs_elem_size,
                                                            outputs_dim, logging_func_),
               PyOpLibProxy::GetInstance().GetLastErrorMessage(err));  //ORT_ENFORCE
-  std::cout << "PyCustomKernel::Compute 222222" << std::endl;
   PyOpLibProxy::GetInstance().PutGil(state);
-  std::cout << "PyCustomKernel::Compute 3333" << std::endl;
-  for (size_t i = 0; i < outputs.size(); ++i) {
+
+  // only handle the first one, because the mock up only have one output
+  for (size_t i = 0; i < outputs.size() - 1; ++i) {
     auto ort_output = ort_.KernelContext_GetOutput(context, i, outputs_dim[i].data(), outputs_dim[i].size());
     auto output_mem_addr = ort_.GetTensorMutableData<char>(ort_output);
     auto output_len = std::accumulate(begin(outputs_dim[i]), end(outputs_dim[i]), static_cast<int64_t>(outputs_elem_size[i]), std::multiplies<int64_t>());
@@ -351,7 +408,6 @@ PyCustomOp::PyCustomOp(const OnnxAttrs& attrs,
                        PyOpLogFunc logging_func) : attrs_(attrs), inputs_type_(inputs_type), outputs_type_(outputs_type), module_(module), class_name_(class_name), compute_(compute), logging_func_(logging_func) { OrtCustomOp::version = ORT_API_VERSION; }
 
 void* PyCustomOp::CreateKernel(Ort::CustomOpApi api, const OrtKernelInfo*) const {
-  std::cout << "PyCustomOp::CreateKernel 111111111111" << std::endl;
   return new PyCustomKernel(api, attrs_, module_, class_name_, compute_, logging_func_);
 }
 
@@ -365,7 +421,6 @@ ONNXTensorElementDataType PyCustomOp::GetOutputType(size_t index) const { return
 
 PyCustomOp* LoadPyOp(const ONNX_NAMESPACE::NodeProto& node_proto, PyOpLogFunc log_func) {
   OnnxAttrs onnx_attrs;
-  std::cout << "LoadPyOp 1111111111111" << std::endl;
   OnnxTypes input_types, output_types;
   std::string module, class_name, compute = "compute";
   for (int j = 0; j < node_proto.attribute_size(); ++j) {
@@ -395,7 +450,6 @@ PyCustomOp* LoadPyOp(const ONNX_NAMESPACE::NodeProto& node_proto, PyOpLogFunc lo
   ORT_ENFORCE(class_name != "", "PyOp class name not specified");
   ORT_ENFORCE(!input_types.empty(), "PyOp node inputs not specified");
   ORT_ENFORCE(!output_types.empty(), "PyOp node outputs not specified");
-  std::cout << "LoadPyOp 2222222222" << std::endl;
   return new PyCustomOp(onnx_attrs, input_types, output_types, module, class_name, compute, log_func);
 }
 }  // namespace onnxruntime

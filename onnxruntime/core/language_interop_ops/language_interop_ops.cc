@@ -55,19 +55,13 @@ void LoadInterOp(const ONNX_NAMESPACE::ModelProto& model_proto, InterOpDomains& 
 }
 
 void LoadInterOp(const ONNX_NAMESPACE::GraphProto& graph_proto, InterOpDomains& domains, const InterOpLogFunc& log_func) {
-  std::cout << "LoadInterOp 11111" << std::endl;
   for (int i = 0; i < graph_proto.node_size(); ++i) {
     const auto& node_proto = graph_proto.node(i);
     if (node_proto.op_type() == "PyOp") {
-      std::cout << "LoadInterOp 2222222222" << std::endl;
       OrtCustomOpDomain* pyop_domain = nullptr;
-      std::cout << "LoadInterOp 333333333333" << std::endl;
       Ort::ThrowOnError(Ort::GetApi().CreateCustomOpDomain(node_proto.domain().c_str(), &pyop_domain));
-      std::cout << "LoadInterOp 44444444444" << std::endl;
       Ort::ThrowOnError(Ort::GetApi().CustomOpDomain_Add(pyop_domain, LoadPyOp(node_proto, log_func)));
-      std::cout << "LoadInterOp 55555555555555" << std::endl;
       auto ort_domain = std::unique_ptr<OrtCustomOpDomain, decltype(&InterOpDomainDeleter)>(pyop_domain, &InterOpDomainDeleter);
-      std::cout << "LoadInterOp 666666666666666" << std::endl;
       domains.push_back(std::move(ort_domain));
     } else {
       for (int j = 0; j < node_proto.attribute_size(); ++j) {

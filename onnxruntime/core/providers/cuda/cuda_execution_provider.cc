@@ -122,14 +122,10 @@ CUDAExecutionProvider::PerThreadContext::~PerThreadContext() {
 CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info)
     : IExecutionProvider{onnxruntime::kCudaExecutionProvider},
       info_{info} {
-  std::cout << "CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info) 111" << std::endl;
   CUDA_CALL_THROW(cudaSetDevice(info_.device_id));
-  std::cout << "CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info) 222" << std::endl;
   // must wait GPU idle, otherwise cudaGetDeviceProperties might fail
   CUDA_CALL_THROW(cudaDeviceSynchronize());
-  std::cout << "CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info) 333" << std::endl;
   CUDA_CALL_THROW(cudaGetDeviceProperties(&device_prop_, info_.device_id));
-  std::cout << "CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info) 444" << std::endl;
   // This scenario is not supported.
   ORT_ENFORCE(!(info.has_user_compute_stream && info.external_allocator_info.UseExternalAllocator()));
 
@@ -143,11 +139,10 @@ CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& in
       CUDA_CALL_THROW(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
     }
   }
-  std::cout << "CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info) 555" << std::endl;
+
   size_t free = 0;
   size_t total = 0;
   CUDA_CALL_THROW(cudaMemGetInfo(&free, &total));
-  std::cout << "CUDAExecutionProvider::CUDAExecutionProvider(const CUDAExecutionProviderInfo& info) 666" << std::endl;
 }
 
 CUDAExecutionProvider::~CUDAExecutionProvider() {

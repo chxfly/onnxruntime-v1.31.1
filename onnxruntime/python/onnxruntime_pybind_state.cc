@@ -27,7 +27,7 @@
 #include "core/session/abi_session_options_impl.h"
 
 #ifdef ENABLE_TRAINING
-#include "python/dlpack_convertor.h"
+#include "core/util/dlpack_convertor.h"
 #endif
 
 // execution provider factory creator headers
@@ -429,11 +429,8 @@ static void AddTensorAsPyObj(const OrtValue& val, std::vector<py::object>& pyobj
 }
 
 static inline void RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) {
-  std::cout << "RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) 111" << std::endl;
   auto p = f.CreateProvider();
-  std::cout << "RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) 222" << std::endl;
   OrtPybindThrowIfError(sess->RegisterExecutionProvider(std::move(p)));
-  std::cout << "RegisterExecutionProvider(InferenceSession* sess, onnxruntime::IExecutionProviderFactory& f) 333" << std::endl;
 }
 
 #ifdef USE_CUDA
@@ -521,14 +518,12 @@ static void RegisterExecutionProviders(InferenceSession* sess, const std::vector
                   return info;
                 }();
 
-      // This variable is never initialized because the APIs by which is it should be initialized are deprecated, however they still 
+      // This variable is never initialized because the APIs by which is it should be initialized are deprecated, however they still
       // exist and are in-use. Neverthless, it is used to return CUDAAllocator, hence we must try to initialize it here if we can
       // since FromProviderOptions might contain external CUDA allocator.
       external_allocator_info = info.external_allocator_info;
-      std::cout << "RegisterExecutionProviders(InferenceSession* sess, const std::vector<std::string>& provider_types 1111" << std::endl;
       RegisterExecutionProvider(
           sess, *onnxruntime::CreateExecutionProviderFactory_CUDA(info));
-      std::cout << "RegisterExecutionProviders(InferenceSession* sess, const std::vector<std::string>& provider_types 2222" << std::endl;
 #endif
     } else if (type == kRocmExecutionProvider) {
 #ifdef USE_ROCM
@@ -912,7 +907,7 @@ void addGlobalMethods(py::module& m, Environment& env) {
     ORT_UNUSED_PARAMETER(algo);
     ORT_THROW("set_cudnn_conv_algo_search is not supported in ROCM");
 #else
-        cudnn_conv_algo_search = algo;
+    cudnn_conv_algo_search = algo;
 #endif
   });
   // TODO remove deprecated global config
@@ -923,7 +918,7 @@ void addGlobalMethods(py::module& m, Environment& env) {
     ORT_UNUSED_PARAMETER(use_single_stream);
     ORT_THROW("set_do_copy_in_default_stream is not supported in ROCM");
 #else
-        do_copy_in_default_stream = use_single_stream;
+    do_copy_in_default_stream = use_single_stream;
 #endif
   });
   // TODO remove deprecated global config
@@ -1157,7 +1152,7 @@ void addObjectMethods(py::module& m, Environment& env) {
 
           CreateGenericMLValue(nullptr, GetAllocator(), "", array_on_cpu, ml_value.get(), true);
         } else if (GetDeviceName(device) == CUDA) {
-      // The tensor's memory is allocated on CUDA
+// The tensor's memory is allocated on CUDA
 
 #ifdef USE_CUDA
           if (!IsCudaDeviceIdValid(logging::LoggingManager::DefaultLogger(), device.Id())) {
@@ -1203,7 +1198,7 @@ void addObjectMethods(py::module& m, Environment& env) {
         if (GetDeviceName(device) == CPU) {
           tensor = onnxruntime::make_unique<Tensor>(NumpyTypeToOnnxRuntimeType(type_num), shape, GetAllocator());
         } else if (GetDeviceName(device) == CUDA) {
-      // The tensor's memory is allocated on CUDA
+// The tensor's memory is allocated on CUDA
 #ifdef USE_CUDA
           if (!IsCudaDeviceIdValid(logging::LoggingManager::DefaultLogger(), device.Id())) {
             throw std::runtime_error("The provided device id doesn't match any available GPUs on the machine.");
@@ -1242,9 +1237,10 @@ void addObjectMethods(py::module& m, Environment& env) {
                                                                             reinterpret_cast<void*>(data_ptr), info);
 
         auto ort_value = onnxruntime::make_unique<OrtValue>();
+        std::cout << "ortvalue_from_data_ptr 111" << std::endl;
         ort_value->Init(p_tensor.release(), DataTypeImpl::GetType<Tensor>(),
                         DataTypeImpl::GetType<Tensor>()->GetDeleteFunc());
-
+        std::cout << "ortvalue_from_data_ptr 2222" << std::endl;
         return ort_value;
       })
 #endif
@@ -1593,24 +1589,24 @@ Applies to session load, initialization, etc. Default is 0.)pbdoc")
           [](PySessionOptions* options, const char* library_path)
               -> void {
 #if !defined(ORT_MINIMAL_BUILD) || defined(ORT_MINIMAL_BUILD_CUSTOM_OPS)
-            // We need to pass in an `OrtSessionOptions` instance because the exported method in the shared library expects that
-            // Once we have access to the `OrtCustomOpDomains` within the passed in `OrtSessionOptions` instance, we place it
-            // into the container we are maintaining for that very purpose and the `ortSessionoptions` instance can go out of scope.
-            OrtSessionOptions s;
+                // We need to pass in an `OrtSessionOptions` instance because the exported method in the shared library expects that
+                // Once we have access to the `OrtCustomOpDomains` within the passed in `OrtSessionOptions` instance, we place it
+                // into the container we are maintaining for that very purpose and the `ortSessionoptions` instance can go out of scope.
+                OrtSessionOptions s;
 
-            options->custom_op_libraries_.emplace_back(std::make_shared<CustomOpLibrary>(library_path, s));
+                options->custom_op_libraries_.emplace_back(std::make_shared<CustomOpLibrary>(library_path, s));
 
-            // reserve enough memory to hold current contents and the new incoming contents
-            options->custom_op_domains_.reserve(options->custom_op_domains_.size() + s.custom_op_domains_.size());
-            for (size_t i = 0; i < s.custom_op_domains_.size(); ++i) {
-              options->custom_op_domains_.emplace_back(s.custom_op_domains_[i]);
-            }
+                // reserve enough memory to hold current contents and the new incoming contents
+                options->custom_op_domains_.reserve(options->custom_op_domains_.size() + s.custom_op_domains_.size());
+                for (size_t i = 0; i < s.custom_op_domains_.size(); ++i) {
+                  options->custom_op_domains_.emplace_back(s.custom_op_domains_[i]);
+                }
 #else
-            ORT_UNUSED_PARAMETER(options);
-            ORT_UNUSED_PARAMETER(library_path);
-            ORT_THROW("Custom Ops are not supported in this build.");
+                ORT_UNUSED_PARAMETER(options);
+                ORT_UNUSED_PARAMETER(library_path);
+                ORT_THROW("Custom Ops are not supported in this build.");
 #endif
-          },
+              },
           R"pbdoc(Specify the path to the shared library containing the custom op kernels required to run a model.)pbdoc")
       .def(
           "add_initializer", [](PySessionOptions* options, const char* name, py::object& ml_value_pyobject) -> void {
@@ -1660,57 +1656,55 @@ including arg name, arg type (contains both type and shape).)pbdoc")
             return *(na.Type());
           },
           "node type")
-      .def(
-          "__str__", [](const onnxruntime::NodeArg& na) -> std::string {
-            std::ostringstream res;
-            res << "NodeArg(name='" << na.Name() << "', type='" << *(na.Type()) << "', shape=";
-            auto shape = na.Shape();
-            std::vector<py::object> arr;
-            if (shape == nullptr || shape->dim_size() == 0) {
-              res << "[]";
+      .def("__str__", [](const onnxruntime::NodeArg& na) -> std::string {
+        std::ostringstream res;
+        res << "NodeArg(name='" << na.Name() << "', type='" << *(na.Type()) << "', shape=";
+        auto shape = na.Shape();
+        std::vector<py::object> arr;
+        if (shape == nullptr || shape->dim_size() == 0) {
+          res << "[]";
+        } else {
+          res << "[";
+          for (int i = 0; i < shape->dim_size(); ++i) {
+            if (utils::HasDimValue(shape->dim(i))) {
+              res << shape->dim(i).dim_value();
+            } else if (utils::HasDimParam(shape->dim(i))) {
+              res << "'" << shape->dim(i).dim_param() << "'";
             } else {
-              res << "[";
-              for (int i = 0; i < shape->dim_size(); ++i) {
-                if (utils::HasDimValue(shape->dim(i))) {
-                  res << shape->dim(i).dim_value();
-                } else if (utils::HasDimParam(shape->dim(i))) {
-                  res << "'" << shape->dim(i).dim_param() << "'";
-                } else {
-                  res << "None";
-                }
-
-                if (i < shape->dim_size() - 1) {
-                  res << ", ";
-                }
-              }
-              res << "]";
-            }
-            res << ")";
-
-            return std::string(res.str());
-          },
-          "converts the node into a readable string")
-      .def_property_readonly(
-          "shape", [](const onnxruntime::NodeArg& na) -> std::vector<py::object> {
-            auto shape = na.Shape();
-            std::vector<py::object> arr;
-            if (shape == nullptr || shape->dim_size() == 0) {
-              return arr;
+              res << "None";
             }
 
-            arr.resize(shape->dim_size());
-            for (int i = 0; i < shape->dim_size(); ++i) {
-              if (utils::HasDimValue(shape->dim(i))) {
-                arr[i] = py::cast(shape->dim(i).dim_value());
-              } else if (utils::HasDimParam(shape->dim(i))) {
-                arr[i] = py::cast(shape->dim(i).dim_param());
-              } else {
-                arr[i] = py::none();
-              }
+            if (i < shape->dim_size() - 1) {
+              res << ", ";
             }
-            return arr;
-          },
-          "node shape (assuming the node holds a tensor)");
+          }
+          res << "]";
+        }
+        res << ")";
+
+        return std::string(res.str());
+      },
+           "converts the node into a readable string")
+      .def_property_readonly("shape", [](const onnxruntime::NodeArg& na) -> std::vector<py::object> {
+        auto shape = na.Shape();
+        std::vector<py::object> arr;
+        if (shape == nullptr || shape->dim_size() == 0) {
+          return arr;
+        }
+
+        arr.resize(shape->dim_size());
+        for (int i = 0; i < shape->dim_size(); ++i) {
+          if (utils::HasDimValue(shape->dim(i))) {
+            arr[i] = py::cast(shape->dim(i).dim_value());
+          } else if (utils::HasDimParam(shape->dim(i))) {
+            arr[i] = py::cast(shape->dim(i).dim_param());
+          } else {
+            arr[i] = py::none();
+          }
+        }
+        return arr;
+      },
+                             "node shape (assuming the node holds a tensor)");
 
   py::class_<SessionObjectInitializer>(m, "SessionObjectInitializer");
   py::class_<PyInferenceSession>(m, "InferenceSession", R"pbdoc(This is the main class used to run a model.)pbdoc")
@@ -1759,42 +1753,42 @@ including arg name, arg type (contains both type and shape).)pbdoc")
            [](PyInferenceSession* sess, std::vector<std::string> output_names,
               std::map<std::string, py::object> pyfeeds, RunOptions* run_options = nullptr)
                -> std::vector<py::object> {
-             NameMLValMap feeds;
-             for (auto _ : pyfeeds) {
-               OrtValue ml_value;
-               auto px = sess->GetSessionHandle()->GetModelInputs();
-               if (!px.first.IsOK() || !px.second) {
-                 throw std::runtime_error("Either failed to get model inputs from the session object or the input def list was null");
-               }
-               CreateGenericMLValue(px.second, GetAllocator(), _.first, _.second, &ml_value);
-               ThrowIfPyErrOccured();
-               feeds.insert(std::make_pair(_.first, ml_value));
-             }
+                 NameMLValMap feeds;
+                 for (auto _ : pyfeeds) {
+                   OrtValue ml_value;
+                   auto px = sess->GetSessionHandle()->GetModelInputs();
+                   if (!px.first.IsOK() || !px.second) {
+                     throw std::runtime_error("Either failed to get model inputs from the session object or the input def list was null");
+                   }
+                   CreateGenericMLValue(px.second, GetAllocator(), _.first, _.second, &ml_value);
+                   ThrowIfPyErrOccured();
+                   feeds.insert(std::make_pair(_.first, ml_value));
+                 }
 
-             std::vector<OrtValue> fetches;
-             common::Status status;
+                 std::vector<OrtValue> fetches;
+                 common::Status status;
 
-             {
-               // release GIL to allow multiple python threads to invoke Run() in parallel.
-               py::gil_scoped_release release;
-               if (run_options != nullptr) {
-                 OrtPybindThrowIfError(sess->GetSessionHandle()->Run(*run_options, feeds, output_names, &fetches));
-               } else {
-                 OrtPybindThrowIfError(sess->GetSessionHandle()->Run(feeds, output_names, &fetches));
-               }
-             }
+                 {
+                   // release GIL to allow multiple python threads to invoke Run() in parallel.
+                   py::gil_scoped_release release;
+                   if (run_options != nullptr) {
+                     OrtPybindThrowIfError(sess->GetSessionHandle()->Run(*run_options, feeds, output_names, &fetches));
+                   } else {
+                     OrtPybindThrowIfError(sess->GetSessionHandle()->Run(feeds, output_names, &fetches));
+                   }
+                 }
 
-             std::vector<py::object> rfetch;
-             rfetch.reserve(fetches.size());
-             for (auto _ : fetches) {
-               if (_.IsTensor()) {
-                 AddTensorAsPyObj(_, rfetch, nullptr, nullptr);
-               } else {
-                 AddNonTensorAsPyObj(_, rfetch, nullptr, nullptr);
-               }
-             }
-             return rfetch;
-           })
+                 std::vector<py::object> rfetch;
+                 rfetch.reserve(fetches.size());
+                 for (auto _ : fetches) {
+                   if (_.IsTensor()) {
+                     AddTensorAsPyObj(_, rfetch, nullptr, nullptr);
+                   } else {
+                     AddNonTensorAsPyObj(_, rfetch, nullptr, nullptr);
+                   }
+                 }
+                 return rfetch;
+               })
       .def("end_profiling", [](PyInferenceSession* sess) -> std::string {
         return sess->GetSessionHandle()->EndProfiling();
       })
@@ -1839,8 +1833,7 @@ including arg name, arg type (contains both type and shape).)pbdoc")
           status = sess->GetSessionHandle()->Run(*run_options, *io_binding.Get());
         if (!status.IsOK())
           throw std::runtime_error("Error in execution: " + status.ErrorMessage());
-      })
-      ;
+      });
 
   py::enum_<onnxruntime::ArenaExtendStrategy>(m, "ArenaExtendStrategy", py::arithmetic())
       .value("kNextPowerOfTwo", onnxruntime::ArenaExtendStrategy::kNextPowerOfTwo)

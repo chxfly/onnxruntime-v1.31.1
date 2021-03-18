@@ -275,7 +275,6 @@ void FusedMatMulShapeInference(ONNX_NAMESPACE::InferenceContext& ctx) {
   updateOutputShape(ctx, 0, resultShape);
 }
 
-
 void AttentionTypeAndShapeInference(ONNX_NAMESPACE::InferenceContext& ctx, int past_input_index) {
   // Type inference
   ONNX_NAMESPACE::propagateElemTypeFromInputToOutput(ctx, 2, 0);
@@ -441,7 +440,7 @@ and present state are optional. Present state could appear in output even when p
         AttentionTypeAndShapeInference(ctx, past_input_index);
       });
 
-      static const char* Longformer_Attention_doc = R"DOC(
+  static const char* Longformer_Attention_doc = R"DOC(
 Longformer Self Attention with a local context and a global context. Tokens attend locally: Each token
 attends to its W previous tokens and W succeding tokens with W being the window length. A selected few tokens
 attend globally to all other tokens.
@@ -2376,6 +2375,40 @@ It's an extension of Gelu. It takes the sum of input A and bias input B as the i
           {"tensor(float16)", "tensor(float)", "tensor(double)"},
           "Constrain input and output types to float tensors.")
       .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput);
+
+  ONNX_CONTRIB_OPERATOR_SCHEMA(Interop)
+      .SetDomain(kMSDomain)
+      .SinceVersion(1)
+      .SetSupportLevel(OpSchema::SupportType::EXPERIMENTAL)
+      .SetDoc("Interop Op.")
+      .Input(0, "ToExternal", "Output from ONNX to external code.", "T", OpSchema::Variadic,
+             /*is_homogeneous*/ false,
+             /*min_arity*/ 1)
+      .Output(0, "FromExternal", "Result from external code to ONNX.", "T", OpSchema::Variadic,
+              /*is_homogeneous*/ false,
+              /*min_arity*/ 1)
+      .Attr(
+          "external_fn",
+          "External function ID.",
+          AttributeProto::INT,
+          static_cast<int64_t>(0))
+      .Attr(
+          "is_backward",
+          "Is backward.",
+          AttributeProto::INT,
+          static_cast<int64_t>(0))
+      .TypeConstraint("T", OpSchema::all_tensor_types(), "Allow inputs and outputs to be any kind of tensor.")
+      .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+        // Assume that the inputs and outputs are matching, those outputs that has grads comes first.
+        for (size_t i = 0; i < ctx.getNumOutputs(); ++i) {
+          propagateElemTypeFromInputToOutput(ctx, i, i);
+          auto typeProto = ctx.getInputType(i);
+          if (!hasShape(*typeProto)) {
+            continue;
+          }
+          propagateShapeFromInputToOutput(ctx, i, i);
+        }
+      });
 
   // Register the NCHWc schemas if supported by the platform.
   if (MlasNchwcGetBlockSize() > 1) {
