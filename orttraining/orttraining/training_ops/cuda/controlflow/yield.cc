@@ -31,8 +31,8 @@ Status YieldOp::ComputeInternal(OpKernelContext* ctx) const {
   }
 
   // Wait for the cuda computations to complete before returning to the main thread
-  //CUDA_RETURN_IF_ERROR(cudaStreamSynchronize(nullptr));
-  CUDA_RETURN_IF_ERROR(cudaDeviceSynchronize());
+  CUDA_RETURN_IF_ERROR(cudaStreamSynchronize(nullptr));
+  //CUDA_RETURN_IF_ERROR(cudaDeviceSynchronize());
 
   // return forward output and single that FW graph is completed
   OrtTasks::GetInstance().SetForwardOutputs(Status::OK(), forward_outputs);
