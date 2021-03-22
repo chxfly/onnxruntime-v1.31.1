@@ -14,6 +14,7 @@
 #include "core/optimizer/conv_add_fusion.h"
 #include "core/optimizer/conv_bn_fusion.h"
 #include "core/optimizer/conv_mul_fusion.h"
+#include "core/optimizer/div_mul_fusion.h"
 #include "core/optimizer/dropout_elimination.h"
 #include "core/optimizer/dynamic_quantize_matmul_fusion.h"
 #include "core/optimizer/embed_layer_norm_fusion.h"
@@ -133,6 +134,7 @@ std::vector<std::unique_ptr<GraphTransformer>> GenerateTransformers(
       // no filtering on execution provider for L1 optimizations as they only use official ONNX operators
       transformers.emplace_back(onnxruntime::make_unique<CommonSubexpressionElimination>());
       transformers.emplace_back(onnxruntime::make_unique<ConstantFolding>(execution_provider, enable_quant_qdq));
+      transformers.emplace_back(onnxruntime::make_unique<DivMulFusion>());
       transformers.emplace_back(onnxruntime::make_unique<MatMulAddFusion>());
       transformers.emplace_back(onnxruntime::make_unique<ReshapeFusion>());
       transformers.emplace_back(onnxruntime::make_unique<FreeDimensionOverrideTransformer>(
