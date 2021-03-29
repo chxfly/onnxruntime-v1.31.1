@@ -10,6 +10,9 @@
 namespace onnxruntime {
 namespace cuda {
 template <typename T>
+void ClipImpl(cudaStream_t stream, const T* input_data, T* output_data, const T* min, const T* max, T min_default, T max_default, size_t count);
+
+template <typename T>
 void ClipImpl(cudaStream_t stream, const T* input_data, T* output_data, T min, T max, size_t count);
 
 }  // namespace cuda
