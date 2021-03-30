@@ -31,6 +31,7 @@
 #include "core/optimizer/matmul_scale_fusion.h"
 #include "core/optimizer/matmul_transpose_fusion.h"
 #include "core/optimizer/nchwc_transformer.h"
+#include "core/optimizer/not_where_fusion.h"
 #include "core/optimizer/relu_clip_fusion.h"
 #include "core/optimizer/reshape_fusion.h"
 #include "core/optimizer/rule_based_graph_transformer.h"
@@ -83,6 +84,7 @@ std::vector<std::unique_ptr<GraphTransformer>> GeneratePreTrainingTransformers(
       transformers.emplace_back(onnxruntime::make_unique<CommonSubexpressionEliminationApplyOnce>(compatible_eps));
 
       transformers.emplace_back(onnxruntime::make_unique<IsInfReduceSumFusion>(compatible_eps));
+      transformers.emplace_back(onnxruntime::make_unique<NotWhereFusion>(compatible_eps));
       transformers.emplace_back(onnxruntime::make_unique<DivMulFusion>(compatible_eps));
 
       transformers.emplace_back(onnxruntime::make_unique<GeluFusion>(compatible_eps));
