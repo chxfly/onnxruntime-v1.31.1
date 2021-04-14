@@ -251,7 +251,9 @@ if enable_training:
     # this is needed immediately by pytorch/ort so that the user is able to
     # install an onnxruntime training package with matching torch cuda version.
     package_name = 'onnxruntime-training'
-    if cuda_version:
+
+    # no local version for release so we can upload to pypi
+    if cuda_version and nightly_build:
         # removing '.' to make Cuda version number in the same form as Pytorch.
         cuda_version = cuda_version.replace('.', '')
         local_version = '+cu' + cuda_version
