@@ -9,6 +9,6 @@ torch==1.8.1+cu101
 torchvision==0.9.1+cu101
 torchtext==0.9.1
 tensorboard==v2.0.0
-h5py
 wget
+h5py
 pytorch-lightning==1.2.5
