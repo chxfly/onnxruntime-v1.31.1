@@ -103,7 +103,7 @@ std::unordered_set<NodeIndex> GetCpuPreferredNodes(const onnxruntime::GraphViewe
             auto consumer_nodes = graph.GetConsumerNodes(node_arg.Name());
             for (auto& consumer_node : consumer_nodes) {
               candidates_fw.push(consumer_node->Index());
-              LOGS_DEFAULT(INFO) << "Candidate for fallback CPU execution in forward trace: " << consumer_node->Name();
+              LOGS_DEFAULT(WARNING) << "Candidate for fallback CPU execution in forward trace: " << consumer_node->Name();
             }
           }
           return Status::OK();
@@ -118,7 +118,7 @@ std::unordered_set<NodeIndex> GetCpuPreferredNodes(const onnxruntime::GraphViewe
             auto producer_node = graph.GetProducerNode(node_arg.Name());
             if (producer_node != nullptr) {
               candidates_bw.push(producer_node->Index());
-              LOGS_DEFAULT(INFO) << "Candidate for fallback CPU execution in backward trace: " << producer_node->Name();
+              LOGS_DEFAULT(WARNING) << "Candidate for fallback CPU execution in backward trace: " << producer_node->Name();
             }
           }
           return Status::OK();
@@ -175,7 +175,7 @@ std::unordered_set<NodeIndex> GetCpuPreferredNodes(const onnxruntime::GraphViewe
 
     if (place_in_cpu && cpu_kernel_available.count(cur) != 0) {
       cpu_nodes.insert(cur);
-      LOGS_DEFAULT(INFO) << "ORT optimization- Force fallback to CPU execution for node: " << node->Name()
+      LOGS_DEFAULT(WARNING) << "ORT optimization- Force fallback to CPU execution for node: " << node->Name()
                          << " because the CPU execution path is deemed faster than overhead involved with execution on other EPs "
                          << " capable of executing this node";
       for (auto* output : node->OutputDefs()) {
@@ -249,7 +249,7 @@ std::unordered_set<NodeIndex> GetCpuPreferredNodes(const onnxruntime::GraphViewe
 
     if (place_in_cpu && cpu_kernel_available.count(cur) != 0) {
       cpu_nodes.insert(cur);
-      LOGS_DEFAULT(INFO) << "ORT optimization- Force fallback to CPU execution for node: " << node->Name()
+      LOGS_DEFAULT(WARNING) << "ORT optimization- Force fallback to CPU execution for node: " << node->Name()
                          << " because the CPU execution path is deemed faster than overhead involved with execution on other EPs "
                          << " capable of executing this node";
       for (auto* input : node->InputDefs()) {

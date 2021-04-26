@@ -48,6 +48,7 @@ static void RunTrainingSessionLoadOptimTests(std::string optim_name, bool mixed_
 
   config.init_optimizer_states = init_optimizer_state;
   SessionOptions so{};
+  so.optimized_model_filepath = "training_graph.onnx";
   std::unique_ptr<TrainingSession> training_session = BuildAndRunTrainingSessionWithChecks(so, ORIGINAL_MODEL_PATH, config);
 
   NameMLValMap training_state{};
