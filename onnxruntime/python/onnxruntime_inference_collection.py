@@ -278,9 +278,10 @@ class InferenceSession(Session):
 
         # internal parameters that we don't expect to be used in general so aren't documented
         disabled_optimizers = kwargs['disabled_optimizers'] if 'disabled_optimizers' in kwargs else None
+        user_input_output_names = kwargs['user_input_output_names'] if 'user_input_output_names' in kwargs else None
 
         try:
-            self._create_inference_session(providers, provider_options, disabled_optimizers)
+            self._create_inference_session(providers, provider_options, disabled_optimizers, user_input_output_names)
         except ValueError:
             if self._enable_fallback:
                 print("EP Error using {}".format(providers))
@@ -291,7 +292,7 @@ class InferenceSession(Session):
             else:
                 raise
 
-    def _create_inference_session(self, providers, provider_options, disabled_optimizers=None):
+    def _create_inference_session(self, providers, provider_options, disabled_optimizers=None, user_input_output_names = None):
         available_providers = C.get_available_providers()
 
         # Tensorrt can fall back to CUDA. All others fall back to CPU.
@@ -316,6 +317,17 @@ class InferenceSession(Session):
         elif not isinstance(disabled_optimizers, set):
             # convert to set. assumes iterable
             disabled_optimizers = set(disabled_optimizers)
+
+        if user_input_output_names is not None:
+            is_invalid = (not isinstance(user_input_output_names, dict) or 
+                         ('inputs' not in user_input_output_names) or 
+                         ('outputs' not in user_input_output_names)
+            if is_invalid:
+                raise ValueError("`user_input_output_names` must be a dict with keys `inputs` and `outputs`")
+            else:
+                yield_input_names = user_input_output_names['inputs']
+                yield_output_names = user_output_output_names['outputs']
+                sess.add_yield_transformer(yield_input_names, yield_output_names)
 
         # initialize the C++ InferenceSession
         sess.initialize_session(providers, provider_options, disabled_optimizers)

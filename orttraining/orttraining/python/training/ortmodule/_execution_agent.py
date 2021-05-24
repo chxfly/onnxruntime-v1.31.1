@@ -111,9 +111,10 @@ class TrainingAgent(object):
         The list of providers is ordered by precedence. For example ['CUDAExecutionProvider', 'CPUExecutionProvider']
         means execute a node using CUDAExecutionProvider if capable, otherwise execute using CPUExecutionProvider.
         """
-
+        user_input_output_names = {'inputs':fw_fetches_names, 'outputs':bw_feed_names}
         self._inference_session = onnxruntime.InferenceSession(path_or_bytes, session_options,
-                                                               providers, provider_options)
+                                                               providers, provider_options, 
+                                                               user_input_output_names=user_input_output_names)
 
         self._training_agent = C_TrainingAgent(self._inference_session._sess, fw_feed_names, fw_fetches_names,
                                                fw_outputs_device_info, bw_feed_names, bw_fetches_names, bw_outputs_device_info)
