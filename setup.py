@@ -367,7 +367,12 @@ if nightly_build:
         if isinstance(ort_version, Version):
             version_number = '{major}.{minor}.{macro}'.format(
                 major=ort_version.major,
-                minor=ort_version.minor + 1,
+                # this change is only for dev release before release 1.8.
+                # becasue version number is already updated,
+                # we do not want to increase the minor number
+                # to avoid take precedence over the release version
+                # minor=ort_version.minor + 1,
+                minor=ort_version.minor,
                 macro=ort_version.micro)
 
     version_number = version_number + ".dev" + build_suffix
