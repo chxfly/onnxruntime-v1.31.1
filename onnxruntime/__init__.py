@@ -3,9 +3,11 @@
 # Licensed under the MIT License.
 # --------------------------------------------------------------------------
 """
-ONNX Runtime is a performance-focused scoring engine for Open Neural Network Exchange (ONNX) models.
-For more information on ONNX Runtime, please see `aka.ms/onnxruntime <https://aka.ms/onnxruntime/>`_
-or the `Github project <https://github.com/microsoft/onnxruntime/>`_.
+ONNX Runtime is a high performance cross platform runtime for Machine Learning models.
+`Project information <https://onnxruntime.ai/>`_
+`Github <https://github.com/microsoft/onnxruntime/>`_
+`Installation instructions <https://onnxruntime.ai/docs/how-to/install.html/>`_
+`API Documentation <https://onnxruntime.ai/docs/reference/api/python-api.html/>`_
 """
 __version__ = "1.8.2"
 __author__ = "Microsoft"
