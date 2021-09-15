@@ -1,20 +1,22 @@
 parameters:
+- name: NpmPublish
+  displayName: 'NPM packages publish configuration'
+  type: string
+  values:
+  - 'no'
+  - 'nightly (@dev)'
+  - 'release candidate (@rc)'
+  - 'production (@latest)'
+  - 'custom'
+  default: no
+
+variables:
 - name: CmdParams
-  displayName: 'Additional build command parameters'
-  type: string
-  default: ''
-- name: DoPublish
-  displayName: 'Publish ONNX Runtime Web NPM packages'
-  type: boolean
-  default: false
+  value: '$[variables.CmdParams]'
 - name: VersionSuffix
-  displayName: 'version suffix of the NPM package'
-  type: string
-  default: '-dev.${YYYYMMDD}.${REV}'
+  value: '$[variables.VersionSuffix]'
 - name: NpmTag
-  displayName: 'npm publish tag'
-  type: string
-  default: 'dev'
+  value: '$[variables.NpmTag]'
 
 stages:
 - stage: Extract_commit
@@ -44,7 +46,7 @@ stages:
     parameters:
       CommitOverride: true
       BuildConfig: 'Debug'
-      CmdParams: '${{ parameters.CmdParams }}'
+      CmdParams: '$(CmdParams)'
 
 - stage: Build_web_Debug
   dependsOn: Build_wasm_Debug
@@ -61,14 +63,14 @@ stages:
     parameters:
       CommitOverride: true
       BuildConfig: 'Release'
-      CmdParams: '--skip_tests --disable_wasm_exception_catching --disable_rtti ${{ parameters.CmdParams }}'
+      CmdParams: '--skip_tests --disable_wasm_exception_catching --disable_rtti $(CmdParams)'
 
 - stage: Build_web_Release
   dependsOn: Build_wasm_Release
   jobs:
   - template: templates/win-web-ci.yml
     parameters:
-      NpmVersionSuffix: '${{ parameters.VersionSuffix }}'
+      NpmVersionSuffix: '$(VersionSuffix)'
       CommitOverride: true
       BuildConfig: 'Release'
 
@@ -103,4 +105,4 @@ stages:
   jobs:
   - template: templates/win-web-publish.yml
     parameters:
-      NpmTag: '${{ parameters.NpmTag }}'
+      NpmTag: '$(NpmTag)'
