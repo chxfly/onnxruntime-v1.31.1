@@ -85,7 +85,7 @@ stages:
     parameters:
       CommitOverride: true
       BuildConfig: 'Release'
-      BuildCmdArgs: '--skip_tests --disable_wasm_exception_catching --disable_rtti $(ExtraBuildArgs)'
+      ExtraBuildArgs: '--skip_tests --disable_wasm_exception_catching --disable_rtti $(ExtraBuildArgs)'
 
 - stage: Build_web_Release
   dependsOn: Build_wasm_Release
