@@ -11,12 +11,27 @@ parameters:
   default: no
 
 variables:
-- name: CmdParams
-  value: '$[variables.CmdParams]'
-- name: VersionSuffix
-  value: '$[variables.VersionSuffix]'
-- name: NpmTag
-  value: '$[variables.NpmTag]'
+  CmdParams: '$[variables.CmdParams]'
+  ${{ if eq(parameters.NpmPublish, 'no') }}:
+    DoPublish: false
+    VersionSuffix: ''
+    NpmTag: ''
+  ${{ if eq(parameters.NpmPublish, 'nightly (@dev)') }}:
+    DoPublish: true
+    VersionSuffix: '-dev.${YYYYMMDD}.${REV}'
+    NpmTag: 'dev'
+  ${{ if eq(parameters.NpmPublish, 'release candidate (@rc)') }}:
+    DoPublish: true
+    VersionSuffix: '-rc'
+    NpmTag: 'rc'
+  ${{ if eq(parameters.NpmPublish, 'production (@latest)') }}:
+    DoPublish: true
+    VersionSuffix: ''
+    NpmTag: 'latest'
+  ${{ if eq(parameters.NpmPublish, 'custom') }}:
+    DoPublish: true
+    VersionSuffix: '$[variables.VersionSuffix]'
+    NpmTag: '$[variables.NpmTag]'
 
 stages:
 - stage: Extract_commit
@@ -31,6 +46,12 @@ stages:
       fetchDepth: 1
       submodules: false
     - script: |
+        echo.1 $(NpmPublish)
+        echo.2 ${{ parameters.NpmPublish }}
+        echo.3 $(CmdParams)
+        echo.4 $(VersionSuffix)
+        echo.5 $(NpmTag)
+        echo.6 $(DoPublish)
         echo.$(Build.SourceVersion)
         echo.$(Build.SourceVersion)>$(Build.ArtifactStagingDirectory)\__commit.txt
     - task: PublishPipelineArtifact@0
@@ -98,7 +119,7 @@ stages:
                             eq(variables['Build.SourceBranch'], 'refs/heads/master')
                            ),
                         and(eq(variables['Build.Reason'], 'Manual'),
-                            eq('${{ parameters.DoPublish }}', true)
+                            eq(variables['DoPublish'], true)
                            )
                        )
        )
