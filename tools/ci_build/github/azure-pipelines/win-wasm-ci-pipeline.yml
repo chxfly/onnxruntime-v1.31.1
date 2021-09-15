@@ -11,7 +11,7 @@ parameters:
   default: no
 
 variables:
-  CmdParams: '$[variables.CmdParams]'
+  CmdParams: $[variables.CmdParams]
   ${{ if eq(parameters.NpmPublish, 'no') }}:
     DoPublish: false
     VersionSuffix: ''
@@ -30,8 +30,8 @@ variables:
     NpmTag: 'latest'
   ${{ if eq(parameters.NpmPublish, 'custom') }}:
     DoPublish: true
-    VersionSuffix: '$[variables.VersionSuffix]'
-    NpmTag: '$[variables.NpmTag]'
+    VersionSuffix: $[variables.VersionSuffix]
+    NpmTag: $[variables.NpmTag]
 
 stages:
 - stage: Extract_commit
