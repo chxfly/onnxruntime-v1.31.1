@@ -1898,28 +1898,27 @@ Matrix product that behaves like numpy.matmul: https://docs.scipy.org/doc/numpy-
       .SinceVersion(1)
       .Input(0, "A", "N-dimensional matrix A", "T")
       .Input(1, "B", "N-dimensional matrix B", "T")
-      .Attr(
-          "alpha",
-          "Scalar multiplier for the product of the input tensors.",
-          AttributeProto::FLOAT,
-          1.0f)
-      .Attr(
-          "transA",
-          "Whether A should be transposed on the last two dimensions before doing multiplication",
-          AttributeProto::INT,
-          static_cast<int64_t>(0))
-      .Attr(
-          "transB",
-          "Whether B should be transposed on the last two dimensions before doing multiplication",
-          AttributeProto::INT,
-          static_cast<int64_t>(0))
+      .Input(2, "the tensor to be added", ".", "T", OpSchema::Optional)
+      .Attr("alpha", "Scalar multiplier for the product of the input tensors.",
+            AttributeProto::FLOAT, 1.0f)
+      .Attr("beta", "Scalar multiplier for the product of the input tensors.",
+            AttributeProto::FLOAT, false /*is required*/
+            )
+      .Attr("transA",
+            "Whether A should be transposed on the last two dimensions before "
+            "doing multiplication",
+            AttributeProto::INT, static_cast<int64_t>(0))
+      .Attr("transB",
+            "Whether B should be transposed on the last two dimensions before "
+            "doing multiplication",
+            AttributeProto::INT, static_cast<int64_t>(0))
       .Output(0, "Y", "Matrix multiply results", "T")
-      .TypeConstraint(
-          "T",
-          {"tensor(float16)", "tensor(float)", "tensor(double)", "tensor(bfloat16)"},
-          "Constrain input and output types to float tensors.")
+      .TypeConstraint("T",
+                      {"tensor(float16)", "tensor(float)", "tensor(double)",
+                       "tensor(bfloat16)"},
+                      "Constrain input and output types to float tensors.")
       .SetDoc(FusedMatMul_doc)
-      .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+      .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext &ctx) {
         FusedMatMulShapeInference(ctx);
       });
 

@@ -104,3 +104,9 @@ def avg_pool2d(g, self, kernel_size, stride, padding, ceil_mode, count_include_p
 @register_symbolic('adaptive_avg_pool2d')
 def adaptive_avg_pool2d(g, self, output_size):
     return g.op("com.microsoft::ATenOp", self, output_size, name_s='aten::_adaptive_avg_pool2d')
+
+
+@register_symbolic('baddbmm')
+@parse_args('v', 'v', 'v', 'f', 'f')
+def baddbmm(g, self, batch1, batch2, beta, alpha):
+    return g.op("com.microsoft::FusedMatMul", batch1, batch2, self, alpha_f=alpha, beta_f=beta)

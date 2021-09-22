@@ -239,14 +239,10 @@ Status ProcessNode(
         output_node.MutableOutputDefs()[output_node_merge.node_to_merge_def_index];
   }
 
-  Node& matmul_scale_node = graph.AddNode(
+  Node &matmul_scale_node = graph.AddNode(
       graph.GenerateNodeName(node.Name() + "_FusedMatMulAndScale"),
-      "FusedMatMul",
-      "Fused MatMul and Scale",
-      fused_node_inputs,
-      fused_node_outputs,
-      &fused_node_attrs,
-      kMSDomain);
+      "FusedMatMul", "Fused MatMul and Scale For " + node.Name(),
+      fused_node_inputs, fused_node_outputs, &fused_node_attrs, kMSDomain);
 
   matmul_scale_node.SetExecutionProviderType(node.GetExecutionProviderType());
 

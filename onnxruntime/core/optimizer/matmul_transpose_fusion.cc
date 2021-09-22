@@ -62,7 +62,7 @@ static Node* GetTransposeNodeFromOutput(Graph& graph, NodeArg& node_arg) {
   }
 
   if (is_trans_on_last_two_dims) {
-    // rank is atleast 2 (checked above) and so it is safe to cast (rank - 2) and (rank - 1) to size_t
+    // rank is at least 2 (checked above) and so it is safe to cast (rank - 2) and (rank - 1) to size_t
     is_trans_on_last_two_dims = perms[static_cast<size_t>(rank - 2)] == rank - 1 && perms[static_cast<size_t>(rank - 1)] == rank - 2;
   }
 
@@ -331,25 +331,40 @@ Status MatmulTransposeFusion::ApplyImpl(Graph& graph, bool& modified, int graph_
       right_input = right->MutableInputDefs()[0];
     }
 
-    const std::vector<NodeArg*> input_defs{left_input, right_input};
+    std::vector<NodeArg *> input_defs{left_input, right_input};
+
+    if (node.OpType() == "FusedMatMul" && node.MutableInputDefs().size() > 2) {
+      input_defs.push_back(node.MutableInputDefs()[2]);
+    }
+
     const std::vector<NodeArg*> output_defs{node.MutableOutputDefs()[0]};
 
-    Node& matmul_node = graph.AddNode(graph.GenerateNodeName("MatMul_With_Transpose"),
-                                      "FusedMatMul",
-                                      "fused MatMul and Transpose ",
-                                      input_defs,
-                                      output_defs, {}, kMSDomain);
+    Node &matmul_node = graph.AddNode(
+        graph.GenerateNodeName("MatMul_With_Transpose"), "FusedMatMul",
+        "fused MatMul and Transpose For " + node.Name(), input_defs,
+        output_defs, {}, kMSDomain);
     bool transpose_left = (left != nullptr);
     bool transpose_right = (right != nullptr);
     float alpha = 1.0f;
+    float beta = 0.0f;
     if (node.OpType() == "FusedMatMul") {
       transpose_left ^= static_cast<bool>(node.GetAttributes().at("transA").i());
       transpose_right ^= static_cast<bool>(node.GetAttributes().at("transB").i());
-      alpha = node.GetAttributes().at("alpha").f();
+
+      auto alpha_attr = node.GetAttributes().find("alpha");
+      if (alpha_attr != node.GetAttributes().end()) {
+        alpha = alpha_attr->second.f();
+      }
+
+      auto beta_attr = node.GetAttributes().find("beta");
+      if (beta_attr != node.GetAttributes().end()) {
+        beta = beta_attr->second.f();
+      }
     }
     matmul_node.AddAttribute("transA", static_cast<int64_t>(transpose_left));
     matmul_node.AddAttribute("transB", static_cast<int64_t>(transpose_right));
     matmul_node.AddAttribute("alpha", alpha);
+    matmul_node.AddAttribute("beta", beta);
     // Assign provider to this new node. Provider should be same as the provider for old node.
     matmul_node.SetExecutionProviderType(node.GetExecutionProviderType());
 

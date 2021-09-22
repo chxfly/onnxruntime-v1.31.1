@@ -15,6 +15,7 @@ class MatMul final : public CudaKernel {
   MatMul(const OpKernelInfo& info)
       : CudaKernel(info),
         alpha_{info.GetAttrOrDefault<float>("alpha", 1.0f)},
+        beta_{info.GetAttrOrDefault<float>("beta", 0.0f)},
         trans_A_{info.GetAttrOrDefault<int64_t>("transA", 0) != 0},
         trans_B_{info.GetAttrOrDefault<int64_t>("transB", 0) != 0} {
   }
@@ -23,6 +24,7 @@ class MatMul final : public CudaKernel {
 
  private:
   const float alpha_;
+  const float beta_;
   const bool trans_A_;
   const bool trans_B_;
 };

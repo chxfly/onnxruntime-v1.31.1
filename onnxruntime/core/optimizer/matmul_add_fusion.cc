@@ -1,10 +1,11 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "core/framework/tensorprotoutils.h"
+#include "core/graph/graph_utils.h"
 #include "core/optimizer/initializer.h"
 #include "core/optimizer/matmul_add_fusion.h"
-#include "core/graph/graph_utils.h"
-#include "core/framework/tensorprotoutils.h"
+#include "onnx/defs/attr_proto_util.h"
 #include <deque>
 
 using namespace ONNX_NAMESPACE;
@@ -24,12 +25,19 @@ Status MatMulAddFusion::ApplyImpl(Graph& graph, bool& modified, int graph_level,
 
     ORT_RETURN_IF_ERROR(Recurse(node, modified, graph_level, logger));
 
-    if (!graph_utils::IsSupportedOptypeVersionAndDomain(node, "MatMul", {1, 9, 13}) ||
-        !graph_utils::IsSupportedProvider(node, GetCompatibleExecutionProviders()) ||
+
+    bool is_supported_matmul = graph_utils::IsSupportedOptypeVersionAndDomain(
+        node, "MatMul", {1, 9, 13});
+    is_supported_matmul =
+        is_supported_matmul || graph_utils::IsSupportedOptypeVersionAndDomain(
+                                   node, "FusedMatMul", {1}, kMSDomain);
+    if (!is_supported_matmul ||
+        !graph_utils::IsSupportedProvider(node,
+                                          GetCompatibleExecutionProviders()) ||
         node.GetOutputEdgesCount() != 1) {
       continue;
     }
-
+    // std::cout << "pengwa ckpt 55555555555555555555555555" << std::endl;
     if (graph.NodeProducesGraphOutput(node)) {
       continue;
     }
@@ -69,8 +77,12 @@ Status MatMulAddFusion::ApplyImpl(Graph& graph, bool& modified, int graph_level,
       continue;
     }
 
-    if (2 != matmul_a_shape->dim_size() || 2 != matmul_b_shape->dim_size()) {
+    bool is_gemm = false;
+    if (2 == matmul_a_shape->dim_size() && 2 == matmul_b_shape->dim_size()) {
       // Gemm only support Matrix
+      is_gemm = true;
+    } else if (matmul_node.InputDefs().size() > 2) {
+      // skip if FusedMatMul has 3 inputs already.
       continue;
     }
 
@@ -86,39 +98,86 @@ Status MatMulAddFusion::ApplyImpl(Graph& graph, bool& modified, int graph_level,
       gemm_input_defs.push_back(add_input_defs[0]);
     }
 
-    // valid bias_shapes are (N) or (1, N) or (M, 1) or (M, N) as
-    // GEMM only supports unidirectional broadcast on the bias input C
     if (!gemm_input_defs.back()->Shape()) {
       continue;
     }
-    const auto& bias_shape = *gemm_input_defs.back()->Shape();
-    const auto& M = matmul_output.Shape()->dim()[0];
-    const auto& N = matmul_output.Shape()->dim()[1];
-    auto dim_has_value_1 = [](const TensorShapeProto_Dimension& dim) {
-      return dim.has_dim_value() && dim.dim_value() == 1;
-    };
+    const auto &bias_shape = *gemm_input_defs.back()->Shape();
+    if (is_gemm) {
+      const auto &M = matmul_output.Shape()->dim()[0];
+      const auto &N = matmul_output.Shape()->dim()[1];
+      auto dim_has_value_1 = [](const TensorShapeProto_Dimension &dim) {
+        return dim.has_dim_value() && dim.dim_value() == 1;
+      };
 
-    bool valid = ((bias_shape.dim_size() == 1 && bias_shape.dim()[0] == N) ||
-                  (bias_shape.dim_size() == 2 && dim_has_value_1(bias_shape.dim()[0]) && bias_shape.dim()[1] == N) ||
-                  (bias_shape.dim_size() == 2 && bias_shape.dim()[0] == M &&
-                   (dim_has_value_1(bias_shape.dim()[1]) || bias_shape.dim()[1] == N)));
-    if (!valid) {
-      continue;
+      // valid bias_shapes are (N) or (1, N) or (M, 1) or (M, N) as
+      // GEMM only supports unidirectional broadcast on the bias input C
+      bool valid =
+          ((bias_shape.dim_size() == 1 && bias_shape.dim()[0] == N) ||
+           (bias_shape.dim_size() == 2 &&
+            dim_has_value_1(bias_shape.dim()[0]) && bias_shape.dim()[1] == N) ||
+           (bias_shape.dim_size() == 2 && bias_shape.dim()[0] == M &&
+            (dim_has_value_1(bias_shape.dim()[1]) ||
+             bias_shape.dim()[1] == N)));
+      if (!valid) {
+        continue;
+      }
+      Node &gemm_node = graph.AddNode(
+          graph.GenerateNodeName("gemm"), "Gemm",
+          "fused Matmul and Add " + add_node.OpType(), gemm_input_defs, {});
+
+      // Assign provider to this new node. Provider should be same as the
+      // provider for old node.
+      gemm_node.SetExecutionProviderType(
+          matmul_node.GetExecutionProviderType());
+
+      // move output definitions and edges from act_node to gemm_node. delete
+      // gemm_node and act_node.
+      graph_utils::FinalizeNodeFusion(graph, {matmul_node, add_node},
+                                      gemm_node);
+
+      modified = true;
+    } else {
+      auto output_len = matmul_output.Shape()->dim_size();
+      const auto &M = matmul_output.Shape()->dim()[output_len - 2];
+      const auto &N = matmul_output.Shape()->dim()[output_len - 1];
+      auto dim_has_value_1 = [](const TensorShapeProto_Dimension &dim) {
+        return dim.has_dim_value() && dim.dim_value() == 1;
+      };
+
+      // valid bias_shapes are (N) or (1, N) or (M, 1) or (M, N) as
+      // GEMM only supports unidirectional broadcast on the bias input C
+      bool valid =
+          ((bias_shape.dim_size() == 1 && bias_shape.dim()[0] == N) ||
+           (bias_shape.dim_size() == 2 &&
+            dim_has_value_1(bias_shape.dim()[0]) && bias_shape.dim()[1] == N) ||
+           (bias_shape.dim_size() == 2 && bias_shape.dim()[0] == M &&
+            (dim_has_value_1(bias_shape.dim()[1]) ||
+             bias_shape.dim()[1] == N)));
+      if (!valid) {
+        continue;
+      }
+
+      auto alpha_attr = ONNX_NAMESPACE::MakeAttribute("beta", float(1.0f));
+      NodeAttributes attributes;
+      attributes.reserve(1);
+      attributes[alpha_attr.name()] = alpha_attr;
+
+      Node &gemm_node = graph.AddNode(
+          graph.GenerateNodeName("FusedMatMulBias"), "FusedMatMul",
+          "fused FusedMatMul and Add " + add_node.OpType(), gemm_input_defs, {},
+          &attributes, kMSDomain);
+
+      // Assign provider to this new node. Provider should be same as the
+      // provider for old node.
+      gemm_node.SetExecutionProviderType(
+          matmul_node.GetExecutionProviderType());
+
+      // move output definitions and edges from act_node to gemm_node. delete
+      // gemm_node and act_node.
+      graph_utils::FinalizeNodeFusion(graph, {matmul_node, add_node},
+                                      gemm_node);
+      modified = true;
     }
-
-    Node& gemm_node = graph.AddNode(graph.GenerateNodeName("gemm"),
-                                    "Gemm",
-                                    "fused Matmul and Add " + add_node.OpType(),
-                                    gemm_input_defs,
-                                    {});
-
-    // Assign provider to this new node. Provider should be same as the provider for old node.
-    gemm_node.SetExecutionProviderType(matmul_node.GetExecutionProviderType());
-
-    // move output definitions and edges from act_node to gemm_node. delete gemm_node and act_node.
-    graph_utils::FinalizeNodeFusion(graph, {matmul_node, add_node}, gemm_node);
-
-    modified = true;
   }
 
   return Status::OK();

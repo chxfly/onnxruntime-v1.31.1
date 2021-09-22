@@ -49,6 +49,7 @@ void GradientBuilderRegistry::RegisterGradientBuilders() {
   REGISTER_GRADIENT_BUILDER("Sqrt", GetSqrtGradient);
   REGISTER_GRADIENT_BUILDER("Erf", GetErfGradient);
   REGISTER_GRADIENT_BUILDER("MatMul", GetMatMulGradient);
+  REGISTER_GRADIENT_BUILDER("FusedMatMul", GetFusedMatMulGradient);
   REGISTER_GRADIENT_BUILDER("Split", GetSplitGradient);
   REGISTER_GRADIENT_BUILDER("Relu", GetReluGradient);
   REGISTER_GRADIENT_BUILDER("Pow", GetPowGradient);
