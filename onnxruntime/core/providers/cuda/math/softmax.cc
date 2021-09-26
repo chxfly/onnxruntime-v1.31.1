@@ -133,8 +133,8 @@ SPECIALIZED_SOFTMAX_HELPER_IMPL_BFloat16(true)
       (*KernelDefBuilder::Create()).TypeConstraint("T", DataTypeImpl::GetTensorType<T>()), \
       Softmax<T>);
 
-        template <typename T>
-        Status Softmax<T>::ComputeInternal(OpKernelContext* ctx) const {
+template <typename T>
+Status Softmax<T>::ComputeInternal(OpKernelContext* ctx) const {
   const Tensor* X = ctx->Input<Tensor>(0);
   const TensorShape& input_shape{X->Shape()};
   size_t rank = input_shape.NumDimensions();

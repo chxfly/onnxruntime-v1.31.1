@@ -3252,6 +3252,58 @@ Return true if all elements are true and false otherwise.
       .SetContextDependentFunctionBodyBuilder(BuildContextDependentFunctionBodyNllLossInternal)
       .TypeAndShapeInferenceFunction([](InferenceContext& ctx) { propagateElemTypeFromInputToOutput(ctx, 0, 0); })
       .SetDoc(R"DOC(NegativeLogLikelihoodLossInternal)DOC");
+
+  ONNX_CONTRIB_OPERATOR_SCHEMA(FusedSoftmax)
+      .SetDomain(kMSDomain)
+      .SinceVersion(1)
+      .SetSupportLevel(OpSchema::SupportType::EXPERIMENTAL)
+      .SetDoc("OPSET11 based Softmax fused with other elementwise ops.")
+      .Input(0, "input",
+             "The input tensor that's coerced into a 2D matrix of size (NxD) "
+             "as described above.",
+             "T")
+      .Input(1, "mask", "The mask applied to input, same shape as input.",
+             "T_BOOL")
+      .Output(0, "output",
+              "The output values with the same "
+              "shape as input tensor (the original size without coercion).",
+              "T")
+      .Attr("axis",
+            "Describes the axis of the inputs when coerced "
+            "to 2D; defaults to one because the 0th axis most likely describes "
+            "the batch_size. Negative value means counting dimensions "
+            "from the back. Accepted range is [-r, r-1] where r = rank(input).",
+            AttributeProto::INT, static_cast<int64_t>(1))
+      .Attr("is_log_softmax",
+            "A flag indicates whether a log softmax is used for computation.",
+            AttributeProto::INT, false)
+      .TypeConstraint("T",
+                      {"tensor(float16)", "tensor(float)", "tensor(double)"},
+                      "Constrain input and output types to float tensors.")
+      .TypeConstraint("T_BOOL", {"tensor(bool)"},
+                      "Constrain types to boolean tensors.")
+      .TypeAndShapeInferenceFunction([](InferenceContext &ctx) {
+        // Type inference
+        propagateElemTypeFromInputToOutput(ctx, 0, 0);
+
+        // Shape inference starts
+        if (!hasNInputShapes(ctx, 1)) {
+          return;
+        }
+
+        // Validate the value of 'axis'
+        const TensorShapeProto &input_shape =
+            ctx.getInputType(0)->tensor_type().shape();
+        int r = input_shape.dim_size();
+        int axis = static_cast<int>(getAttribute(ctx, "axis", 1));
+        if (axis < -r || axis >= r) {
+          fail_shape_inference("'axis' must be in [", -r, " , ", (r - 1),
+                               "]. Its actual value is: ", axis);
+        }
+
+        // Shape inference
+        propagateShapeFromInputToOutput(ctx, 0, 0);
+      });
 }
 
 }  // namespace training

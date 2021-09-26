@@ -47,6 +47,7 @@
 #include "core/session/onnxruntime_session_options_config_keys.h"
 #include "core/optimizer/matmul_transpose_fusion.h"
 #include "core/optimizer/bias_dropout_fusion.h"
+#include "core/optimizer/fused_softmax_fusion.h"
 
 namespace onnxruntime {
 class IExecutionProvider;
@@ -188,6 +189,7 @@ std::vector<std::unique_ptr<GraphTransformer>> GenerateTransformers(
       transformers.emplace_back(std::make_unique<EmbedLayerNormFusion>(cpu_cuda_rocm_eps));
 
       transformers.emplace_back(std::make_unique<BiasDropoutFusion>(cuda_rocm_eps));
+      // transformers.emplace_back(std::make_unique<FusedSoftmaxFusion>(cuda_rocm_eps));
       transformers.emplace_back(std::make_unique<MatmulTransposeFusion>(cpu_cuda_rocm_eps));
       transformers.emplace_back(std::make_unique<BiasGeluFusion>(cpu_cuda_rocm_eps));
       transformers.emplace_back(std::make_unique<BiasSoftmaxFusion>(cpu_cuda_rocm_eps));
