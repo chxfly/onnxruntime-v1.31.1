@@ -6,6 +6,11 @@ import json
 parser = argparse.ArgumentParser()
 parser.add_argument('--ort_file', type=str)
 parser.add_argument('--pt_file', type=str)
+parser.add_argument('--pt_start_time', type=str)
+parser.add_argument('--pt_end_time', type=str)
+parser.add_argument('--ort_start_time', type=str)
+parser.add_argument('--ort_end_time', type=str)
+
 args = parser.parse_args()
 
 def get_detailed_lines(run_name, path):
@@ -16,12 +21,20 @@ def get_detailed_lines(run_name, path):
     with open(path) as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
+            
+            start_time = int(row['Start (ns)'])
+
+            if run_name == "ORT" and (start_time < int(args.ort_start_time) or start_time > int(args.ort_end_time)):
+                continue
+
+            if run_name == "PT" and (start_time < int(args.pt_start_time) or start_time > int(args.pt_end_time)):
+                continue
+
             name = str(row['Name'])
             if name not in lines:
                 lines[name] = {}
-            
-            start_time = int(row['Start Time(ns)'])
-            kernel_time = int(row['Duration(ns)'])
+
+            kernel_time = int(row['Duration (ns)'])
             end_time = start_time + kernel_time
 
             total_kernel_time += kernel_time
@@ -58,7 +71,7 @@ activities = [
     ('memcpy DtoH', lambda x : any(substr in x.lower() for substr in ['memcpy dtoh'])),
     ('memset', lambda x : any(substr in x for substr in ['memset'])),
     ('adam', lambda x : x.lower().find('adam') >= 0),
-    ('lamb', lambda x : x.lower().find('lamb') >= 0),
+    # ('lamb', lambda x : x.lower().find('lamb') >= 0),
     ('dropout', lambda x : x.lower().find('dropout') >= 0),
     ('gelu', lambda x : any(substr in x.lower() for substr in ['gelu'])),
     ('relu', lambda x : any(substr in x for substr in ['OP_Relu', 'threshold_kernel_impl', 'clamp_min_scalar_kernel_impl'])),
@@ -188,7 +201,7 @@ pt_groups = group_gpu_activity(pt_kernels)
 ort_groups = group_gpu_activity(ort_kernels)
 # print(json.dumps(ort_groups, indent=4))
 
-interested_groups = ['where']
+interested_groups = ['layernorm', 'softmax', 'gelu']
 print_details(pt_groups, ort_groups, interested_groups)
 print_summary(pt_groups, ort_groups)
 
