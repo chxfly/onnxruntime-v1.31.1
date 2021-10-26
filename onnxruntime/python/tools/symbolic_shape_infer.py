@@ -1869,7 +1869,7 @@ class SymbolicShapeInference:
                 in_shapes = [self._get_shape(node, i) for i in range(len(node.input))]
                 for d in range(out_rank - (2 if node.op_type in ['MatMul', 'MatMulInteger', 'MatMulInteger16'] else 0)):
                     in_dims = [s[len(s) - out_rank + d] for s in in_shapes if len(s) + d >= out_rank]
-                    if len(in_dims) > 1:
+                    if len(in_dims) > 1 and node.op_type not in ['Where']:
                         self._check_merged_dims(in_dims, allow_broadcast=True)
 
             for i_o in range(len(node.output)):

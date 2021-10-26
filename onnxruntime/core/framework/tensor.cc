@@ -9,6 +9,8 @@
 #include "core/framework/data_types.h"
 #include "core/framework/ort_value.h"
 #include "core/framework/utils.h"
+#include <chrono>
+#include <iostream>
 
 namespace onnxruntime {
 
@@ -17,6 +19,10 @@ Tensor::Tensor(MLDataType p_type, const TensorShape& shape, void* p_data, const 
     : alloc_info_(alloc) {
   ORT_ENFORCE(p_type != nullptr);
   Init(p_type, shape, p_data, nullptr, offset);
+
+  // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  // std::cout << milliseconds_since_epoch << ", OrtValue Init 1," << this << "," << this->DataRaw() << "," << this->SizeInBytes() 
+  //         << ", " << this->GetElementType() << "," << this->Shape() << "," << this->Location().ToString() << std::endl;
 }
 
 Tensor::Tensor(MLDataType p_type, const TensorShape& shape, std::shared_ptr<IAllocator> allocator)
@@ -36,6 +42,11 @@ Tensor::Tensor(MLDataType p_type, const TensorShape& shape, std::shared_ptr<IAll
   }
 
   Init(p_type, shape, p_data, allocator);
+
+  // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  // std::cout << milliseconds_since_epoch << ", OrtValue Init 2," << this << "," << this->DataRaw() << "," << this->SizeInBytes() 
+  //         << ", " << this->GetElementType() << "," << this->Shape() << "," << this->Location().ToString() << std::endl;
+
 }
 
 Tensor::Tensor(MLDataType p_type, const TensorShape& shape, void* p_data, std::shared_ptr<IAllocator> deleter,
@@ -43,6 +54,9 @@ Tensor::Tensor(MLDataType p_type, const TensorShape& shape, void* p_data, std::s
     : alloc_info_(deleter->Info()) {
   ORT_ENFORCE(p_type != nullptr);
   Init(p_type, shape, p_data, deleter, offset);
+  // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  // std::cout << milliseconds_since_epoch << ", OrtValue Init 3," << this << "," << this->DataRaw() << "," << this->SizeInBytes() 
+  //         << ", " << this->GetElementType() << "," << this->Shape() << "," << this->Location().ToString() << std::endl;
 }
 
 void Tensor::InitOrtValue(MLDataType elt_type, const TensorShape& shape,
@@ -98,6 +112,10 @@ Tensor::Tensor(Tensor&& other) noexcept
   other.p_data_ = nullptr;
   other.buffer_deleter_ = nullptr;
   other.byte_offset_ = 0;
+
+  // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  // std::cout << milliseconds_since_epoch << ", OrtValue Init 4," << this << "," << this->DataRaw() << "," << this->SizeInBytes() 
+  //         << ", " << this->GetElementType() << "," << this->Shape() << "," << this->Location().ToString() << std::endl;
 }
 
 Tensor& Tensor::operator=(Tensor&& other) noexcept {
@@ -117,10 +135,17 @@ Tensor& Tensor::operator=(Tensor&& other) noexcept {
     other.byte_offset_ = 0;
     other.buffer_deleter_ = nullptr;
   }
+
+  // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  // std::cout << milliseconds_since_epoch << ", OrtValue Init 5," << this << "," << this->DataRaw() << "," << this->SizeInBytes() 
+  //         << ", " << this->GetElementType() << "," << this->Shape() << "," << this->Location().ToString() << std::endl;
   return *this;
 }
 
 Tensor::~Tensor() {
+  // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  // std::cout << milliseconds_since_epoch << ", OrtValue Destroy 1," << this << "," << this->DataRaw() << "," << this->SizeInBytes() 
+  //         << ", " << this->GetElementType() << "," << this->Shape() << "," << this->Location().ToString() << std::endl;
   ReleaseBuffer();
 }
 

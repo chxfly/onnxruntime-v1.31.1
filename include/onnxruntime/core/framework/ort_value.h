@@ -4,6 +4,8 @@
 #pragma once
 
 #include <string>
+#include <chrono>
+#include <iostream>
 #ifndef SHARED_PROVIDER
 #include "core/common/common.h"
 #include "core/common/exceptions.h"
@@ -26,20 +28,58 @@ class SparseTensor;
 struct OrtValue {
  public:
   OrtValue() : data_(nullptr) {}
-  ~OrtValue() = default;
+
+  ~OrtValue() {
+    // if (data_) {
+    //   unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    //   const onnxruntime::Tensor& t = *static_cast<onnxruntime::Tensor*>(data_.get());
+    //   std::cout << milliseconds_since_epoch << ", OrtValue Destroy 1," << data_.get() << "," << data_.use_count() << "," << t.SizeInBytes() 
+    //           << ", " << t.GetElementType() << "," << t.Shape() << "," << t.Location().ToString() << std::endl;
+    // }
+  };
 
   OrtValue(void* pData, onnxruntime::MLDataType type, onnxruntime::DeleteFunc deleter) {
+    // if (data_) {
+    //   unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    //   const onnxruntime::Tensor& t = *static_cast<onnxruntime::Tensor*>(data_.get());
+    //   std::cout << milliseconds_since_epoch << ", OrtValue Destroy 2," << data_.get() << "," << data_.use_count() << "," << t.SizeInBytes() 
+    //           << ", " << t.GetElementType() << "," << t.Shape() << "," << t.Location().ToString() << std::endl;
+    // }
     Init(pData, type, deleter);
+    // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    // const onnxruntime::Tensor& t = *static_cast<onnxruntime::Tensor*>(data_.get());
+    // std::cout << milliseconds_since_epoch << ", OrtValue Init 1," << data_.get() << "," << data_.use_count() << "," << t.SizeInBytes() 
+    //           << ", " << t.GetElementType() << "," << t.Shape() << "," << t.Location().ToString() << std::endl;
   }
 
   void Init(void* pData, onnxruntime::MLDataType type, onnxruntime::DeleteFunc deleter) {
+    // if (data_) {
+    //   unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    //   const onnxruntime::Tensor& t = *static_cast<onnxruntime::Tensor*>(data_.get());
+    //   std::cout << milliseconds_since_epoch << ", OrtValue Destroy 3," << data_.get() << "," << data_.use_count() << "," << t.SizeInBytes() 
+    //           << ", " << t.GetElementType() << "," << t.Shape() << "," << t.Location().ToString() << std::endl;
+    // }
     data_.reset(pData, deleter);
     type_ = type;
+    // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    // const onnxruntime::Tensor& t = *static_cast<onnxruntime::Tensor*>(data_.get());
+    // std::cout << milliseconds_since_epoch << ", OrtValue Init 2," << data_.get() << "," << data_.use_count() << "," << t.SizeInBytes() 
+    //           << ", " << t.GetElementType() << "," << t.Shape() << "," << t.Location().ToString() << std::endl;
   }
 
   void Init(void* pData, onnxruntime::MLDataType type, const std::function<void(void*)>& deleter) {
+    // if (data_) {
+    //   unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    //   const onnxruntime::Tensor& t = *static_cast<onnxruntime::Tensor*>(data_.get());
+    //   std::cout << milliseconds_since_epoch << ", OrtValue Destroy 4," << data_.get() << "," << data_.use_count() << "," << t.SizeInBytes() 
+    //           << ", " << t.GetElementType() << "," << t.Shape() << "," << t.Location().ToString() << std::endl;
+    // }
     data_.reset(pData, deleter);
     type_ = type;
+    // unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+    // const onnxruntime::Tensor& t = *static_cast<onnxruntime::Tensor*>(data_.get());
+    // std::cout << milliseconds_since_epoch << ", OrtValue Init 3," << data_.get() << "," << data_.use_count() << "," << t.SizeInBytes() 
+    //           << ", " << t.GetElementType() << "," << t.Shape() << "," << t.Location().ToString() << std::endl;
   }
 
   bool IsAllocated() const {
@@ -51,6 +91,35 @@ struct OrtValue {
     ORT_ENFORCE(onnxruntime::DataTypeImpl::GetType<T>() == type_, onnxruntime::DataTypeImpl::GetType<T>(), " != ", type_);
     return *static_cast<T*>(data_.get());
   }
+
+  // template <typename T>
+  // OrtValue(const OrtValue& a) {
+  //   const onnxruntime::Tensor& b = static_cast<const onnxruntime::Tensor&>(a.Get<T>());
+  //   unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  //   std::cout << milliseconds_since_epoch << ", OrtValue Init 4," << &b << ",-1," << b.SizeInBytes() 
+  //             << ", " << b.GetElementType() << "," << b.Shape() << "," << b.Location().ToString() << std::endl;
+  // }
+
+  // template <typename T>
+  // OrtValue& operator = (const OrtValue &a)
+  // {
+  //   const onnxruntime::Tensor& b = static_cast<const onnxruntime::Tensor&>(a.Get<T>());
+  //   unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  //   std::cout << milliseconds_since_epoch << ", OrtValue Init 5," << &b << ",-1," << b.SizeInBytes() 
+  //             << ", " << b.GetElementType() << "," << b.Shape() << "," << b.Location().ToString() << std::endl;
+  //   return *this;
+  // } 
+
+  // template <typename T>
+  // OrtValue& operator=(OrtValue a)
+  // {
+  //   const onnxruntime::Tensor& b = static_cast<const onnxruntime::Tensor&>(a.Get<T>());
+  //   unsigned long milliseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch() / std::chrono::milliseconds(1);
+  //   std::cout << milliseconds_since_epoch << ", OrtValue Init 6," << &b << ",-1," << b.SizeInBytes() 
+  //             << ", " << b.GetElementType() << "," << b.Shape() << "," << b.Location().ToString() << std::endl;
+  //   return *this;
+  // } 
+
 
   template <typename T>
   T* GetMutable() {
