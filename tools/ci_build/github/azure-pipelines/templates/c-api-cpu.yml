@@ -533,6 +533,138 @@ jobs:
     displayName: 'Clean Agent Directories'
     condition: always()
 
+- job: Nodejs_Packaging_CPU
+  workspace:
+    clean: all
+  pool: 'Win-CPU-2021'
+  variables:
+    breakCodesignValidationInjection: ${{ parameters.DoEsrp }}
+  dependsOn:
+  - Linux_C_API_Packaging_CPU_x64
+  - MacOS_C_API_Packaging_CPU_x64
+  - Windows_Packaging_CPU_x64_${{ parameters.BuildVariant }}
+  - Windows_Packaging_CPU_arm64_${{ parameters.BuildVariant }}
+  condition: succeeded()
+  steps:
+  - checkout: self
+    submodules: true
+  - task: DownloadPipelineArtifact@0
+    displayName: 'Download Pipeline Artifact - NuGet (Win x64)'
+    inputs:
+      artifactName: 'onnxruntime-win-x64'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
+
+  - task: DownloadPipelineArtifact@0
+    displayName: 'Download Pipeline Artifact - NuGet (Win ARM64)'
+    inputs:
+      artifactName: 'onnxruntime-win-arm64'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
+
+  - task: DownloadPipelineArtifact@0
+    displayName: 'Download Pipeline Artifact - NuGet (OSX x64)'
+    inputs:
+      artifactName: 'onnxruntime-osx-x64'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
+
+  - task: DownloadPipelineArtifact@0
+    displayName: 'Download Pipeline Artifact - NuGet (Linux x64)'
+    inputs:
+      artifactName: 'onnxruntime-linux-x64'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
+
+  - task: DownloadPipelineArtifact@0
+    displayName: 'Download Pipeline Artifact - Nodejs (Win x64)'
+    inputs:
+      artifactName: 'onnxruntime_nodejs-win-x64'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
+
+  - task: DownloadPipelineArtifact@0
+    displayName: 'Download Pipeline Artifact - Nodejs (Win ARM64)'
+    inputs:
+      artifactName: 'onnxruntime_nodejs-win-arm64'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
+
+  - task: DownloadPipelineArtifact@0
+    displayName: 'Download Pipeline Artifact - NuGet'
+    inputs:
+      artifactName: 'drop-extra'
+      targetPath: '$(Build.BinariesDirectory)/extra-artifact'
+
+  - task: PowerShell@2
+    displayName: 'PowerShell Script'
+    inputs:
+      targetType: filePath
+      filePath: $(Build.SourcesDirectory)\tools\ci_build\github\windows\extract_nuget_files.ps1
+
+  - script: |
+     dir
+    workingDirectory: '$(Build.BinariesDirectory)/nuget-artifact'
+    displayName: 'List artifacts'
+
+  - script: |
+     npm ci
+    workingDirectory: '$(Build.SourcesDirectory)/js'
+    displayName: 'Install NPM packages /js'
+  - script: |
+     npm ci
+    workingDirectory: '$(Build.SourcesDirectory)/js/common'
+    displayName: 'Install NPM packages /js/common'
+  - script: |
+     npm ci
+    workingDirectory: '$(Build.SourcesDirectory)/js/node'
+    displayName: 'Install NPM packages /js/node'
+
+  - task: CopyFiles@2
+    displayName: 'Copy nuget binaries to: $(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\x64\'
+    inputs:
+      SourceFolder: '$(Build.BinariesDirectory)\RelWithDebInfo\RelWithDebInfo\nuget-artifacts\onnxruntime-win-x64\lib'
+      Contents: '*.dll'
+      TargetFolder: '$(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\x64'
+  - task: CopyFiles@2
+    displayName: 'Copy nodejs binaries to: $(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\x64\'
+    inputs:
+      SourceFolder: '$(Build.BinariesDirectory)\RelWithDebInfo\RelWithDebInfo\nuget-artifacts\onnxruntime_nodejs-win-x64'
+      Contents: '*.node'
+      TargetFolder: '$(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\x64'
+
+  - task: CopyFiles@2
+    displayName: 'Copy nuget binaries to: $(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\arm64\'
+    inputs:
+      SourceFolder: '$(Build.BinariesDirectory)\RelWithDebInfo\RelWithDebInfo\nuget-artifacts\onnxruntime-win-arm64\lib'
+      Contents: '*.dll'
+      TargetFolder: '$(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\arm64'
+  - task: CopyFiles@2
+    displayName: 'Copy nodejs binaries to: $(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\arm64\'
+    inputs:
+      SourceFolder: '$(Build.BinariesDirectory)\RelWithDebInfo\RelWithDebInfo\nuget-artifacts\onnxruntime_nodejs-win-arm64'
+      Contents: '*.node'
+      TargetFolder: '$(Build.SourcesDirectory)\js\node\bin\napi-v3\win32\arm64'
+
+  - script: |
+     npm pack
+    workingDirectory: '$(Build.SourcesDirectory)/js/common'
+    displayName: 'npm pack /js/common'
+
+  - script: |
+     npm pack
+    workingDirectory: '$(Build.SourcesDirectory)/js/node'
+    displayName: 'npm pack /js/node'
+
+  - script: |
+     copy $(Build.SourcesDirectory)/js/common/onnxruntime-common-*.tgz $(Build.ArtifactStagingDirectory)
+     copy $(Build.SourcesDirectory)/js/node/onnxruntime-node-*.tgz $(Build.ArtifactStagingDirectory)
+    displayName: 'Copy package files'
+
+  - task: PublishPipelineArtifact@0
+    displayName: 'Publish NPM packages'
+    inputs:
+      artifactName: 'NPM_packages'
+      targetPath: '$(Build.ArtifactStagingDirectory)'
+
+  - task: mspremier.PostBuildCleanup.PostBuildCleanup-task.PostBuildCleanup@3
+    displayName: 'Clean Agent Directories'
+    condition: always()
+
 - template: ../nuget/templates/test_win.yml
   parameters:
     AgentPool : 'Win-CPU-2021'
