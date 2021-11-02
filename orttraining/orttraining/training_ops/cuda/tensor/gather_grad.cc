@@ -28,6 +28,8 @@ ONNX_OPERATOR_KERNEL_EX(
     (*KernelDefBuilder::Create())
         .InputMemoryType(OrtMemTypeCPUInput, 0)
         .InputMemoryType(OrtMemTypeCPU, 3)
+        .InputMemoryType(OrtMemTypeCPU, 4)
+        .InputMemoryType(OrtMemTypeCPU, 5)
         .TypeConstraint("I", DataTypeImpl::GetTensorType<int64_t>())
         .TypeConstraint("Int32", DataTypeImpl::GetTensorType<int32_t>())
         .TypeConstraint("T", ALL_IEEE_FLOAT_TENSOR_TYPES)

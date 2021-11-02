@@ -241,7 +241,7 @@ IMPLEMENT_GRADIENT_BUILDER(GetMatMulGradient) {
             NodeDef(OpDef{"FusedMatMul", kMSDomain, 1},
                     {GO(0), B},
                     {matmul_out},
-                     {{"transB", MakeAttribute("transB", int64_t(1))}}));
+                    {{"transB", MakeAttribute("transB", int64_t(1))}}));
         if (A_axes.size() > 0) {
           AddReduceSumNode(IA("PreReduceGrad0"), IA("ReduceGrad0"), A_axes, true, result);
           result.push_back(NodeDef("Shape", {A}, {IA("A_shape")}));
@@ -750,7 +750,7 @@ IMPLEMENT_GRADIENT_BUILDER(GetGatherInternalGradient) {
               {I(0)},
               {IA("I0_shape")}),
       NodeDef(OpDef{"GatherGrad", kMSDomain, 1},
-              {IA("I0_shape"), I(1), GO(0), O(1)},
+              {IA("I0_shape"), I(1), GO(0), O(1), O(2), O(3), O(4), O(5)},
               {GI(0)},
               SrcNodeAttributes())};
 }

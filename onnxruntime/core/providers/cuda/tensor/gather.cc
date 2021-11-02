@@ -52,6 +52,8 @@ ONNX_OPERATOR_KERNEL_EX(
     (*KernelDefBuilder::Create())
         // Set the output-1 to stay in CUDA_PINNED memory to avoid synchronous memcpy
         .OutputMemoryType(OrtMemTypeCPU, 1)
+        .OutputMemoryType(OrtMemTypeCPU, 2)
+        .OutputMemoryType(OrtMemTypeCPU, 3)
         .TypeConstraint("T", DataTypeImpl::AllFixedSizeTensorTypes())
         .TypeConstraint("Int32", DataTypeImpl::GetTensorType<int32_t>())
         .TypeConstraint("Tind", std::vector<MLDataType>{
@@ -111,14 +113,51 @@ Status Gather::ComputeInternal(OpKernelContext* context) const {
     const int64_t& gather_dimension_size = indices_max;
     const int64_t& num_gathered_per_index = block_size;
 
+    IAllocatorUniquePtr<int64_t> dX_indices_sorted, dY_indices_sorted;
+    IAllocatorUniquePtr<GatheredIndexIndex_t> segment_counts;
+
+    std::cout << "GatherGradPrepare Before\n";
+
     GatherGradPrepare<int64_t>(
-      Stream(),
-      CudaScratchBufferAllocator{*this},
-      reinterpret_cast<const int64_t*>(indices_data),
-      num_gathered_indices,
-      gather_dimension_size,
-      num_gathered_per_index,
-      *p_num_segments);
+        Stream(),
+        CudaScratchBufferAllocator{*this},
+        reinterpret_cast<const int64_t*>(indices_data),
+        num_gathered_indices,
+        gather_dimension_size,
+        num_gathered_per_index,
+        *p_num_segments,
+        dX_indices_sorted,
+        dY_indices_sorted,
+        segment_counts);
+
+    std::cout << "GatherGradPrepare After\n";
+
+    // auto* last_segment_partial_segment_offset = context->Output(2, {1});
+    // int32_t* p_last_segment_partial_segment_offset = last_segment_partial_segment_offset->MutableData<int32_t>();
+
+    // auto* last_segment_partial_segment_count = context->Output(3, {1});
+    // int32_t* p_last_segment_partial_segment_count = last_segment_partial_segment_count->MutableData<int32_t>();
+
+    // auto* per_segment_partial_segment_counts = context->Output(4, {*p_num_segments});
+    // int32_t* p_per_segment_partial_segment_counts = per_segment_partial_segment_counts->MutableData<int32_t>();
+
+    // auto* per_segment_partial_segment_offsets = context->Output(5, {*p_num_segments});
+    // int32_t* p_per_segment_partial_segment_offsets = per_segment_partial_segment_offsets->MutableData<int32_t>();
+
+    // PartialSumsImplPrepare<int64_t>(
+    //     Stream(),
+    //     CudaScratchBufferAllocator{*this},
+    //     dX_indices_sorted.get(),
+    //     dY_indices_sorted.get(),
+    //     segment_counts.get(),
+    //     num_gathered_indices,
+    //     gather_dimension_size,
+    //     num_gathered_per_index,
+    //     *p_num_segments,
+    //     *p_last_segment_partial_segment_offset,
+    //     *p_last_segment_partial_segment_count,
+    //     p_per_segment_partial_segment_counts,
+    //     p_per_segment_partial_segment_offsets);
 
     return Status::OK();
   }

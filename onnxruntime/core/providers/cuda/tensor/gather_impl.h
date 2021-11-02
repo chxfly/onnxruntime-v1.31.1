@@ -48,7 +48,26 @@ void GatherGradPrepare(
     const GatheredIndexIndex_t num_gathered_indices,
     int64_t gather_dimension_size,
     int64_t num_gathered_per_index,
-    SegmentIndex_t& host_num_segments);
+    SegmentIndex_t& host_num_segments,
+    IAllocatorUniquePtr<TIndex>& dX_indices_sorted_out,
+    IAllocatorUniquePtr<TIndex>& dY_indices_sorted_out,
+    IAllocatorUniquePtr<GatheredIndexIndex_t>& segment_counts_out);
+
+template <typename TIndex>
+void PartialSumsImplPrepare(
+    cudaStream_t stream,
+    const CudaScratchBufferAllocator& allocator,
+    const TIndex* dX_indices_sorted,
+    const TIndex* dY_indices_sorted,
+    const GatheredIndexIndex_t* segment_counts,
+    const GatheredIndexIndex_t num_gathered_indices,
+    int64_t gather_dimension_size,
+    int64_t num_gathered_per_index,
+    const SegmentIndex_t host_num_segments,
+    SegmentIndex_t& p_last_segment_partial_segment_offset,
+    SegmentIndex_t& p_last_segment_partial_segment_count,
+    SegmentIndex_t* p_per_segment_partial_segment_counts,
+    SegmentIndex_t* p_per_segment_partial_segment_offsets);
 
 }  // namespace cuda
 }  // namespace onnxruntime
