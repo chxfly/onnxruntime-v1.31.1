@@ -79,10 +79,10 @@ class Environment {
   */
   Status UnregisterAllocator(const OrtMemoryInfo& mem_info);
 
+  Environment() = default;
+
  private:
   ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(Environment);
-
-  Environment() = default;
   Status Initialize(std::unique_ptr<logging::LoggingManager> logging_manager,
                     const OrtThreadingOptions* tp_options = nullptr,
                     bool create_global_thread_pools = false);

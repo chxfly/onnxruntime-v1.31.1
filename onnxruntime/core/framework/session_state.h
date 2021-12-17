@@ -109,9 +109,6 @@ class SessionState {
   }
 
   ~SessionState() {
-    for (auto* p : session_kernels_) {
-      delete p;
-    }
     for (auto& kvp : deleter_for_initialized_tensors_) {
       kvp.second.f(kvp.second.param);
     }
@@ -124,11 +121,11 @@ class SessionState {
   // Get kernel for specified node.
   // It should called right before graph execution only.
   const OpKernel* GetKernel(size_t node_id) const {
-    return (node_id < session_kernels_.size()) ? session_kernels_[node_id] : nullptr;
+    return (node_id < session_kernels_.size()) ? session_kernels_[node_id].get() : nullptr;
   }
 
   OpKernel* GetMutableKernel(size_t node_id) {
-    return (node_id < session_kernels_.size()) ? session_kernels_[node_id] : nullptr;
+    return (node_id < session_kernels_.size()) ? session_kernels_[node_id].get() : nullptr;
   }
 
   const ExecutionProviders& GetExecutionProviders() const noexcept { return execution_providers_; }
@@ -402,7 +399,7 @@ class SessionState {
   std::unordered_map<std::string, HashValue> compiled_kernel_hashes_;
 
   // cache of the constructed kernels to avoid spending construction time per executor
-  std::vector<OpKernel*> session_kernels_;
+  std::vector<std::unique_ptr<OpKernel>> session_kernels_;
   Graph& graph_;
   std::unique_ptr<GraphViewer> graph_viewer_;  // GraphViewer for const access to Graph
 

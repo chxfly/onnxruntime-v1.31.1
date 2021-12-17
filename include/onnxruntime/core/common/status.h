@@ -121,7 +121,10 @@ class [[nodiscard]] Status {
   Status(StatusCategory category, int code, const char* msg);
 
   Status(StatusCategory category, int code);
-
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 26409)
+#endif
   Status(const Status& other)
       : state_((other.state_ == nullptr) ? nullptr : new State(*other.state_)) {}
 
@@ -135,7 +138,9 @@ class [[nodiscard]] Status {
     }
     return *this;
   }
-
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
   Status(Status&&) = default;
   Status& operator=(Status&&) = default;
   ~Status() = default;

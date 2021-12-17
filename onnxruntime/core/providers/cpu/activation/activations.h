@@ -122,7 +122,10 @@ struct Relu : public ElementWiseRangedTransform<T> {
     ym = xm.cwiseMax(0);
   }
 };
-
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 26409)
+#endif
 template <typename T>
 struct Sigmoid : public ElementWiseRangedTransform<T> {
   Status Init(const onnxruntime::NodeAttributes&) {
@@ -192,6 +195,7 @@ struct Tanh : public ElementWiseRangedTransform<T> {
     ym = xm.tanh();
   }
 };
+
 template <>
 void Tanh<float>::operator()(std::ptrdiff_t first, std::ptrdiff_t last) const;
 
@@ -210,7 +214,9 @@ struct ThresholdedRelu : public ElementWiseRangedTransform<T> {
     ym = (xm > (T)alpha).select(xm, 0);
   }
 };
-
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 template <typename T>
 struct Selu : public ElementWiseRangedTransform<T> {
   ORT_GET_FLOAT_ATTR_AND_RETURN_2(alpha, gamma);

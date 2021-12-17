@@ -533,7 +533,9 @@ ORT_API(void, OrtUninitializeBuffer, _In_opt_ void* input, size_t input_len, enu
     ptr[i].~string();
   }
 }
-
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(disable : 26409)
+#endif
 class AutoDelete {
  public:
   OrtCallback d{nullptr, nullptr};

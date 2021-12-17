@@ -88,8 +88,8 @@ class OutputIterator {
                        ScanDirection direction = ScanDirection::kForward,
                        bool temporary = false,
                        MLDataType data_type = nullptr) {
-    iterator.reset(new OutputIterator(context, output_index, is_loop_state_var, is_v8, final_shape,
-                                      create_slicer_func, zero_data_func, direction, temporary, data_type));
+    iterator = std::make_unique<OutputIterator>(context, output_index, is_loop_state_var, is_v8, final_shape,
+                                      create_slicer_func, zero_data_func, direction, temporary, data_type);
     return iterator->Initialize();
   }
 
@@ -115,8 +115,7 @@ class OutputIterator {
     ORT_ENFORCE(final_output_mlvalue_, "Attempt to retrieve final output before it was set.");
     return *final_output_mlvalue_;
   }
-
- private:
+  //std::unique_ptr needs to access this function.
   OutputIterator(OpKernelContextInternal& context,
                  int output_index,
                  bool is_loop_state_var,
@@ -128,6 +127,7 @@ class OutputIterator {
                  bool temporary,
                  MLDataType data_type);
 
+ private:
   Status Initialize();
   Status AllocateFinalBuffer();
 

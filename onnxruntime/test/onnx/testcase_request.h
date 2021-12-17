@@ -78,10 +78,11 @@ class TestCaseRequestContext {
   /// The impact is mitigated by the fact that __Ctor is still private.
   ~TestCaseRequestContext() = default;
 
- private:
 
   TestCaseRequestContext(const Callback& cb, PThreadPool tp, const ITestCase& test_case, Ort::Env& env,
                          const Ort::SessionOptions& session_opts, size_t test_case_id);
+
+ private:
 
   bool SetupSession();
 

@@ -499,15 +499,13 @@ class Node {
    private:
     ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(Relationships);
   };
+  friend class Graph;
+  Node(NodeIndex index, Graph& graph) : index_(index), graph_(&graph) {}
 
  private:
   ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(Node);
 
-  // NOTE: This friendship relationship should ONLY be used for calling methods of the Node class and not accessing
-  // the data members directly, so that the Node can maintain its internal invariants.
-  friend class Graph;
 
-  Node(NodeIndex index, Graph& graph) : index_(index), graph_(&graph) {}
 
 #if !defined(ORT_MINIMAL_BUILD) || defined(ORT_EXTENDED_MINIMAL_BUILD)
   void Init(const std::string& name,
@@ -1200,8 +1198,6 @@ class Graph {
   }
 #endif
 
- private:
-  ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(Graph);
 
   // This friendship relationship should only be used to call Graph::Graph and
   // Graph::LoadGraph All other access should be via the public API.
@@ -1243,6 +1239,8 @@ class Graph {
         const std::vector<const ONNX_NAMESPACE::FunctionProto*>& model_functions,
         const logging::Logger& logger);
 
+ private:
+  ORT_DISALLOW_COPY_ASSIGNMENT_AND_MOVE(Graph);
   void InitializeStateFromModelFileGraphProto();
 
   // Add node with specified <node_proto>.

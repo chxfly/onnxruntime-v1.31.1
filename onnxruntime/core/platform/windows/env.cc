@@ -524,14 +524,31 @@ class WindowsEnv : public Env {
   }
 
   virtual Status LoadDynamicLibrary(const std::string& library_filename, bool /*global_symbols*/, void** handle) const override {
+    const std::wstring& wlibrary_filename = ToWideString(library_filename);
 #if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP
-    *handle = ::LoadPackagedLibrary(ToWideString(library_filename).c_str(), 0);
+    *handle = ::LoadPackagedLibrary(wlibrary_filename.c_str(), 0);
 #else
-    *handle = ::LoadLibraryExA(library_filename.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+    //TODO: in most cases, the path name is a relative path and the behavior of the following line of code is undefined.
+    *handle = ::LoadLibraryExW(wlibrary_filename.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
 #endif
     if (!*handle) {
       const auto error_code = GetLastError();
-      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "LoadLibrary failed with error ", error_code, " \"", std::system_category().message(error_code), "\" when trying to load \"", library_filename, "\"");
+      LPVOID lpMsgBuf;
+      FormatMessageW(
+          FORMAT_MESSAGE_ALLOCATE_BUFFER |
+              FORMAT_MESSAGE_FROM_SYSTEM |
+              FORMAT_MESSAGE_IGNORE_INSERTS,
+          NULL,
+          error_code,
+          MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+          (LPWSTR)&lpMsgBuf,
+          0, NULL);
+      std::wostringstream oss;
+      oss << L"LoadLibrary failed with error " << error_code << L" \"" << (LPWSTR)lpMsgBuf << L"\" when trying to load \"" << wlibrary_filename << L"\"";
+      std::wstring errmsg = oss.str();
+      common::Status status(common::ONNXRUNTIME, common::FAIL, ToMBString(errmsg));
+      LocalFree(lpMsgBuf);
+      return status;
     }
     return Status::OK();
   }
@@ -548,7 +565,20 @@ class WindowsEnv : public Env {
     *symbol = ::GetProcAddress(reinterpret_cast<HMODULE>(handle), symbol_name.c_str());
     if (!*symbol) {
       const auto error_code = GetLastError();
-      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Failed to find symbol in library, error code: ", error_code, " - ", std::system_category().message(error_code));
+      LPVOID lpMsgBuf;
+      FormatMessageW(
+          FORMAT_MESSAGE_ALLOCATE_BUFFER |
+              FORMAT_MESSAGE_FROM_SYSTEM |
+              FORMAT_MESSAGE_IGNORE_INSERTS,
+          NULL,
+          error_code,
+          MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+          (LPWSTR)&lpMsgBuf,
+          0, NULL);
+      std::wostringstream oss;
+      oss << L"Failed to find symbol "<<ToWideString(symbol_name) << L" in library, error code: " << error_code << L" \"" << (LPWSTR)lpMsgBuf << L"\"";
+      std::wstring errmsg = oss.str();
+      return common::Status(common::ONNXRUNTIME, common::FAIL, ToMBString(errmsg));
     }
     return Status::OK();
   }

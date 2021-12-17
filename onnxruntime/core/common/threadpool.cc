@@ -68,7 +68,7 @@ void ThreadPoolProfiler::Start() {
 ThreadPoolProfiler::MainThreadStat& ThreadPoolProfiler::GetMainThreadStat() {
   static thread_local std::unique_ptr<MainThreadStat> stat;
   if (!stat) {
-    stat.reset(new MainThreadStat());
+    stat = std::make_unique<MainThreadStat>();
   }
   return *stat;
 }

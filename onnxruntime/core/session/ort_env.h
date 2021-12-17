@@ -73,16 +73,16 @@ struct OrtEnv {
    * Removes registered allocator that was previously registered for sharing between multiple sessions.
   */
   onnxruntime::common::Status UnregisterAllocator(const OrtMemoryInfo& mem_info);
-
+  OrtEnv(std::unique_ptr<onnxruntime::Environment> value);
+  ~OrtEnv();
  private:
-  static OrtEnv* p_instance_;
+  static std::unique_ptr<OrtEnv> p_instance_;
   static onnxruntime::OrtMutex m_;
   static int ref_count_;
 
   std::unique_ptr<onnxruntime::Environment> value_;
 
-  OrtEnv(std::unique_ptr<onnxruntime::Environment> value1);
-  ~OrtEnv();
+
 
   ORT_DISALLOW_COPY_AND_ASSIGNMENT(OrtEnv);
 };

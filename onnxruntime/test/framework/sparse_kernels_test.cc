@@ -333,7 +333,7 @@ class SparseTensorTests : public testing::Test {
           .SetDomain(onnxruntime::kMLDomain)
           .SinceVersion(10)
           .Provider(onnxruntime::kCpuExecutionProvider);
-      KernelCreateFn kernel_create_fn = [](const OpKernelInfo& info) { return new typename Op::OpKernelImpl(info); };
+      KernelCreateFn kernel_create_fn = [](FuncManager&, const OpKernelInfo& info, std::unique_ptr<OpKernel>& out) { out = std::make_unique<typename Op::OpKernelImpl>(info); return Status::OK(); };
       EXPECT_TRUE(registry2->RegisterCustomKernel(kernel_def_builder, kernel_create_fn).IsOK());
     };
     register_actions.push_back(register_kernel);

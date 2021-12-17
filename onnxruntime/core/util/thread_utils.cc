@@ -51,6 +51,9 @@ CreateThreadPool(Env* env, OrtThreadPoolParams options, ThreadPoolType tpool_typ
 
 }  // namespace concurrency
 }  // namespace onnxruntime
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(disable : 26409)
+#endif
 namespace OrtApis {
 ORT_API_STATUS_IMPL(CreateThreadingOptions, _Outptr_ OrtThreadingOptions** out) {
   *out = new OrtThreadingOptions();

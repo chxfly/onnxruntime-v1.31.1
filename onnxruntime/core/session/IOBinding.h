@@ -93,11 +93,11 @@ class IOBinding {
     */
   void ClearOutputs();
   void ClearInputs();
-
+  IOBinding(const SessionState& session_state);
  private:
   friend InferenceSession;
 
-  IOBinding(const SessionState& session_state);
+
   const SessionState& session_state_;
   std::vector<std::string> feed_names_;
   std::vector<OrtValue> feeds_;

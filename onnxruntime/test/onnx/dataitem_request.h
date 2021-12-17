@@ -68,7 +68,6 @@ class DataTaskRequestContext {
     return spent_time_;
   }
 
- private:
   DataTaskRequestContext(const Callback& cb,
                          const ITestCase& test_case, ::Ort::Session& session,
                          OrtAllocator* allocator, size_t task_id)
@@ -80,6 +79,7 @@ class DataTaskRequestContext {
     SetTimeSpecToZero(&spent_time_);
   }
 
+ private:
   void RunAsync();
   std::pair<EXECUTE_RESULT, TIME_SPEC> RunImpl();
 

@@ -24,7 +24,9 @@ using onnxruntime::MLFloat16;
 using onnxruntime::SparseTensor;
 #endif
 using onnxruntime::Tensor;
-
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(disable : 26409)
+#endif
 ORT_API_STATUS_IMPL(OrtApis::CreateTensorTypeAndShapeInfo, _Outptr_ OrtTensorTypeAndShapeInfo** out) {
   API_IMPL_BEGIN
   *out = new OrtTensorTypeAndShapeInfo();

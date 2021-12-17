@@ -151,7 +151,7 @@ struct TfIdfVectorizer::Impl {
   }
 };
 
-TfIdfVectorizer::TfIdfVectorizer(const OpKernelInfo& info) : OpKernel(info), impl_(new Impl) {
+TfIdfVectorizer::TfIdfVectorizer(const OpKernelInfo& info) : OpKernel(info), impl_(std::make_unique<Impl>()) {
   std::string mode;
   Status status = info.GetAttr("mode", &mode);
   ORT_ENFORCE(status.IsOK(), "mode is required");

@@ -9,7 +9,9 @@
 OrtSequenceTypeInfo::OrtSequenceTypeInfo(OrtTypeInfo* sequence_key_type) noexcept :
 	sequence_key_type_(sequence_key_type, &OrtApis::ReleaseTypeInfo) {
 }
-
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(disable : 26409)
+#endif
 OrtStatus* OrtSequenceTypeInfo::FromTypeProto(const ONNX_NAMESPACE::TypeProto* type_proto, OrtSequenceTypeInfo** out) {
   auto value_case = type_proto->value_case();
   if (value_case != ONNX_NAMESPACE::TypeProto::kSequenceType)
