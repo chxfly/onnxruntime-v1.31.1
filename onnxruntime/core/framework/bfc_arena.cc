@@ -164,6 +164,12 @@ Status BFCArena::Extend(size_t rounded_bytes) {
   static constexpr float kBackpedalFactor = 0.9f;
   // Try allocating less memory.
   while (mem_addr == nullptr) {
+	float float_bytes = bytes * kBackpedalFactor;
+	if(float_bytes >= std::numeric_limits<size_t>::max())
+		ORT_THROW("Incorrect length", bytes);
+	double float_bytes = bytes * static_cast<double>(0.9);
+	if(float_bytes >= std::numeric_limits<size_t>::max())
+		ORT_THROW("Incorrect length for double", bytes);
     bytes = RoundedBytes(static_cast<size_t>(bytes * kBackpedalFactor));
 
     // give up if we can't satisfy the requested size, or we're attempting an allocation of less than 8K.
