@@ -162,13 +162,15 @@ Status BFCArena::Extend(size_t rounded_bytes) {
   void* mem_addr = safe_alloc(bytes);
 
   static constexpr float kBackpedalFactor = 0.9f;
+  float float_bytes = 0f;
+  double double_bytes = 0.0;
   // Try allocating less memory.
   while (mem_addr == nullptr) {
-	float float_bytes = bytes * kBackpedalFactor;
+	float_bytes = bytes * kBackpedalFactor;
 	if(float_bytes >= std::numeric_limits<size_t>::max())
 		ORT_THROW("Incorrect length", bytes);
-	double float_bytes = bytes * static_cast<double>(0.9);
-	if(float_bytes >= std::numeric_limits<size_t>::max())
+	double_bytes = bytes * static_cast<double>(0.9);
+	if(double_bytes >= std::numeric_limits<size_t>::max())
 		ORT_THROW("Incorrect length for double", bytes);
     bytes = RoundedBytes(static_cast<size_t>(bytes * kBackpedalFactor));
 
@@ -186,7 +188,7 @@ Status BFCArena::Extend(size_t rounded_bytes) {
 
   if (mem_addr == nullptr) {
     return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL,
-                           "Failed to allocate memory for requested buffer of size ", rounded_bytes);
+                           "Failed to allocate memory for requested buffer of size ", rounded_bytes," ",float_bytes," ",double_bytes);
   }
 
   LOGS_DEFAULT(INFO) << "Extended allocation by " << bytes << " bytes.";
