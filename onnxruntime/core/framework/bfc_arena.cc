@@ -162,7 +162,7 @@ Status BFCArena::Extend(size_t rounded_bytes) {
   void* mem_addr = safe_alloc(bytes);
 
   static constexpr float kBackpedalFactor = 0.9f;
-  float float_bytes = 0f;
+  float float_bytes = 0.0f;
   double double_bytes = 0.0;
   // Try allocating less memory.
   while (mem_addr == nullptr) {
