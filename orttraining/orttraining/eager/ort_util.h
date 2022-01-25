@@ -12,10 +12,10 @@ namespace eager {
 
 void CreateMLValue(onnxruntime::AllocatorPtr alloc, 
                    onnxruntime::MLDataType element_type, 
-                   const std::vector<int64_t>& dims, 
+                   const TensorShapeVector& dims, 
                    OrtValue* p_mlvalue);
 
-void CreateMLValue(void* data_ptr, onnxruntime::MLDataType element_type, const std::vector<int64_t>& dims, OrtValue* p_mlvalue);
+void CreateMLValue(void* data_ptr, onnxruntime::MLDataType element_type, const TensorShapeVector& dims, OrtValue* p_mlvalue);
 
 template <typename T>
 inline void CopyVectorToTensor(onnxruntime::ORTInvoker& invoker,
