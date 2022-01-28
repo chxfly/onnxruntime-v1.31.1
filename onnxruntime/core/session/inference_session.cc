@@ -62,6 +62,8 @@
 #include "core/session/custom_ops.h"
 #endif
 
+#include "core/platform/memory.h"
+
 using namespace ONNX_NAMESPACE;
 using namespace onnxruntime::common;
 
@@ -375,10 +377,12 @@ InferenceSession::InferenceSession(const SessionOptions& session_options, const 
       insert_cast_transformer_("CastFloat16Transformer"),
       logging_manager_(session_env.GetLoggingManager()),
       environment_(session_env) {
+  checkMemory("InferenceSession::InferenceSession(0) - STEP.0");
   auto status = Model::Load(model_location_, model_proto_);
   ORT_ENFORCE(status.IsOK(), "Given model could not be parsed while creating inference session. Error message: ",
               status.ErrorMessage());
   is_model_proto_parsed_ = true;
+  checkMemory("InferenceSession::InferenceSession(0) - STEP.1");
   // Finalize session options and initialize assets of this session instance
   ConstructorCommon(session_options, session_env);
 }
@@ -392,11 +396,13 @@ InferenceSession::InferenceSession(const SessionOptions& session_options,
       logging_manager_(session_env.GetLoggingManager()),
       environment_(session_env) {
   model_location_ = ToWideString(model_uri);
+  checkMemory("InferenceSession::InferenceSession(1) - STEP.0");
   auto status = Model::Load(model_location_, model_proto_);
   ORT_ENFORCE(status.IsOK(), "Given model could not be parsed while creating inference session. Error message: ",
               status.ErrorMessage());
   is_model_proto_parsed_ = true;
   // Finalize session options and initialize assets of this session instance
+  checkMemory("InferenceSession::InferenceSession(1) - STEP.1");
   ConstructorCommon(session_options, session_env);
 }
 #endif
@@ -420,9 +426,11 @@ InferenceSession::InferenceSession(const SessionOptions& session_options, const 
       insert_cast_transformer_("CastFloat16Transformer"),
       logging_manager_(session_env.GetLoggingManager()),
       environment_(session_env) {
+  checkMemory("InferenceSession::InferenceSession - STEP.0");
   const bool result = model_proto_.ParseFromArray(model_data, model_data_len);
   ORT_ENFORCE(result, "Could not parse model successfully while constructing the inference session");
   is_model_proto_parsed_ = true;
+  checkMemory("InferenceSession::InferenceSession - STEP.1");
   // Finalize session options and initialize assets of this session instance
   ConstructorCommon(session_options, session_env);
 }
