@@ -6,7 +6,7 @@ import * as path from 'path';
 
 function updatePackageJson() {
   const commonPackageJsonPath = path.join(__dirname, '..', '..', 'common', 'package.json');
-  const selfPackageJsonPath = path.join(__dirname, '..', 'package.json');
+  const selfPackageJsonPath= path.join(__dirname, '..', 'package.json');
   console.log(`=== start to update package.json: ${selfPackageJsonPath}`);
   const packageCommon = fs.readJSONSync(commonPackageJsonPath);
   const packageSelf = fs.readJSONSync(selfPackageJsonPath);
