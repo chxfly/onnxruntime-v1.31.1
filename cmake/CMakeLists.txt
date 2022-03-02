@@ -318,7 +318,7 @@ if (onnxruntime_BUILD_WEBASSEMBLY)
     # (2) "-flto=thin" does not work correctly for wasm-ld.
     #     we don't set onnxruntime_ENABLE_LTO because it appends flag "-flto=thin"
     #     instead, we manually set CMAKE_CXX_FLAGS "-flto"
-    string(APPEND CMAKE_CXX_FLAGS " -flto")
+    string(APPEND CMAKE_CXX_FLAGS " -flto=thin")
   endif()
 
   if (onnxruntime_ENABLE_WEBASSEMBLY_DEBUG_INFO)
