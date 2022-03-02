@@ -492,21 +492,27 @@ set(ONNXRUNTIME_TEST_LIBS
     ${ONNXRUNTIME_INTEROP_TEST_LIBS}
     ${onnxruntime_libs}
     # CUDA, ROCM, TENSORRT, MIGRAPHX, DNNL, and OpenVINO are dynamically loaded at runtime
-    ${PROVIDERS_NUPHAR}
-    ${PROVIDERS_NNAPI}
-    ${PROVIDERS_RKNPU}
-    ${PROVIDERS_DML}
     ${PROVIDERS_ACL}
     ${PROVIDERS_ARMNN}
     ${PROVIDERS_COREML}
+    ${PROVIDERS_DML}
+    ${PROVIDERS_INTERNAL_TESTING}
+    ${PROVIDERS_NNAPI}
+    ${PROVIDERS_NUPHAR}
+    ${PROVIDERS_RKNPU}
+    #${PROVIDERS_TVM}
+    ${PROVIDERS_VITISAI}
+    ${onnxruntime_winml}
     # ${PROVIDERS_TVM}
+    ${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
     onnxruntime_optimizer
+    ${ONNXRUNTIME_XNNPACK_PROVIDER_LIBRARY}
     onnxruntime_providers
-    onnxruntime_util
-    ${onnxruntime_tvm_libs}
+    ${onnxruntime_tvm_libs}    
     onnxruntime_framework
+    onnxruntime_graph  
     onnxruntime_util
-    onnxruntime_graph
+    ${ONNXRUNTIME_XNNPACK_SCHEMAS_LIBRARY}
     ${ONNXRUNTIME_MLAS_LIBS}
     onnxruntime_common
     onnxruntime_flatbuffers
@@ -944,7 +950,9 @@ if(onnxruntime_ENABLE_EAGER_MODE)
   set(onnxruntime_eager_mode_libs
           onnxruntime_eager
           onnxruntime_session
+          ${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
           onnxruntime_optimizer
+          ${ONNXRUNTIME_XNNPACK_PROVIDER_LIBRARY}
           onnxruntime_providers
           onnxruntime_util
           onnxruntime_framework
@@ -1249,7 +1257,13 @@ if (NOT onnxruntime_ENABLE_TRAINING_TORCH_INTEROP)
       set_property(TEST onnxruntime4j_test APPEND PROPERTY DEPENDS onnxruntime4j_jni)
   endif()
 endif()
-
+if (NOT onnxruntime_MINIMAL_BUILD AND onnxruntime_USE_XNNPACK)
+  onnxruntime_add_executable(layout_transformer ${REPO_ROOT}/onnxruntime/tool/layout_transformer.cc ${REPO_ROOT}/onnxruntime/core/providers/cpu/tensor/transpose.cc)
+  target_link_libraries(layout_transformer PRIVATE        
+          ${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
+          onnxruntime_optimizer
+          onnxruntime_util onnxruntime_framework onnxruntime_graph ${ONNXRUNTIME_XNNPACK_SCHEMAS_LIBRARY} onnxruntime_mlas onnxruntime_common onnxruntime_flatbuffers ${onnxruntime_EXTERNAL_LIBRARIES})
+endif()
 # limit to only test on windows first, due to a runtime path issue on linux
 if (NOT onnxruntime_MINIMAL_BUILD AND NOT onnxruntime_EXTENDED_MINIMAL_BUILD
                                   AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin|iOS"
@@ -1284,3 +1298,34 @@ if (NOT onnxruntime_MINIMAL_BUILD AND NOT onnxruntime_EXTENDED_MINIMAL_BUILD
 endif()
 
 include(onnxruntime_fuzz_test.cmake)
+
+if(onnxruntime_USE_XNNPACK)
+    onnxruntime_add_executable(onnxruntime_xnnpack_test   "${TEST_SRC_DIR}/xnnpack/main.cpp" "${TEST_SRC_DIR}/xnnpack/model.c" "${TEST_SRC_DIR}/xnnpack/input.c")
+    if(${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
+      set_target_properties(onnxruntime_xnnpack_test PROPERTIES
+        XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO"
+    )
+    endif()
+    if (onnxruntime_BUILD_WEBASSEMBLY)
+      set_target_properties(onnxruntime_xnnpack_test PROPERTIES LINK_FLAGS "-s ALLOW_MEMORY_GROWTH=1 -s EXIT_RUNTIME=1 -s TOTAL_MEMORY=67108864")
+      if (onnxruntime_ENABLE_WEBASSEMBLY_THREADS)
+        set_property(TARGET onnxruntime_xnnpack_test APPEND_STRING PROPERTY LINK_FLAGS " -s USE_PTHREADS=1 -s PROXY_TO_PTHREAD=1")
+      endif()
+    endif()
+    target_include_directories(onnxruntime_xnnpack_test PRIVATE ${ONNXRUNTIME_ROOT}
+            ${CMAKE_CURRENT_BINARY_DIR})
+    target_link_libraries(onnxruntime_xnnpack_test PRIVATE  onnxruntime_session
+        ${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
+        onnxruntime_optimizer
+        ${ONNXRUNTIME_XNNPACK_PROVIDER_LIBRARY}
+        onnxruntime_xnnpack
+        onnxruntime_providers
+        onnxruntime_framework
+        onnxruntime_graph  
+        onnxruntime_util
+        onnxruntime_xnnpack_schemas
+        ${ONNXRUNTIME_MLAS_LIBS}
+        onnxruntime_common
+        onnxruntime_flatbuffers ${onnxruntime_EXTERNAL_LIBRARIES})
+    set_target_properties(onnxruntime_xnnpack_test PROPERTIES FOLDER "ONNXRuntimeTest")
+endif()

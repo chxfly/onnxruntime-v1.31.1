@@ -141,6 +141,9 @@ class NodeRef {
   /// <returns>Domain containing the op. Empty string if node has no domain set.</returns>
   virtual std::string_view Domain() const = 0;
 
+    /// <returns>Node name. Empty string if node has no domain set.</returns>
+  virtual std::string_view Name() const = 0;
+
   /// <returns>Names of input values. Empty string may be included for optional inputs.</returns>
   virtual std::vector<std::string_view> Inputs() const = 0;
 
@@ -152,6 +155,8 @@ class NodeRef {
   /// The attribute value, or nullopt if the attribute is not present on the node, or is not of type int.
   /// </returns>
   virtual std::optional<int64_t> GetAttributeInt(std::string_view name) const = 0;
+  virtual std::optional<float> GetAttributeFloat(std::string_view name) const = 0;
+
 
   /// <param name="name">Name of the attribute to return</param>
   /// <returns>
@@ -165,6 +170,8 @@ class NodeRef {
   /// <param name="name">Name of the attribute to set</param>
   /// <param name="value">New value of attribute</param>
   virtual void SetAttributeInt(std::string_view name, int64_t value) = 0;
+
+  virtual void SetAttributeFloat(std::string_view name, float value) = 0;
 
   /// <summary>
   /// Sets an int[] attribute with name and value. Overwrites existing value if present.
@@ -346,7 +353,7 @@ class GraphRef {
   /// <param name="domain">The new node's domain. Empty string signifies default onnx domain.</param>
   /// <returns>The new node</returns>
   virtual std::unique_ptr<NodeRef> AddNode(std::string_view op_type, const std::vector<std::string_view>& inputs,
-                                           size_t num_outputs, std::string_view domain = "") = 0;
+                                           size_t num_outputs, std::string_view domain = "", std::string_view name = "") = 0;
 
   /// <summary>
   /// Creates a copy of the provided node in the graph with the specified op type and domain.
@@ -354,7 +361,7 @@ class GraphRef {
   /// <param name="op_type">The new node's op type</param>
   /// <param name="domain">The new node's domain. Empty string signifies default onnx domain.</param>
   /// <returns>The new node</returns>
-  virtual std::unique_ptr<NodeRef> CopyNode(const api::NodeRef& source_node, std::string_view op_type, std::string_view domain = "") = 0;
+  virtual std::unique_ptr<NodeRef> CopyNode(const api::NodeRef& source_node, std::string_view op_type, std::string_view domain = "", std::string_view name = "") = 0;
 
   /// <summary>
   /// Deletes a node from the graph. Behavior is undefined if node has any consumers.
@@ -509,6 +516,9 @@ void WrapTransposesAroundNode(api::GraphRef& graph, api::NodeRef& node,
                               const std::vector<const std::vector<int64_t>*>& input_perms,
                               const std::vector<const std::vector<int64_t>*>& output_perms);
 
+void TransposesNodeInputs(api::GraphRef& graph, api::NodeRef& node,
+                          size_t i,
+                          const std::vector<int64_t>& perm);
 /// <summary>
 /// Computes the perm attribute needed to transpose a tensor from channel-first ordering (NCHW or NCD...D) to
 /// channel-last ordering (NHWC or ND...DC). rank must be >= 2.

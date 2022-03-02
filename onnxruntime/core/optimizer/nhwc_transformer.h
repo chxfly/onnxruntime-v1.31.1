@@ -22,7 +22,8 @@ class NhwcTransformer : public GraphTransformer {
  public:
   explicit NhwcTransformer(AllocatorPtr cpu_allocator) noexcept 
     : GraphTransformer("NhwcTransformer"), cpu_allocator_(std::move(cpu_allocator)){};
-
+  //Can XNNPack run the conv node?
+  static bool IsConvSupportedByXNNPack(const Node& nodeRef, bool input_is_nchw);
  private:
   Status ApplyImpl(Graph& graph, bool& modified, int graph_level, const logging::Logger& logger) const override;
 };

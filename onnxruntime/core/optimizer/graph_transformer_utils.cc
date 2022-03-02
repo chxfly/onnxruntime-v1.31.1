@@ -59,6 +59,10 @@
 #include "core/optimizer/transpose_optimizer/ort_transpose_optimizer.h"
 #include "core/optimizer/unsqueeze_elimination.h"
 
+#ifdef USE_XNNPACK
+#include "core/xnnpack/optimizer/xnnpack_transformer.h"
+#endif
+
 #endif  // !defined(ORT_MINIMAL_BUILD)
 
 namespace onnxruntime::optimizer_utils {
@@ -175,6 +179,11 @@ InlinedVector<std::unique_ptr<GraphTransformer>> GenerateTransformers(
       // no filtering on execution provider for L1 optimizations as they only use official ONNX operators
       transformers.emplace_back(std::make_unique<CommonSubexpressionElimination>());
       transformers.emplace_back(std::make_unique<ConstantFolding>(cpu_execution_provider, !disable_quant_qdq));
+#ifdef USE_XNNPACK
+      auto default_cpu_allocator = cpu_execution_provider.GetAllocator(0, OrtMemTypeDefault);
+      transformers.emplace_back(std::make_unique<NhwcTransformer>(default_cpu_allocator));
+      transformers.emplace_back(std::make_unique<XnnPackTransformer>(default_cpu_allocator));
+#endif
       transformers.emplace_back(std::make_unique<MatMulAddFusion>());
       transformers.emplace_back(std::make_unique<ReshapeFusion>());
       transformers.emplace_back(std::make_unique<FreeDimensionOverrideTransformer>(
@@ -262,7 +271,9 @@ InlinedVector<std::unique_ptr<GraphTransformer>> GenerateTransformers(
         transformers.emplace_back(std::make_unique<NchwcTransformer>());
       }
       auto cpu_allocator = cpu_execution_provider.GetAllocator(0, OrtMemTypeDefault);
+#ifndef USE_XNNPACK
       transformers.emplace_back(std::make_unique<NhwcTransformer>(std::move(cpu_allocator)));
+#endif
 #endif
     } break;
 

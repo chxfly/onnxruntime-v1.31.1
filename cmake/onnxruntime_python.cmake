@@ -137,22 +137,27 @@ endif()
 target_link_libraries(onnxruntime_pybind11_state PRIVATE
     onnxruntime_session
     ${onnxruntime_libs}
-    ${PROVIDERS_NUPHAR}
-    ${PROVIDERS_TVM}
-    ${PROVIDERS_VITISAI}
-    ${PROVIDERS_NNAPI}
-    ${PROVIDERS_COREML}
-    ${PROVIDERS_RKNPU}
-    ${PROVIDERS_DML}
+    # CUDA, ROCM, TENSORRT, MIGRAPHX, DNNL, and OpenVINO are dynamically loaded at runtime
     ${PROVIDERS_ACL}
     ${PROVIDERS_ARMNN}
+    ${PROVIDERS_COREML}
+    ${PROVIDERS_DML}
+    ${PROVIDERS_INTERNAL_TESTING}
+    ${PROVIDERS_NNAPI}
+    ${PROVIDERS_NUPHAR}
+    ${PROVIDERS_RKNPU}
+    #${PROVIDERS_TVM}
+    ${PROVIDERS_VITISAI}
+    ${onnxruntime_winml}
+	${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
     onnxruntime_optimizer
+    ${ONNXRUNTIME_XNNPACK_PROVIDER_LIBRARY}
     onnxruntime_providers
-    onnxruntime_util
     ${onnxruntime_tvm_libs}
     onnxruntime_framework
+    onnxruntime_graph  
     onnxruntime_util
-    onnxruntime_graph
+    ${ONNXRUNTIME_XNNPACK_SCHEMAS_LIBRARY}
     ${ONNXRUNTIME_MLAS_LIBS}
     onnxruntime_common
     onnxruntime_flatbuffers

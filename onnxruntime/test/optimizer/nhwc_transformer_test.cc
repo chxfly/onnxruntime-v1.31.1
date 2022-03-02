@@ -32,7 +32,7 @@ NodeArg* NhwcMakeInitializer(ModelTestBuilder& builder, const std::vector<int64_
                                     NhwcWeightsRange<T>::max_value);
 }
 
-#ifndef DISABLE_CONTRIB_OPS
+#if !defined(DISABLE_CONTRIB_OPS) && !defined(USE_XNNPACK)
 
 TEST(NhwcTransformerTests, Conv) {
   auto test_case = [&](const std::vector<int64_t>& input_shape, const std::vector<int64_t>& weights_shape) {
