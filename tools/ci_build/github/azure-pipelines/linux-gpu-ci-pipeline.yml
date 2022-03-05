@@ -21,7 +21,7 @@ jobs:
       script: |
          set -e -x
          dpkg -l |grep nvidia
-         dmesg
+         sudo dmesg
          lsmod|grep nvidia
          nvidia-smi	 
          # We assume the machine doesn't have gcc and python development header files
