@@ -157,7 +157,8 @@ Status XnnPackTransformer::ApplyImpl(Graph& main_graph, bool& modified, int /* g
       const auto& next_node = *(new_node.OutputNodesBegin());
       float output_min;
       float output_max;
-      bool has_clip = optimizer_utils::GetClipConstantMinMax(main_graph, next_node, output_min, output_max);
+
+      bool has_clip = optimizer_utils::GetClipConstantMinMax(main_graph, next_node, output_min, output_max).IsOK();
       if (has_clip) {
         new_node.AddAttribute("output_min", output_min);
         new_node.AddAttribute("output_max", output_max);
