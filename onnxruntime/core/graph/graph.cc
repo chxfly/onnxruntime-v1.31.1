@@ -2532,10 +2532,7 @@ Status Graph::VerifyNodeAndOpMatch(const ResolveOptions& options) {
         ORT_RETURN_IF_ERROR(status);
       }
 
-      if (!SetOpSchemaFromRegistryForNode(node)) {
-        return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_GRAPH,
-                               "This is an invalid model. In Node, ", node);
-      }
+      SetOpSchemaFromRegistryForNode(node);
 
       if (!node.op_ || (node.op_ && (node.op_->HasFunction() || node.op_->HasContextDependentFunction()))) {
         InitFunctionBodyForNode(node);
