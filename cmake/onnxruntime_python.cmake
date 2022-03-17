@@ -149,7 +149,7 @@ target_link_libraries(onnxruntime_pybind11_state PRIVATE
     #${PROVIDERS_TVM}
     ${PROVIDERS_VITISAI}
     ${onnxruntime_winml}
-	${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
+    ${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
     onnxruntime_optimizer
     ${ONNXRUNTIME_XNNPACK_PROVIDER_LIBRARY}
     onnxruntime_providers
@@ -529,7 +529,7 @@ if (NOT onnxruntime_MINIMAL_BUILD AND NOT onnxruntime_EXTENDED_MINIMAL_BUILD
                                   AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin|iOS"
                                   AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Android")
                                   AND NOT onnxruntime_USE_ROCM
-				  AND NOT onnxruntime_BUILD_WEBASSEMBLY)
+                  AND NOT onnxruntime_BUILD_WEBASSEMBLY)
   add_custom_command(
     TARGET onnxruntime_pybind11_state POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
