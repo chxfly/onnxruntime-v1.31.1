@@ -61,8 +61,10 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   const ONNX_NAMESPACE::TypeProto* input_type_proto = info.GetInputType(0);
   const ONNX_NAMESPACE::TypeProto* output_type_proto = info.GetOutputType(0);
 
-  ORT_ENFORCE(input_type_proto != nullptr);
-  ORT_ENFORCE(output_type_proto != nullptr);
+  ORT_ENFORCE(input_type_proto != nullptr && input_type_proto->has_tensor_type() &&
+              input_type_proto->tensor_type().has_shape());
+  ORT_ENFORCE(output_type_proto != nullptr && output_type_proto->has_tensor_type() &&
+              output_type_proto->tensor_type().has_shape());
 
   output_shape_ = utils::GetTensorShapeFromTensorShapeProto(output_type_proto->tensor_type().shape());
   has_const_output_shape_ = IsAllDimKnown(output_shape_);

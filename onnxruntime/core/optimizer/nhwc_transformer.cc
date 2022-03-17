@@ -32,15 +32,24 @@ bool NhwcTransformer::IsConvSupportedByXNNPack(const Node& nodeRef, bool input_i
   // The two or three inputs are: X, W, B
   const NodeArg* weight_node_arg = input_defs[1];
   if (weight_node_arg == nullptr) return false;
+  // Weight must be a const and all dims are known
   bool is_weight_shape_known = optimizer_utils::IsShapeKnownOnAllDims(*weight_node_arg, 4);
   if (!is_weight_shape_known) return false;
 
   ProtoHelperNodeContext nc(nodeRef);
   OpNodeProtoHelper info(&nc);
-  auto X_input = info.GetInputType(0);
-  if (!X_input->has_tensor_type()) return false;
-  if (X_input->tensor_type().elem_type() != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) return false;
-  auto weight_input = info.GetInputType(1);
+  auto X_input = input_defs[0]->TypeAsProto();
+  if (X_input == nullptr || !X_input->has_tensor_type() || !X_input->tensor_type().has_shape() ||
+      X_input->tensor_type().elem_type() != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT)
+    return false;
+  auto& input_shape = X_input->tensor_type().shape();
+  if (input_shape.dim_size() != 4) return false;
+  for (int i = 1; i != 3; ++i) {
+    if (!input_shape.dim(i).has_dim_value()) {
+      return false;
+    }
+  }
+  auto weight_input = weight_node_arg->TypeAsProto();
   TensorShape weight_shape = utils::GetTensorShapeFromTensorShapeProto(weight_input->tensor_type().shape());
   TensorShape X_shape = utils::GetTensorShapeFromTensorShapeProto(X_input->tensor_type().shape());
   if (X_shape.NumDimensions() != 4) return false;
@@ -66,13 +75,13 @@ Status NhwcTransformer::ApplyImpl(Graph& graph, bool& modified, int graph_level,
 #endif
 
   GraphViewer graph_viewer(graph);
-  //Run constant propagation for XNNPack EP
+  // Run constant propagation for XNNPack EP
   std::unordered_set<const NodeArg*> graph_const_values;
 
   for (auto index : graph_viewer.GetNodesInTopologicalOrder()) {
     auto& node = *graph.GetNode(index);
-    if (!node.ContainsSubgraph() && node.OpType() != "DequantizeLinear" && node.OpType() != "QuantizeLinear"
-        && optimizer_utils::IsOperationDeterministic(node.Domain(), node.OpType())) {
+    if (!node.ContainsSubgraph() && node.OpType() != "DequantizeLinear" && node.OpType() != "QuantizeLinear" &&
+        optimizer_utils::IsOperationDeterministic(node.Domain(), node.OpType())) {
       bool is_all_const = true;
       for (const NodeArg* in : node.InputDefs()) {
         if (!in->Exists()) continue;

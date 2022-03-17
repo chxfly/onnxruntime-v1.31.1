@@ -77,6 +77,14 @@ OnnxStatus XnnPackConvShapeInferImpl(const ::ONNX_NAMESPACE::TensorShapeProto& i
   if (weight_shape.dim_size() != 4) {
     return OnnxStatus(StatusCategory::NONE, StatusCode::FAIL, "Weight tensor must have 4 dimensions");
   }
+  for (int i = 1; i != 3; ++i) {
+    if (!input_shape.dim(i).has_dim_value()) {
+      return OnnxStatus(StatusCategory::NONE, StatusCode::FAIL, "Only the first dim(batch size) can be unknown");
+    }
+    if (!weight_shape.dim(i).has_dim_value()) {
+      return OnnxStatus(StatusCategory::NONE, StatusCode::FAIL, "Only the first dim can be unknown");
+    }
+  }
   int64_t input_H = input_shape.dim(1).dim_value();
   int64_t input_W = input_shape.dim(2).dim_value();
   int64_t input_C = input_shape.dim(3).dim_value();
@@ -92,9 +100,9 @@ OnnxStatus XnnPackConvShapeInferImpl(const ::ONNX_NAMESPACE::TensorShapeProto& i
   output_dims[1] = final_output_shape->add_dim();
   output_dims[2] = final_output_shape->add_dim();
   output_dims[3] = final_output_shape->add_dim();
-  ONNX_RETURN_IF_ERROR(ConvShapeInference(input_shape.dim(0), input_H, input_W, input_C, weight_shape.dim(0), filter_height, filter_width,
-                                          in_channels, subsampling_height, subsampling_width, padding_mode,
-                                          output_dims));  
+  ONNX_RETURN_IF_ERROR(ConvShapeInference(input_shape.dim(0), input_H, input_W, input_C, weight_shape.dim(0),
+                                          filter_height, filter_width, in_channels, subsampling_height,
+                                          subsampling_width, padding_mode, output_dims));
   return OnnxStatus::OK();
 }
 
@@ -112,7 +120,6 @@ OnnxStatus XnnPackDepthwiseConvolution2dShapeInferImpl(const ::ONNX_NAMESPACE::T
   if (weight_shape.dim_size() != 4) {
     return OnnxStatus(StatusCategory::NONE, StatusCode::FAIL, "Weight tensor must have 4 dimensions");
   }
-
 
   int64_t input_H = input_shape.dim(1).dim_value();
   int64_t input_W = input_shape.dim(2).dim_value();
