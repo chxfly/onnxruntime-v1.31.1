@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 #include "core/framework/op_kernel.h"
 #include "core/framework/kernel_registry.h"
 #include "core/xnnpack/build_kernel_info.h"

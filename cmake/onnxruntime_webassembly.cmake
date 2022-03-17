@@ -102,9 +102,9 @@ if (onnxruntime_BUILD_WEBASSEMBLY_STATIC_LIB)
       onnxruntime_flatbuffers
       onnxruntime_framework
       onnxruntime_graph
-	  ${ONNXRUNTIME_XNNPACK_SCHEMAS_LIBRARY}
+      ${ONNXRUNTIME_XNNPACK_SCHEMAS_LIBRARY}
       onnxruntime_mlas
-	  ${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
+      ${ONNXRUNTIME_XNNPACK_OPTIMIZER_LIBRARY}
       onnxruntime_optimizer
       ${ONNXRUNTIME_XNNPACK_PROVIDER_LIBRARY}
       onnxruntime_providers
