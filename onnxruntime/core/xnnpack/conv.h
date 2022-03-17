@@ -45,11 +45,14 @@ class DepthWiseConvolution2d : public OpKernel {
  public:
   DepthWiseConvolution2d(const OpKernelInfo& info);
   Status Compute(OpKernelContext*) const override;
+  ~DepthWiseConvolution2d() { cpu_allocator_->Free(weight_); }
 
  private:
   XNNPackOperator op0_ = nullptr;
   TensorShape output_shape_;
   bool has_const_output_shape_;
+  AllocatorPtr cpu_allocator_;
+  // Tranposed weight
   float* weight_ = nullptr;
   // The following vars are valid only when has_const_output_shape_ == false;
   uint32_t input_padding_top_ = 0;
