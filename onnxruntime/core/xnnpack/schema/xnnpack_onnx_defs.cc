@@ -64,8 +64,8 @@ OnnxStatus ConvShapeInference(const ::ONNX_NAMESPACE::TensorShapeProto_Dimension
   return ::ONNX_NAMESPACE::Common::Status::OK();
 }
 
-OnnxStatus XnnPackConvShapeInferImpl(::ONNX_NAMESPACE::TensorShapeProto& input_shape,
-                                     ::ONNX_NAMESPACE::TensorShapeProto& weight_shape,
+OnnxStatus XnnPackConvShapeInferImpl(const ::ONNX_NAMESPACE::TensorShapeProto& input_shape,
+                                     const ::ONNX_NAMESPACE::TensorShapeProto& weight_shape,
                                      uint32_t input_padding_top, uint32_t input_padding_right,
                                      uint32_t input_padding_bottom, uint32_t input_padding_left,
                                      uint32_t subsampling_height, uint32_t subsampling_width, int padding_mode,
@@ -98,8 +98,8 @@ OnnxStatus XnnPackConvShapeInferImpl(::ONNX_NAMESPACE::TensorShapeProto& input_s
   return OnnxStatus::OK();
 }
 
-OnnxStatus XnnPackDepthwiseConvolution2dShapeInferImpl(::ONNX_NAMESPACE::TensorShapeProto& input_shape,
-                                                       ::ONNX_NAMESPACE::TensorShapeProto& weight_shape,
+OnnxStatus XnnPackDepthwiseConvolution2dShapeInferImpl(const ::ONNX_NAMESPACE::TensorShapeProto& input_shape,
+                                                       const ::ONNX_NAMESPACE::TensorShapeProto& weight_shape,
                                                        uint32_t input_padding_top, uint32_t input_padding_right,
                                                        uint32_t input_padding_bottom,
                                                        uint32_t input_padding_left, uint32_t subsampling_height,

@@ -47,6 +47,14 @@ void CompareData(const Tensor& input, const char* varname) {
 }
 #endif
 
+static bool IsAllDimKnown(const TensorShape& s) {
+  size_t len = s.NumDimensions();
+  for (size_t i = 0; i != len; ++i) {
+    if (s[i] < 0) return false;
+  }
+  return true;
+}
+
 Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   const Tensor* weight = nullptr;
   const Tensor* B = nullptr;
@@ -56,7 +64,8 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   ORT_ENFORCE(input_type_proto != nullptr);
   ORT_ENFORCE(output_type_proto != nullptr);
 
-  output_shape = utils::GetTensorShapeFromTensorShapeProto(output_type_proto->tensor_type().shape());
+  output_shape_ = utils::GetTensorShapeFromTensorShapeProto(output_type_proto->tensor_type().shape());
+  has_const_output_shape_ = IsAllDimKnown(output_shape_);
 
   ORT_ENFORCE(info.TryGetConstantInput(1, &weight));
   ORT_ENFORCE(info.TryGetConstantInput(2, &B));
@@ -93,6 +102,15 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   ORT_ENFORCE(info.GetAttr("output_min", &output_min).IsOK());
   ORT_ENFORCE(info.GetAttr("output_max", &output_max).IsOK());
   ORT_ENFORCE(info.GetAttr("padding_mode", &padding_mode).IsOK());
+
+  input_padding_top_ = gsl::narrow<uint32_t>(input_padding_top);
+  input_padding_right_ = gsl::narrow<uint32_t>(input_padding_right);
+  input_padding_bottom_ = gsl::narrow<uint32_t>(input_padding_bottom);
+  input_padding_left_ = gsl::narrow<uint32_t>(input_padding_left);
+  subsampling_height_ = gsl::narrow<uint32_t>(subsampling_height);
+  subsampling_width_ = gsl::narrow<uint32_t>(subsampling_width);
+  padding_mode_ = gsl::narrow<uint32_t>(padding_mode);
+
   uint32_t flags = 0;
   if (padding_mode == 1) {
     flags |= XNN_FLAG_TENSORFLOW_SAME_PADDING;
@@ -102,14 +120,14 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   xnn_status status;
   struct xnn_operator* p;
   status = xnn_create_convolution2d_nhwc_f32(
-      gsl::narrow<uint32_t>(input_padding_top),
-      gsl::narrow<uint32_t>(input_padding_right),
-      gsl::narrow<uint32_t>(input_padding_bottom),
-      gsl::narrow<uint32_t>(input_padding_left),
+      input_padding_top_,
+      input_padding_right_,
+      input_padding_bottom_,
+      input_padding_left_,
       gsl::narrow<uint32_t>(kernel_height),
       gsl::narrow<uint32_t>(kernel_width),
-      gsl::narrow<uint32_t>(subsampling_height),
-      gsl::narrow<uint32_t>(subsampling_width),
+      subsampling_height_,
+      subsampling_width_,
       gsl::narrow<uint32_t>(dilation_height),
       gsl::narrow<uint32_t>(dilation_width),
       gsl::narrow<uint32_t>(groups),
@@ -124,21 +142,52 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
       flags,
       &p);
   ORT_ENFORCE(status == xnn_status_success);
-  op0.reset(p);
+  op0_.reset(p);
 }
+
+static ONNX_NAMESPACE::TensorShapeProto ToTensorShapeProto(const TensorShape& s) {
+  ONNX_NAMESPACE::TensorShapeProto ret;
+  size_t len = s.NumDimensions();
+  for (size_t i = 0; i != len; ++i) {
+    assert(s[i] >= 0);
+    ret.add_dim()->set_dim_value(s[i]);
+  }
+  return ret;
+}
+
 Status Convolution2d::Compute(OpKernelContext* context) const {
-  std::cout << "running " << context->GetNodeName() << std::endl;
   const auto* X = context->Input<Tensor>(0);
-  Tensor* Y = context->Output(0, output_shape);
-  const TensorShape& input_shape = X->Shape();  
+  Tensor* Y = nullptr;
+  if (has_const_output_shape_) {
+    Y = context->Output(0, output_shape_);
+  } else {
+    const ONNX_NAMESPACE::TensorShapeProto* weight_shape = Node().InputDefs()[1]->Shape();
+    ORT_ENFORCE(weight_shape != nullptr);
+    const ONNX_NAMESPACE::TensorShapeProto input_shape = ToTensorShapeProto(X->Shape());
+    ONNX_NAMESPACE::TensorShapeProto final_output_shape;
+
+    OnnxStatus status = XnnPackConvShapeInferImpl(input_shape, *weight_shape, input_padding_top_, input_padding_right_, input_padding_bottom_,
+                                                  input_padding_left_, subsampling_height_, subsampling_width_, padding_mode_, &final_output_shape);
+    if (!status.IsOK()) {
+      return Status(common::ONNXRUNTIME, common::FAIL, status.ErrorMessage());
+    }
+    TensorShape output_shape = utils::GetTensorShapeFromTensorShapeProto(final_output_shape);
+    if (!IsAllDimKnown(output_shape)) {
+      // If it happens, we have a logic error
+      return Status(common::ONNXRUNTIME, common::FAIL, "Cannot infer output shape");
+    }
+    Y = context->Output(0, output_shape);
+  }
+
+  const TensorShape& input_shape = X->Shape();
   xnn_status status = xnn_setup_convolution2d_nhwc_f32(
-      op0.get(),
+      op0_.get(),
       input_shape[0] /* batch size */, input_shape[1] /* input height */, input_shape[2] /* input width */,
       X->Data<float>() /* input */, Y->MutableData<float>() /* output */,
-      nullptr /* threadpool */);  
+      nullptr /* threadpool */);
   ORT_ENFORCE(status == xnn_status_success);
-  status = xnn_run_operator(op0.get(), nullptr);
-  ORT_ENFORCE(status == xnn_status_success);  
+  status = xnn_run_operator(op0_.get(), nullptr);
+  ORT_ENFORCE(status == xnn_status_success);
   return Status::OK();
 }
 
@@ -155,17 +204,36 @@ XNNPACK_CPU_MS_DOMAIN_OPERATOR_KERNEL(
     DepthWiseConvolution2d);
 
 Status DepthWiseConvolution2d::Compute(OpKernelContext* context) const {
-  //std::cout << "running " << context->GetNodeName() << std::endl;
   const auto* X = context->Input<Tensor>(0);
-  Tensor* Y = context->Output(0, output_shape);
+  Tensor* Y = nullptr;
+  if (has_const_output_shape_) {
+    Y = context->Output(0, output_shape_);
+  } else {
+    const ONNX_NAMESPACE::TensorShapeProto* weight_shape = Node().InputDefs()[1]->Shape();
+    ORT_ENFORCE(weight_shape != nullptr);
+    const ONNX_NAMESPACE::TensorShapeProto input_shape = ToTensorShapeProto(X->Shape());
+    ONNX_NAMESPACE::TensorShapeProto final_output_shape;
+
+    OnnxStatus status = XnnPackDepthwiseConvolution2dShapeInferImpl(input_shape, *weight_shape, input_padding_top_, input_padding_right_, input_padding_bottom_,
+                                                                    input_padding_left_, subsampling_height_, subsampling_width_, padding_mode_, &final_output_shape);
+    if (!status.IsOK()) {
+      return Status(common::ONNXRUNTIME, common::FAIL, status.ErrorMessage());
+    }
+    TensorShape output_shape = utils::GetTensorShapeFromTensorShapeProto(final_output_shape);
+    if (!IsAllDimKnown(output_shape)) {
+      // If it happens, we have a logic error
+      return Status(common::ONNXRUNTIME, common::FAIL, "Cannot infer output shape");
+    }
+    Y = context->Output(0, output_shape);
+  }
   const TensorShape& input_shape = X->Shape();
   xnn_status status = xnn_setup_convolution2d_nhwc_f32(
-      op0.get(),
+      op0_.get(),
       input_shape[0] /* batch size */, input_shape[1] /* input height */, input_shape[2] /* input width */,
       X->Data<float>() /* input */, Y->MutableData<float>() /* output */,
       nullptr /* threadpool */);
   ORT_ENFORCE(status == xnn_status_success);
-  status = xnn_run_operator(op0.get(), nullptr);
+  status = xnn_run_operator(op0_.get(), nullptr);
   ORT_ENFORCE(status == xnn_status_success);
 
   return Status::OK();
@@ -186,7 +254,9 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
   const ONNX_NAMESPACE::TypeProto* output_type_proto = info.GetOutputType(0);
   ORT_ENFORCE(input_type_proto != nullptr);
   ORT_ENFORCE(output_type_proto != nullptr);
-  output_shape = utils::GetTensorShapeFromTensorShapeProto(output_type_proto->tensor_type().shape());
+  output_shape_ = utils::GetTensorShapeFromTensorShapeProto(output_type_proto->tensor_type().shape());
+  has_const_output_shape_ = IsAllDimKnown(output_shape_);
+
   ORT_ENFORCE(info.TryGetConstantInput(1, &weight));
   ORT_ENFORCE(info.TryGetConstantInput(2, &B));
   const TensorShape& kernel_shape = weight->Shape();
@@ -196,7 +266,7 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
   auto weight_type = DataTypeImpl::GetType<float>();
   TensorShape new_weight_shape{kernel_shape[3], kernel_shape[1], kernel_shape[2], 1};
   hwc_to_chw(weight->Data<float>(), kernel_shape[1], kernel_shape[2], kernel_shape[3], weight_);
-  Tensor new_weight(weight_type, new_weight_shape, weight_, cpu_alloc);  
+  Tensor new_weight(weight_type, new_weight_shape, weight_, cpu_alloc);
 
   int64_t input_channels = input_type_proto->tensor_type().shape().dim(3).dim_value();
   // Weight shape : [ 1, kernel_height, kernel_width, input_channels * depth_multiplier ]
@@ -229,6 +299,14 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
   ORT_ENFORCE(info.GetAttr("output_min", &output_min).IsOK());
   ORT_ENFORCE(info.GetAttr("output_max", &output_max).IsOK());
   ORT_ENFORCE(info.GetAttr("padding_mode", &padding_mode).IsOK());
+
+  input_padding_top_ = gsl::narrow<uint32_t>(input_padding_top);
+  input_padding_right_ = gsl::narrow<uint32_t>(input_padding_right);
+  input_padding_bottom_ = gsl::narrow<uint32_t>(input_padding_bottom);
+  input_padding_left_ = gsl::narrow<uint32_t>(input_padding_left);
+  subsampling_height_ = gsl::narrow<uint32_t>(subsampling_height);
+  subsampling_width_ = gsl::narrow<uint32_t>(subsampling_width);
+  padding_mode_ = gsl::narrow<uint32_t>(padding_mode);
   uint32_t flags = 0;
   if (padding_mode == 1) {
     flags |= XNN_FLAG_TENSORFLOW_SAME_PADDING;
@@ -258,7 +336,7 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
       flags,
       &p);
   ORT_ENFORCE(status == xnn_status_success);
-  op0.reset(p);
+  op0_.reset(p);
 }
 
 }  // namespace xnnpack

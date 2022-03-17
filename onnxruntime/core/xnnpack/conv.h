@@ -7,7 +7,6 @@
 
 #include <xnnpack.h>
 
-
 namespace onnxruntime {
 namespace xnnpack {
 struct XNNPackOperatorDeleter {
@@ -27,8 +26,17 @@ class Convolution2d : public OpKernel {
   Status Compute(OpKernelContext* context) const override;
 
  private:
-  XNNPackOperator op0 = nullptr;
-  TensorShape output_shape;
+  XNNPackOperator op0_ = nullptr;
+  TensorShape output_shape_;
+  bool has_const_output_shape_;
+  // The following vars are valid only when has_const_output_shape_ == false;
+  uint32_t input_padding_top_ = 0;
+  uint32_t input_padding_right_ = 0;
+  uint32_t input_padding_bottom_ = 0;
+  uint32_t input_padding_left_ = 0;
+  uint32_t subsampling_height_ = 0;
+  uint32_t subsampling_width_ = 0;
+  int padding_mode_ = 0;
 };
 
 class DepthWiseConvolution2d : public OpKernel {
@@ -37,9 +45,18 @@ class DepthWiseConvolution2d : public OpKernel {
   Status Compute(OpKernelContext*) const override;
 
  private:
-  XNNPackOperator op0 = nullptr;
-  TensorShape output_shape;
+  XNNPackOperator op0_ = nullptr;
+  TensorShape output_shape_;
+  bool has_const_output_shape_;
   float* weight_ = nullptr;
+  // The following vars are valid only when has_const_output_shape_ == false;
+  uint32_t input_padding_top_ = 0;
+  uint32_t input_padding_right_ = 0;
+  uint32_t input_padding_bottom_ = 0;
+  uint32_t input_padding_left_ = 0;
+  uint32_t subsampling_height_ = 0;
+  uint32_t subsampling_width_ = 0;
+  int padding_mode_ = 0;
 };
 }  // namespace xnnpack
 }  // namespace onnxruntime
