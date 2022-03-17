@@ -210,7 +210,6 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
   cpu_allocator_ = info.GetAllocator(0, OrtMemTypeDefault);
   weight_ = static_cast<float*>(cpu_allocator_->AllocArray(kernel_shape.Size(), sizeof(float)));
   ORT_ENFORCE(weight_ != nullptr);
-  auto weight_type = DataTypeImpl::GetType<float>();
   TensorShape new_weight_shape{kernel_shape[3], kernel_shape[1], kernel_shape[2], 1};
   hwc_to_chw(weight->Data<float>(), kernel_shape[1], kernel_shape[2], kernel_shape[3], weight_);
 
