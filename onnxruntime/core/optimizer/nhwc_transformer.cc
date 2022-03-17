@@ -21,7 +21,7 @@ using namespace onnx_layout_transformation;
   } while (0)
 
 namespace onnxruntime {
-
+#ifdef USE_XNNPACK
 // This function runs before and after NhwcTransformer
 bool NhwcTransformer::IsConvSupportedByXNNPack(const Node& nodeRef, bool input_is_nchw) {
   if (nodeRef.OpType() != "Conv" && nodeRef.OpType() != "NhwcConv") return false;
@@ -65,6 +65,12 @@ bool NhwcTransformer::IsConvSupportedByXNNPack(const Node& nodeRef, bool input_i
   }
   return true;
 }
+#else
+bool NhwcTransformer::IsConvSupportedByXNNPack(const Node& nodeRef, bool input_is_nchw) {
+  return false;
+}
+#endif
+
 Status NhwcTransformer::ApplyImpl(Graph& graph, bool& modified, int graph_level, const logging::Logger& logger) const {
 #if defined(ORT_MINIMAL_BUILD)
   // update the producer/consumer info as previous optimizations may have invalidated it.
@@ -72,6 +78,7 @@ Status NhwcTransformer::ApplyImpl(Graph& graph, bool& modified, int graph_level,
   ORT_RETURN_IF_ERROR(graph.PopulateNodeArgToProducerConsumerLookupsFromNodes());
 #endif
 
+#ifdef USE_XNNPACK
   GraphViewer graph_viewer(graph);
   // Run constant propagation for XNNPack EP
   std::unordered_set<const NodeArg*> graph_const_values;
@@ -99,7 +106,7 @@ Status NhwcTransformer::ApplyImpl(Graph& graph, bool& modified, int graph_level,
     }
     ORT_RETURN_IF_ERROR(Recurse(node, modified, graph_level, logger));
   }
-
+#endif
   auto api_graph = MakeApiGraph(graph, cpu_allocator_, kCpuExecutionProvider);
 
   modified = false;
