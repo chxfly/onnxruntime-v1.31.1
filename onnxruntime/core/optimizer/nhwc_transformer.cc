@@ -51,11 +51,9 @@ bool NhwcTransformer::IsConvSupportedByXNNPack(const Node& nodeRef, bool input_i
   }
   auto weight_input = weight_node_arg->TypeAsProto();
   TensorShape weight_shape = utils::GetTensorShapeFromTensorShapeProto(weight_input->tensor_type().shape());
-  TensorShape X_shape = utils::GetTensorShapeFromTensorShapeProto(X_input->tensor_type().shape());
-  if (X_shape.NumDimensions() != 4) return false;
   int64_t group = 1;
   ORT_RETURN_FALSE_IF_ERROR(info.GetAttr<int64_t>("group", &group));
-  int64_t input_channels = input_is_nchw ? X_shape[1] : X_shape[3];
+  int64_t input_channels = input_is_nchw ? input_shape.dim(1).dim_value() : input_shape.dim(3).dim_value();
   if (group != 1 && group != input_channels) return false;
   std::string auto_pad_str;
   ORT_RETURN_FALSE_IF_ERROR(info.GetAttr<std::string>("auto_pad", &auto_pad_str));

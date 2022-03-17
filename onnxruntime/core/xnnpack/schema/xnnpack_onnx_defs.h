@@ -16,14 +16,16 @@ namespace onnxruntime {
                                              const ::ONNX_NAMESPACE::TensorShapeProto& weight_shape,
                                              uint32_t input_padding_top, uint32_t input_padding_right,
                                              uint32_t input_padding_bottom, uint32_t input_padding_left,
-                                             uint32_t subsampling_height, uint32_t subsampling_width, int padding_mode,
+                                             uint32_t subsampling_height, uint32_t subsampling_width,
+                                             uint32_t dilation_h, uint32_t dilation_w, int padding_mode,
                                              ::ONNX_NAMESPACE::TensorShapeProto* final_output_shape);
         OnnxStatus XnnPackDepthwiseConvolution2dShapeInferImpl(const ::ONNX_NAMESPACE::TensorShapeProto& input_shape,
                                                                const ::ONNX_NAMESPACE::TensorShapeProto& weight_shape,
                                                                uint32_t input_padding_top, uint32_t input_padding_right,
                                                                uint32_t input_padding_bottom,
                                                                uint32_t input_padding_left, uint32_t subsampling_height,
-                                                               uint32_t subsampling_width, int padding_mode,
+                                                               uint32_t subsampling_width, uint32_t dilation_h,
+                                                               uint32_t dilation_w, int padding_mode,
                                                                ::ONNX_NAMESPACE::TensorShapeProto* final_output_shape);
         }  // namespace xnnpack
 }

@@ -100,7 +100,6 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   ORT_ENFORCE(info.GetAttr("dilation_height", &dilation_height).IsOK());
   ORT_ENFORCE(info.GetAttr("dilation_width", &dilation_width).IsOK());
   ORT_ENFORCE(info.GetAttr("groups", &groups).IsOK());
-  // TODO: handle optional case
   ORT_ENFORCE(info.GetAttr("output_min", &output_min).IsOK());
   ORT_ENFORCE(info.GetAttr("output_max", &output_max).IsOK());
   ORT_ENFORCE(info.GetAttr("padding_mode", &padding_mode).IsOK());
@@ -111,6 +110,8 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   input_padding_left_ = gsl::narrow<uint32_t>(input_padding_left);
   subsampling_height_ = gsl::narrow<uint32_t>(subsampling_height);
   subsampling_width_ = gsl::narrow<uint32_t>(subsampling_width);
+  dilation_height_ = gsl::narrow<uint32_t>(dilation_height);
+  dilation_width_ = gsl::narrow<uint32_t>(dilation_width);
   padding_mode_ = gsl::narrow<uint32_t>(padding_mode);
 
   uint32_t flags = 0;
@@ -122,27 +123,12 @@ Convolution2d::Convolution2d(const OpKernelInfo& info) : OpKernel(info) {
   xnn_status status;
   struct xnn_operator* p;
   status = xnn_create_convolution2d_nhwc_f32(
-      input_padding_top_,
-      input_padding_right_,
-      input_padding_bottom_,
-      input_padding_left_,
-      gsl::narrow<uint32_t>(kernel_height),
-      gsl::narrow<uint32_t>(kernel_width),
-      subsampling_height_,
-      subsampling_width_,
-      gsl::narrow<uint32_t>(dilation_height),
-      gsl::narrow<uint32_t>(dilation_width),
-      gsl::narrow<uint32_t>(groups),
-      gsl::narrow<uint32_t>(group_input_channels),
-      gsl::narrow<uint32_t>(group_output_channels),
-      gsl::narrow<uint32_t>(input_channels),
-      gsl::narrow<uint32_t>(output_channels),
-      weight->Data<float>(),
-      B->Data<float>(),
-      output_min,
-      output_max,
-      flags,
-      &p);
+      input_padding_top_, input_padding_right_, input_padding_bottom_, input_padding_left_,
+      gsl::narrow<uint32_t>(kernel_height), gsl::narrow<uint32_t>(kernel_width), subsampling_height_,
+      subsampling_width_, dilation_height_, dilation_width_, gsl::narrow<uint32_t>(groups),
+      gsl::narrow<uint32_t>(group_input_channels), gsl::narrow<uint32_t>(group_output_channels),
+      gsl::narrow<uint32_t>(input_channels), gsl::narrow<uint32_t>(output_channels), weight->Data<float>(),
+      B->Data<float>(), output_min, output_max, flags, &p);
   ORT_ENFORCE(status == xnn_status_success);
   op0_.reset(p);
 }
@@ -168,8 +154,10 @@ Status Convolution2d::Compute(OpKernelContext* context) const {
     const ONNX_NAMESPACE::TensorShapeProto input_shape = ToTensorShapeProto(X->Shape());
     ONNX_NAMESPACE::TensorShapeProto final_output_shape;
 
-    OnnxStatus status = XnnPackConvShapeInferImpl(input_shape, *weight_shape, input_padding_top_, input_padding_right_, input_padding_bottom_,
-                                                  input_padding_left_, subsampling_height_, subsampling_width_, padding_mode_, &final_output_shape);
+    OnnxStatus status =
+        XnnPackConvShapeInferImpl(input_shape, *weight_shape, input_padding_top_, input_padding_right_,
+                                  input_padding_bottom_, input_padding_left_, subsampling_height_, subsampling_width_,
+                                  dilation_height_, dilation_width_, padding_mode_, &final_output_shape);
     if (!status.IsOK()) {
       return Status(common::ONNXRUNTIME, common::FAIL, status.ErrorMessage());
     }
@@ -183,27 +171,17 @@ Status Convolution2d::Compute(OpKernelContext* context) const {
 
   const TensorShape& input_shape = X->Shape();
   xnn_status status = xnn_setup_convolution2d_nhwc_f32(
-      op0_.get(),
-      input_shape[0] /* batch size */, input_shape[1] /* input height */, input_shape[2] /* input width */,
-      X->Data<float>() /* input */, Y->MutableData<float>() /* output */,
-      nullptr /* threadpool */);
+      op0_.get(), input_shape[0] /* batch size */, input_shape[1] /* input height */, input_shape[2] /* input width */,
+      X->Data<float>() /* input */, Y->MutableData<float>() /* output */, nullptr /* threadpool */);
   ORT_ENFORCE(status == xnn_status_success);
   status = xnn_run_operator(op0_.get(), nullptr);
   ORT_ENFORCE(status == xnn_status_success);
   return Status::OK();
 }
 
-XNNPACK_CPU_MS_DOMAIN_OPERATOR_KERNEL(
-    XnnPackConvolution2d,
-    1,
-    KernelDefBuilder(),
-    Convolution2d);
+XNNPACK_CPU_MS_DOMAIN_OPERATOR_KERNEL(XnnPackConvolution2d, 1, KernelDefBuilder(), Convolution2d);
 
-XNNPACK_CPU_MS_DOMAIN_OPERATOR_KERNEL(
-    XnnPackDepthwiseConvolution2d,
-    1,
-    KernelDefBuilder(),
-    DepthWiseConvolution2d);
+XNNPACK_CPU_MS_DOMAIN_OPERATOR_KERNEL(XnnPackDepthwiseConvolution2d, 1, KernelDefBuilder(), DepthWiseConvolution2d);
 
 Status DepthWiseConvolution2d::Compute(OpKernelContext* context) const {
   const auto* X = context->Input<Tensor>(0);
@@ -216,8 +194,10 @@ Status DepthWiseConvolution2d::Compute(OpKernelContext* context) const {
     const ONNX_NAMESPACE::TensorShapeProto input_shape = ToTensorShapeProto(X->Shape());
     ONNX_NAMESPACE::TensorShapeProto final_output_shape;
 
-    OnnxStatus status = XnnPackDepthwiseConvolution2dShapeInferImpl(input_shape, *weight_shape, input_padding_top_, input_padding_right_, input_padding_bottom_,
-                                                                    input_padding_left_, subsampling_height_, subsampling_width_, padding_mode_, &final_output_shape);
+    OnnxStatus status = XnnPackDepthwiseConvolution2dShapeInferImpl(
+        input_shape, *weight_shape, input_padding_top_, input_padding_right_, input_padding_bottom_,
+        input_padding_left_, subsampling_height_, subsampling_width_, dilation_height_, dilation_width_, padding_mode_,
+        &final_output_shape);
     if (!status.IsOK()) {
       return Status(common::ONNXRUNTIME, common::FAIL, status.ErrorMessage());
     }
@@ -230,10 +210,8 @@ Status DepthWiseConvolution2d::Compute(OpKernelContext* context) const {
   }
   const TensorShape& input_shape = X->Shape();
   xnn_status status = xnn_setup_convolution2d_nhwc_f32(
-      op0_.get(),
-      input_shape[0] /* batch size */, input_shape[1] /* input height */, input_shape[2] /* input width */,
-      X->Data<float>() /* input */, Y->MutableData<float>() /* output */,
-      nullptr /* threadpool */);
+      op0_.get(), input_shape[0] /* batch size */, input_shape[1] /* input height */, input_shape[2] /* input width */,
+      X->Data<float>() /* input */, Y->MutableData<float>() /* output */, nullptr /* threadpool */);
   ORT_ENFORCE(status == xnn_status_success);
   status = xnn_run_operator(op0_.get(), nullptr);
   ORT_ENFORCE(status == xnn_status_success);
@@ -308,7 +286,10 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
   input_padding_left_ = gsl::narrow<uint32_t>(input_padding_left);
   subsampling_height_ = gsl::narrow<uint32_t>(subsampling_height);
   subsampling_width_ = gsl::narrow<uint32_t>(subsampling_width);
+  dilation_height_ = gsl::narrow<uint32_t>(dilation_height);
+  dilation_width_ = gsl::narrow<uint32_t>(dilation_width);
   padding_mode_ = gsl::narrow<uint32_t>(padding_mode);
+
   uint32_t flags = 0;
   if (padding_mode == 1) {
     flags |= XNN_FLAG_TENSORFLOW_SAME_PADDING;
@@ -316,27 +297,12 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
   int64_t depth_multiplier = kernel_shape[3] / input_channels;
   struct xnn_operator* p;
   xnn_status status = xnn_create_convolution2d_nhwc_f32(
-      gsl::narrow<uint32_t>(input_padding_top),
-      gsl::narrow<uint32_t>(input_padding_right),
-      gsl::narrow<uint32_t>(input_padding_bottom),
-      gsl::narrow<uint32_t>(input_padding_left),
-      gsl::narrow<uint32_t>(kernel_height),
-      gsl::narrow<uint32_t>(kernel_width),
-      gsl::narrow<uint32_t>(subsampling_height),
-      gsl::narrow<uint32_t>(subsampling_width),
-      gsl::narrow<uint32_t>(dilation_height),
-      gsl::narrow<uint32_t>(dilation_width),
-      gsl::narrow<uint32_t>(input_channels) /* groups */,
-      1 /* group_input_channels */,
-      depth_multiplier /* group_output_channels */,
-      input_channels /* input_channel_stride */,
-      kernel_shape[3] /* output_channel_stride */,
-      weight_,
-      B->Data<float>(),
-      output_min,
-      output_max,
-      flags,
-      &p);
+      input_padding_top_, input_padding_right_, input_padding_bottom_, input_padding_left_,
+      gsl::narrow<uint32_t>(kernel_height), gsl::narrow<uint32_t>(kernel_width), subsampling_height_,
+      subsampling_width_, dilation_height_, dilation_width_, gsl::narrow<uint32_t>(input_channels) /* groups */,
+      1 /* group_input_channels */, depth_multiplier /* group_output_channels */,
+      input_channels /* input_channel_stride */, kernel_shape[3] /* output_channel_stride */, weight_, B->Data<float>(),
+      output_min, output_max, flags, &p);
   ORT_ENFORCE(status == xnn_status_success);
   op0_.reset(p);
 }

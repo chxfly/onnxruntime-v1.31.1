@@ -36,6 +36,8 @@ class Convolution2d : public OpKernel {
   uint32_t input_padding_left_ = 0;
   uint32_t subsampling_height_ = 0;
   uint32_t subsampling_width_ = 0;
+  uint32_t dilation_height_ = 0;
+  uint32_t dilation_width_ = 0;
   int padding_mode_ = 0;
 };
 
@@ -56,6 +58,8 @@ class DepthWiseConvolution2d : public OpKernel {
   uint32_t input_padding_left_ = 0;
   uint32_t subsampling_height_ = 0;
   uint32_t subsampling_width_ = 0;
+  uint32_t dilation_height_ = 0;
+  uint32_t dilation_width_ = 0;
   int padding_mode_ = 0;
 };
 }  // namespace xnnpack
