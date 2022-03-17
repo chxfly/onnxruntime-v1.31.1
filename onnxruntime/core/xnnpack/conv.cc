@@ -207,13 +207,12 @@ DepthWiseConvolution2d::DepthWiseConvolution2d(const OpKernelInfo& info) : OpKer
   ORT_ENFORCE(info.TryGetConstantInput(1, &weight));
   ORT_ENFORCE(info.TryGetConstantInput(2, &B));
   const TensorShape& kernel_shape = weight->Shape();
-  auto cpu_alloc = info.GetAllocator(0, OrtMemTypeDefault);
-  weight_ = static_cast<float*>(cpu_alloc->AllocArray(kernel_shape.Size(), sizeof(float)));
+  cpu_allocator_ = info.GetAllocator(0, OrtMemTypeDefault);
+  weight_ = static_cast<float*>(cpu_allocator_->AllocArray(kernel_shape.Size(), sizeof(float)));
   ORT_ENFORCE(weight_ != nullptr);
   auto weight_type = DataTypeImpl::GetType<float>();
   TensorShape new_weight_shape{kernel_shape[3], kernel_shape[1], kernel_shape[2], 1};
   hwc_to_chw(weight->Data<float>(), kernel_shape[1], kernel_shape[2], kernel_shape[3], weight_);
-  Tensor new_weight(weight_type, new_weight_shape, weight_, cpu_alloc);
 
   int64_t input_channels = input_type_proto->tensor_type().shape().dim(3).dim_value();
   // Weight shape : [ 1, kernel_height, kernel_width, input_channels * depth_multiplier ]
