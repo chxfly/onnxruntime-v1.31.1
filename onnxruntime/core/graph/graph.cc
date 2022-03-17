@@ -32,6 +32,7 @@
 #include "core/graph/schema_registry.h"
 #include "onnx/checker.h"
 using namespace ONNX_NAMESPACE::checker;
+using ONNX_NAMESPACE::OpSchema;
 #endif
 
 using namespace ONNX_NAMESPACE::Utils;
@@ -39,10 +40,8 @@ using namespace ::onnxruntime::common;
 using ONNX_NAMESPACE::AttributeProto;
 using ONNX_NAMESPACE::AttributeProto_AttributeType;
 using ONNX_NAMESPACE::DataType;
-using ONNX_NAMESPACE::GraphInferencer;
 using ONNX_NAMESPACE::GraphProto;
 using ONNX_NAMESPACE::NodeProto;
-using ONNX_NAMESPACE::OpSchema;
 using ONNX_NAMESPACE::SparseTensorProto;
 using ONNX_NAMESPACE::TensorProto;
 using ONNX_NAMESPACE::TensorProto_DataType;
@@ -2060,8 +2059,8 @@ class InferenceContextImpl : public ONNX_NAMESPACE::InferenceContext {
     return nullptr;
   }
 
-  GraphInferencer* getGraphAttributeInferencer(const std::string& attribute_name) override {
-    GraphInferencer* graph_inferencer = nullptr;
+  ONNX_NAMESPACE::GraphInferencer* getGraphAttributeInferencer(const std::string& attribute_name) override {
+    ONNX_NAMESPACE::GraphInferencer* graph_inferencer = nullptr;
 
     auto* subgraph = node_.GetMutableGraphAttribute(attribute_name);
 

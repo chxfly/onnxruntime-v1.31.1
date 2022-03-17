@@ -28,24 +28,6 @@
 
 namespace onnxruntime {
 namespace xnnpack {
-#if 0
-void CompareData(const Tensor& input, const char* varname) { 
-  size_t len2 = input.Shape().Size();
-  std::vector<float> v(len2);
-  std::ostringstream oss;
-  oss << "D:\\src\\onnxruntime\\a\\Debug\\" << varname << ".bin";
-  FILE* f = fopen(oss.str().c_str(), "rb");
-  assert(f != nullptr);
-  size_t bytesToRead = len2 * sizeof(float);
-  size_t readed = fread(v.data(), 1, bytesToRead, f);
-  assert(bytesToRead == readed);
-  const float* inputdata = input.Data<float>();
-  for (size_t i = 0; i != len2; ++i) {
-    float diff = std::abs(inputdata[i] - v[i]);
-    assert(diff < 1e-5);
-  }
-}
-#endif
 
 static bool IsAllDimKnown(const TensorShape& s) {
   size_t len = s.NumDimensions();
