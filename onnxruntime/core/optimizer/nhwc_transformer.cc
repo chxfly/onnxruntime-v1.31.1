@@ -65,10 +65,6 @@ bool NhwcTransformer::IsConvSupportedByXNNPack(const Node& nodeRef, bool input_i
   }
   return true;
 }
-#else
-bool NhwcTransformer::IsConvSupportedByXNNPack(const Node& nodeRef, bool input_is_nchw) {
-  return false;
-}
 #endif
 
 Status NhwcTransformer::ApplyImpl(Graph& graph, bool& modified, int graph_level, const logging::Logger& logger) const {
@@ -78,8 +74,14 @@ Status NhwcTransformer::ApplyImpl(Graph& graph, bool& modified, int graph_level,
   ORT_RETURN_IF_ERROR(graph.PopulateNodeArgToProducerConsumerLookupsFromNodes());
 #endif
 
-#ifdef USE_XNNPACK
   GraphViewer graph_viewer(graph);
+
+#ifndef USE_XNNPACK
+  for (auto index : graph_viewer.GetNodesInTopologicalOrder()) {
+    auto& node = *graph.GetNode(index);
+    ORT_RETURN_IF_ERROR(Recurse(node, modified, graph_level, logger));
+  }
+#else
   // Run constant propagation for XNNPack EP
   std::unordered_set<const NodeArg*> graph_const_values;
 

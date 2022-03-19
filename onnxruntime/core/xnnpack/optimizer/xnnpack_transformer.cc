@@ -16,8 +16,6 @@ using namespace ONNX_NAMESPACE;
 using namespace ::onnxruntime::common;
 using namespace onnx_layout_transformation;
 
-
-
 namespace onnxruntime {
 
 Status XnnPackTransformer::ApplyImpl(Graph& main_graph, bool& modified, int /* graph_level */, const logging::Logger&) const {
@@ -28,7 +26,7 @@ Status XnnPackTransformer::ApplyImpl(Graph& main_graph, bool& modified, int /* g
     if (nodeRef.OpType() != "NhwcConv") continue;
     conv_nodes.push_back(nodeRef.Index());
   }
-  //Any error below is fatal, because if XNNPack couldn't run the node, we shouldn't convert it Nhwc.
+  // Any error below is fatal, because if XNNPack couldn't run the node, we shouldn't convert it Nhwc.
   for (NodeIndex ni : conv_nodes) {
     Node* node_p = main_graph.GetNode(ni);
     if (node_p == nullptr)
@@ -68,10 +66,8 @@ Status XnnPackTransformer::ApplyImpl(Graph& main_graph, bool& modified, int /* g
     // group == 1 || group  == input / output channel count
     // For now we assume input channel count isn't 1, so that group count != input/output channel count
     bool is_depthwise = X_shape[3] != 1 && group == X_shape[3];
-    // NodeArg* input = node.MutableInputDefs()[i];
 
     InOutDefSlot src_slot{ArgType::kInput, 1};
-    InOutDefSlot dest_slot{ArgType::kInput, 0};
     // Append a single slot to dest. As the dest is empty, it will be the first one.
     ValueMoveInfo value_move_info(src_slot, ArgType::kInput, false, false);
 
@@ -84,7 +80,7 @@ Status XnnPackTransformer::ApplyImpl(Graph& main_graph, bool& modified, int /* g
 
     // bool is_pointwise = weight_shape[2] == 1 && weight_shape[3] == 1;
     // if (!is_pointwise) {
-    std::vector<int64_t> input_perm = is_depthwise ? std::vector<int64_t>{1, 2, 3, 0} : std::vector<int64_t>{0, 2, 3, 1};    
+    std::vector<int64_t> input_perm = is_depthwise ? std::vector<int64_t>{1, 2, 3, 0} : std::vector<int64_t>{0, 2, 3, 1};
     std::string output_name = main_graph.GenerateNodeArgName("trans");
     NodeArg& transpose_output = main_graph.GetOrCreateNodeArg(output_name, nullptr);
 
@@ -176,7 +172,7 @@ Status XnnPackTransformer::ApplyImpl(Graph& main_graph, bool& modified, int /* g
   if (modified) {
     ORT_RETURN_IF_ERROR(main_graph.Resolve());
     auto api_graph = MakeApiGraph(main_graph, cpu_allocator_, kCpuExecutionProvider);
-    //Ignore the return value.  
+    // Ignore the return value.
     onnx_layout_transformation::Optimize(*api_graph, /*allow_extended_ops*/ true);
   }
 

@@ -1926,6 +1926,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Android")
 endif()
 
 if (onnxruntime_USE_XNNPACK)
+  set(onnxruntime_EXTERNAL_LIBRARIES_XNNPACK XNNPACK pthreadpool)
   list(APPEND onnxruntime_EXTERNAL_LIBRARIES XNNPACK pthreadpool)
 endif()
 

@@ -21,6 +21,7 @@
 #include "core/graph/graph.h"
 #include "core/graph/graph_utils.h"
 #include "core/graph/node_arg.h"
+#include "core/framework/op_node_proto_helper.h"
 #include "core/optimizer/initializer.h"
 #endif  // #if !defined(ORT_MINIMAL_BUILD) || defined(ORT_EXTENDED_MINIMAL_BUILD)
 
@@ -320,24 +321,20 @@ static Status UpdateIfConstantValue(const Graph& graph, const Node& node, size_t
 
 Status GetClipConstantMinMax(const Graph& graph, const Node& node, float& min, float& max) noexcept {
   if (node.OpType() != "Clip") return Status(common::ONNXRUNTIME, common::FAIL, "op type mismatch. Expect \"Clip\"");
-  try {
-    // Clip opset 1 and 6 has min and max as attributes. they're inputs from opset 11 on.
-    bool min_max_are_attributes = node.SinceVersion() == 1 || node.SinceVersion() == 6;
-    if (min_max_are_attributes) {
-      ProtoHelperNodeContext nc(node);
-      OpNodeProtoHelper info(&nc);
-      ORT_RETURN_IF_ERROR(info.GetAttr<float>("min", &min));
-      ORT_RETURN_IF_ERROR(info.GetAttr<float>("max", &max));
-    } else {
-      min = std::numeric_limits<float>::lowest();
-      max = std::numeric_limits<float>::max();
-      // 'min' is input 1, 'max' is input 2. both are optional.
-      // if the input is constant, 'min' or 'max' is updated by the call to get_if_constant_value
-      ORT_RETURN_IF_ERROR(UpdateIfConstantValue(graph, node, 1, min));
-      ORT_RETURN_IF_ERROR(UpdateIfConstantValue(graph, node, 2, max));
-    }
-  } catch (const std::exception& ex) {
-    return Status(common::ONNXRUNTIME, common::RUNTIME_EXCEPTION, ex.what());
+  // Clip opset 1 and 6 has min and max as attributes. they're inputs from opset 11 on.
+  bool min_max_are_attributes = node.SinceVersion() == 1 || node.SinceVersion() == 6;
+  if (min_max_are_attributes) {
+    ProtoHelperNodeContext nc(node);
+    OpNodeProtoHelper info(&nc);
+    ORT_RETURN_IF_ERROR(info.GetAttr<float>("min", &min));
+    ORT_RETURN_IF_ERROR(info.GetAttr<float>("max", &max));
+  } else {
+    min = std::numeric_limits<float>::lowest();
+    max = std::numeric_limits<float>::max();
+    // 'min' is input 1, 'max' is input 2. both are optional.
+    // if the input is constant, 'min' or 'max' is updated by the call to get_if_constant_value
+    ORT_RETURN_IF_ERROR(UpdateIfConstantValue(graph, node, 1, min));
+    ORT_RETURN_IF_ERROR(UpdateIfConstantValue(graph, node, 2, max));
   }
   return Status::OK();
 }

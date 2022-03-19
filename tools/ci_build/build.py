@@ -1658,7 +1658,7 @@ def run_onnxruntime_tests(args, source_dir, ctest_path, build_dir, configs):
             if onnx_test:
                 run_subprocess([sys.executable, 'onnxruntime_test_python_backend.py'], cwd=cwd, dll_path=dll_path,
                                python_path=python_path)
-                if not args.disable_contrib_ops:
+                if not args.disable_contrib_ops and not args.use_xnnpack:
                     run_subprocess([sys.executable, '-m', 'unittest', 'discover', '-s', 'quantization'],
                                    cwd=cwd, dll_path=dll_path)
                     if args.enable_transformers_tool_test:

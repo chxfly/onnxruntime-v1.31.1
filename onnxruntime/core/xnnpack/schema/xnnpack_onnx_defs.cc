@@ -53,7 +53,7 @@ OnnxStatus ConvShapeInference(const ::ONNX_NAMESPACE::TensorShapeProto_Dimension
   }
 
   *output[0] = batch_shape;
-  int64_t output1, output2;
+  ptrdiff_t output1, output2;
   if (padding_mode == 1) {
     ONNX_RETURN_IF_ERROR(ComputeOutputSizeSame(in_height, strides_h, &output1));
     ONNX_RETURN_IF_ERROR(ComputeOutputSizeSame(in_width, strides_w, &output2));
