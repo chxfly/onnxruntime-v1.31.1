@@ -213,7 +213,7 @@ stages:
           scriptType: 'bash'
           scriptLocation: 'inlineScript'
           inlineScript: |
-            python3 -m pip install azure-storage-blob==2.1.0
+            python3 -m pip install azure-storage-blob
             files=($(Build.ArtifactStagingDirectory)/Release/dist/*.whl) && \
             echo ${files[0]} && \
             python3 tools/ci_build/upload_python_package_to_azure_storage.py \
