@@ -30,7 +30,6 @@ def run_subprocess(args, cwd=None):
 
 
 def upload_whl(python_wheel_path):
-    run_subprocess(['azcopy', 'login', '--identity', '--identity-client-id', 'd1c41439-486c-4110-9052-d97199c8aa78'])
     blob_name = os.path.basename(python_wheel_path)
     run_subprocess(['azcopy', 'cp', python_wheel_path, 'https://onnxruntimepackages.blob.core.windows.net/$web/'])
 
