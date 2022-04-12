@@ -6,7 +6,6 @@
 
 import logging
 import torch
-import onnx
 import os
 from transformers.modeling_utils import Conv1D
 
@@ -55,25 +54,12 @@ class QuantizeHelper:
         logger.info(f'Size of full precision Torch model(MB):{_get_size_of_pytorch_model(model)}')
         logger.info(f'Size of quantized Torch model(MB):{_get_size_of_pytorch_model(quantized_model)}')
         return quantized_model
-
+        
     @staticmethod
     def quantize_onnx_model(onnx_model_path, quantized_model_path, use_external_data_format=False):
-        from onnxruntime.quantization import quantize, QuantizationMode
-        logger.info(f'Size of full precision ONNX model(MB):{os.path.getsize(onnx_model_path)/(1024*1024)}')
-        onnx_opt_model = onnx.load_model(onnx_model_path)
-        quantized_onnx_model = quantize(onnx_opt_model,
-                                        quantization_mode=QuantizationMode.IntegerOps,
-                                        symmetric_weight=True,
-                                        force_fusions=True)
-
-        if use_external_data_format:
-            from pathlib import Path
-            Path(quantized_model_path).parent.mkdir(parents=True, exist_ok=True)
-            onnx.external_data_helper.convert_model_to_external_data(quantized_onnx_model,
-                                                                     all_tensors_to_one_file=True,
-                                                                     location=Path(quantized_model_path).name + ".data")
-        onnx.save_model(quantized_onnx_model, quantized_model_path)
-
-        logger.info(f"quantized model saved to:{quantized_model_path}")
-        #TODO: inlcude external data in total model size.
-        logger.info(f'Size of quantized ONNX model(MB):{os.path.getsize(quantized_model_path)/(1024*1024)}')
+        # TODO: use_external_data_format is not used. Deprecate the parameter.
+        # see example https://github.com/microsoft/onnxruntime-inference-examples/blob/main/quantization/notebooks/bert/Bert-GLUE_OnnxRuntime_quantization.ipynb
+        from onnxruntime.quantization import quantize_dynamic, QuantType
+        quantize_dynamic(onnx_model_path,
+                         quantized_model_path,
+                         weight_type=QuantType.QInt8)
