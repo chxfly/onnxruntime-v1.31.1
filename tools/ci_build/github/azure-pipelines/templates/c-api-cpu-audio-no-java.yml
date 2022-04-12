@@ -27,7 +27,7 @@ parameters:
 - name: AdditionalWinBuildFlags
   displayName: Additional build flags that just for Windows Builds
   type: string
-  default: ' --enable_wcos'
+  default: ''
 
 - name: OrtNugetPackageId
   displayName: Package name for nuget
