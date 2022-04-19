@@ -158,7 +158,7 @@ def export_onnx_models(model_name_or_path,
         max_diff = T5Helper.verify_onnx(model, ort_session, device)
         logger.info(f'PyTorch and OnnxRuntime results max difference = {max_diff}')
         if max_diff > 1e-4:
-            logger.warn(f'PyTorch and OnnxRuntime results are NOT close')
+            logger.warning(f'PyTorch and OnnxRuntime results are NOT close')
 
         output_paths.append(output_path)
 
