@@ -19,9 +19,9 @@ namespace transformers {
 
 using namespace onnxruntime::controlflow;  // namespace of IControlFlowKernel
 
-class BeamSearch : public IControlFlowKernel {
+class GreedySearch : public IControlFlowKernel {
  public:
-  BeamSearch(const OpKernelInfo& info)
+  GreedySearch(const OpKernelInfo& info)
       : IControlFlowKernel(info),
         encoder_feeds_fetches_manager_(nullptr),
         decoder_feeds_fetches_manager_(nullptr),

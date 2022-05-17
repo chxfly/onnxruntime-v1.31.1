@@ -26,7 +26,7 @@
 #include "core/framework/allocator.h"
 #include "core/framework/ort_value.h"
 #include "gsl/gsl"
-#include "beam_search.h"
+#include "greedy_search.h"
 #include "logits_processor.h"
 #include "sequences.h"
 #include "dump_tensor.h"
@@ -42,20 +42,20 @@ namespace contrib {
 
 #define REGISTER_KERNEL_TYPED(T)                                  \
   ONNX_OPERATOR_TYPED_KERNEL_EX(                                  \
-      BeamSearch,                                                 \
+      GreedySearch,                                               \
       kMSDomain,                                                  \
       1,                                                          \
       T,                                                          \
       kCpuExecutionProvider,                                      \
       (*KernelDefBuilder::Create())                               \
           .TypeConstraint("T", DataTypeImpl::GetTensorType<T>()), \
-      transformers::BeamSearch);
+      transformers::GreedySearch);
 
 REGISTER_KERNEL_TYPED(float)
 
 namespace transformers {
 
-void BeamSearch::Init(const OpKernelInfo& info) {
+void GreedySearch::Init(const OpKernelInfo& info) {
   parameters_.ParseFromAttributes(info);
 
   // Check model_type 0 (GPT-2) and 1 (encoder-decoder like T5)
@@ -71,9 +71,9 @@ void BeamSearch::Init(const OpKernelInfo& info) {
   ORT_IGNORE_RETURN_VALUE(proto);
 }
 
-Status BeamSearch::SetupSubgraphExecutionInfo(const SessionState& session_state,
-                                              const std::string& attribute_name,
-                                              const SessionState& subgraph_session_state) {
+Status GreedySearch::SetupSubgraphExecutionInfo(const SessionState& session_state,
+                                                const std::string& attribute_name,
+                                                const SessionState& subgraph_session_state) {
   const auto& node = Node();
   if (parameters_.model_type == 0) {  // GPT-2
     if (attribute_name == "decoder") {
@@ -107,7 +107,7 @@ Status BeamSearch::SetupSubgraphExecutionInfo(const SessionState& session_state,
   return Status::OK();
 }
 
-Status BeamSearch::Compute(OpKernelContext* ctx) const {
+Status GreedySearch::Compute(OpKernelContext* ctx) const {
   auto* ctx_internal = static_cast<OpKernelContextInternal*>(ctx);
 
   auto* decoder_session_state = ctx_internal->SubgraphSessionState("decoder");
