@@ -116,7 +116,7 @@ Status GreedySearch::Compute(OpKernelContext* ctx) const {
 
   concurrency::ThreadPool* thread_pool = ctx->GetOperatorThreadPool();
 
-  BeamSearchParameters parameters = parameters_;  // make a copy since we will update the parameters based on inputs later
+  GreedySearchParameters parameters = parameters_;  // make a copy since we will update the parameters based on inputs later
 
   if (parameters_.model_type == 0) {  // GPT-2
     // Subgraph has constraint that the output is either float or float16

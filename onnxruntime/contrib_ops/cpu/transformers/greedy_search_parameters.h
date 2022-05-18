@@ -14,6 +14,8 @@ namespace transformers {
 struct GreedySearchParameters : public IBeamSearchParameters {
   Status Validate() const;
 
+  int BatchBeamSize() const { return batch_size; }
+
   void ParseFromAttributes(const OpKernelInfo& info);
 
   void ParseFromInputs(OpKernelContext* context);

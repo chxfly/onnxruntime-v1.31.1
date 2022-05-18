@@ -312,6 +312,125 @@ Status ProcessLogits(const OrtValue& logits,                                 // 
 }
 
 template <typename T>
+Status GreedySearchProcessLogits(const OrtValue& logits,                                 // logits output of subgraph
+                                transformers::IBeamSearchState<T>* beam_state,          // state
+                                transformers::IBeamSearchCpuState* cpu_state,           // state in CPU
+                                transformers::ISequences* sequences,                    // sequences
+                                AllocatorPtr& allocator,                                // default allocator
+                                onnxruntime::concurrency::ThreadPool* thread_pool,      // thread pool (for CPU only)
+                                transformers::ILogitsProcessorList* logits_processors,  // logits processors
+                                transformers::IBeamScorer* beam_scorer,                 // beam scorer
+                                const transformers::IBeamSearchParameters* parameters,  // parameters
+                                int step,                                               // iteration counter
+                                void* stream,                                           // cuda stream (for CUDA only)
+                                const transformers::IConsoleDumper* dumper) {           // tensor dumper
+  ORT_UNUSED_PARAMETER(cpu_state);
+#ifndef DEBUG_BEAM_SEARCH
+  ORT_UNUSED_PARAMETER(dumper);
+#endif
+
+  int batch_size = parameters->batch_size;
+  int vocab_size = parameters->vocab_size;
+  bool output_scores = parameters->output_scores;
+
+  const T* logits_data = logits.Get<Tensor>().Data<T>();
+
+  // Logits has shape (batch_size, input_length, vocab_size),
+  // where input_length equals to parameters_->sequence_length for first subgraph call, and 1 for the remaining calls.
+  const TensorShape& logits_shape = logits.Get<Tensor>().Shape();
+  ORT_ENFORCE(logits_shape.NumDimensions() == 3);
+  auto input_length = logits_shape[1];
+
+  // Get logits for the last token:
+  //    next_token_logits = logits[:, -1, :], and the result shape is (batch_size, vocab_size)
+  // When input_length == 1, use logits directly in SoftmaxCPU below so it only need for input_length > 1.
+  gsl::span<T>& next_token_logits = beam_state->next_token_logits;
+  if (input_length > 1) {
+    const T* current_logits = logits_data + (input_length - 1) * vocab_size;
+    for (int i = 0; i < batch_beam_size; i++) {
+      gsl::span<const T> source(current_logits, vocab_size);
+      gsl::span<T> target = next_token_logits.subspan(SafeInt<gsl::index>(i) * vocab_size, static_cast<gsl::index>(vocab_size));
+      gsl::copy(source, target);
+      current_logits += input_length * vocab_size;
+    }
+  }
+
+#ifdef DEBUG_BEAM_SEARCH
+  dumper->Print("logits", logits);
+  dumper->Print("next_token_logits", next_token_logits.data(), batch_size, num_beams, vocab_size);
+#endif
+
+  // Get scores for candidates of next token: next_token_scores = log_softmax(next_token_logits, dim=-1)
+  gsl::span<T>& next_token_scores = beam_state->next_token_scores;
+
+  // Apply all score processors that updates scores
+  logits_processors->Process(sequences, next_token_scores, step);
+
+#ifdef DEBUG_BEAM_SEARCH
+  dumper->Print("next_token_scores after logits processor", next_token_scores.data(), batch_size, num_beams, vocab_size);
+#endif
+
+  // bugbug ??
+  if (output_scores) {
+    // Append next token scores to the scores output.
+    gsl::copy(next_token_scores, beam_state->remaining_scores);
+    beam_state->remaining_scores = beam_state->remaining_scores.subspan(next_token_scores.size());
+  }
+
+  // next_tokens = torch.argmax(scores, dim=-1)
+  int64_t next_token_scores_dims[] = {static_cast<int64_t>(batch_size), vocab_size};
+  TensorShape next_token_scores_shape(&next_token_scores_dims[0], 1);
+  auto element_type = DataTypeImpl::GetType<T>();
+  OrtValue next_token_scores_value;
+  Tensor::InitOrtValue(element_type, next_token_scores_shape, next_token_scores.data(), allocator->Info(), next_token_scores_value);
+  const Tensor& input = next_token_scores_value.Get<Tensor>();
+
+  constexpr int axis = 1;
+  const unsigned top_k = static_cast<unsigned>(1);
+  constexpr bool largest = true;
+  constexpr bool sorted = false;
+
+  std::unique_ptr<Tensor> topk_scores;
+  std::unique_ptr<Tensor> topk_indices;
+  ORT_RETURN_IF_ERROR(TopK(&input, axis, top_k, largest, sorted, allocator, stream, thread_pool, topk_scores, topk_indices));
+
+#ifdef DEBUG_BEAM_SEARCH
+  dumper->Print("topk_scores", *(topk_scores.get()));
+  dumper->Print("topk_indices", *(topk_indices.get()));
+#endif
+
+  // Convert indices in range [0, num_beams * vocab_size) to token ID of range [0, vocab_size) like the following:
+  //   next_indices = (next_tokens / vocab_size).long()
+  //   next_tokens = next_tokens % vocab_size
+  gsl::span<const int64_t> next_token_indices = topk_indices->DataAsSpan<int64_t>();
+  offset = 0;
+  for (int i = 0; i < batch_size; i++) {
+    for (unsigned int j = 0; j < top_k; j++, offset++) {
+      beam_state->next_indices[offset] = gsl::narrow_cast<int32_t>(next_token_indices[offset] / vocab_size);
+      beam_state->next_tokens[offset] = gsl::narrow_cast<int32_t>(next_token_indices[offset] % vocab_size);
+    }
+  }
+
+  gsl::span<const T> next_scores = topk_scores->DataAsSpan<T>();
+  gsl::span<const int32_t> next_tokens(beam_state->next_tokens.data(), beam_state->next_tokens.size());
+  gsl::span<const int32_t> next_indices(beam_state->next_indices.data(), beam_state->next_indices.size());
+
+#ifdef DEBUG_BEAM_SEARCH
+  dumper->Print("next_scores before scorer", next_scores.data(), batch_size, top_k);
+  dumper->Print("next_tokens before scorer", next_tokens.data(), batch_size, top_k);
+  dumper->Print("next_indices before scorer", next_indices.data(), batch_size, top_k);
+#endif
+
+  beam_scorer->Process(
+      sequences,
+      next_scores,
+      next_tokens,
+      next_indices);
+
+  return Status::OK();
+}
+
+template <typename T>
 Status DeviceCopy(gsl::span<T> target, gsl::span<const T> source, void* /*stream*/, int /*copyDirection*/) {
   gsl::copy(source, target);
   return Status::OK();

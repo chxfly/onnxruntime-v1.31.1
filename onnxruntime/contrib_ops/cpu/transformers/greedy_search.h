@@ -5,7 +5,7 @@
 #include "core/common/common.h"
 #include "core/framework/op_kernel.h"
 #include "core/providers/cpu/controlflow/utils.h"
-#include "beam_search_parameters.h"
+#include "greedy_search_parameters.h"
 #include "subgraph_gpt.h"
 #include "subgraph_t5_encoder.h"
 #include "subgraph_t5_decoder.h"
@@ -129,7 +129,7 @@ class GreedySearch : public IControlFlowKernel {
 
   IConsoleDumper* dumper_;
 
-  BeamSearchParameters parameters_;
+  GreedySearchParameters parameters_;
 };
 
 }  // namespace transformers
