@@ -8,6 +8,73 @@ namespace contrib {
 
 namespace transformers {
 
+template <typename T>
+gsl::span<T> AllocateBuffer(AllocatorPtr allocator,
+                            BufferUniquePtr& buffer,
+                            size_t elements,
+                            bool fill = false,
+                            T fill_value = T{}) {
+  size_t bytes = SafeInt<size_t>(sizeof(T)) * elements;
+  void* data = allocator->Alloc(bytes);
+  BufferUniquePtr temp_buffer(data, BufferDeleter(allocator));
+  buffer = std::move(temp_buffer);
+  T* first = reinterpret_cast<T*>(buffer.get());
+  auto span = gsl::make_span(first, elements);
+
+  if (fill) {
+    std::fill_n(first, elements, fill_value);
+  }
+
+  return span;
+}
+
+template <typename T>
+struct GreedySearchState : public IGreedySearchState<T> {
+  Sequences sequences;
+
+  void Init(AllocatorPtr allocator,
+            int batch_size,
+            int vocab_size,
+            int sequence_length,
+            int max_length,
+            bool output_scores) {
+    // TODO: no need to use buffer rotation
+    this->sequences_space = AllocateBuffer<int32_t>(allocator, sequences_space_buffer_, SafeInt<size_t>(2) * batch_size * max_length);
+    memset(this->sequences_space.data(), 0, this->sequences_space.size_bytes());
+    this->sequences.Init(this->sequences_space, static_cast<int>(batch_size), sequence_length, max_length);
+
+    this->sequence_lengths = AllocateBuffer<int32_t>(allocator, sequence_lengths_buffer_, batch_size);
+
+    size_t next_token_size = SafeInt<size_t>(batch_size) * vocab_size;
+    this->next_token_logits = AllocateBuffer<T>(allocator, next_token_logits_buffer_, next_token_size);
+    this->next_token_scores = AllocateBuffer<float>(allocator, next_token_scores_buffer_, next_token_size);
+    this->next_tokens = AllocateBuffer<int32_t>(allocator, next_tokens_buffer_, SafeInt<size_t>(batch_size));
+
+    if (output_scores) {
+      size_t elements = SafeInt<size_t>(max_length - sequence_length) * batch_size * vocab_size;
+      this->scores = AllocateBuffer<float>(allocator, scores_buffer_, elements);
+      //bugbug: remaining scores?
+    }
+  }
+
+  void SetSequence(gsl::span<const int64_t> input_ids_in_cpu, size_t batch_beam_size, int max_length, int sequence_length) {
+    gsl::span<int32_t> sequences_0 = sequences_space;
+    for (size_t i = 0; i < batch_beam_size; i++) {
+      for (int j = 0; j < sequence_length; j++) {
+        sequences_0[SafeInt<gsl::index>(i) * max_length + j] = static_cast<int32_t>(input_ids_in_cpu[SafeInt<gsl::index>(i) * sequence_length + j]);
+      }
+    }
+  }
+
+ private:
+  BufferUniquePtr sequences_space_buffer_;
+  BufferUniquePtr sequence_lengths_buffer_;
+  BufferUniquePtr next_token_logits_buffer_;
+  BufferUniquePtr next_token_scores_buffer_;
+  BufferUniquePtr next_tokens_buffer_;
+  BufferUniquePtr scores_buffer_;
+};
+
 // Base class of gready search implementation that is common for both GPT-2 and Bart/T5.
 template <typename T>
 class GreedySearchBase {
@@ -148,22 +215,19 @@ Status GreedySearchBase<T>::Initialize() {
 template <typename T>
 Status GreedySearchBase<T>::ProcessLogits(
     const OrtValue& logits,
-    BeamSearchState<T>& beam_state,
-    BeamSearchCpuState& cpu_state,
+    GreedySearchState<T>& greedy_state,
     AllocatorPtr& allocator,
     int counter) {
-  return process_logits_func_(logits, &beam_state, &cpu_state, &(cpu_state.sequences), allocator,
-                              thread_pool_, &logits_processors_, beam_scorer_.get(),
+  return process_logits_func_(logits, &greedy_state, &(greedy_state.sequences), allocator,
+                              thread_pool_, &logits_processors_,
                               parameters_, counter, cuda_stream_, GetConsoleDumper());
 }
 
 template <typename T>
 Status GreedySearchBase<T>::GenerateNextToken(
     const OrtValue& logits,
-    gsl::span<int32_t>& beam_next_tokens,
-    gsl::span<int32_t>& beam_indices,
-    BeamSearchState<T>& beam_state,
-    BeamSearchCpuState& cpu_state,
+    gsl::span<int32_t>& next_tokens,
+    GreedySearchState<T>& greedy_state,
     int counter) {
   // Process logits to get next token scores
   ORT_RETURN_IF_ERROR(ProcessLogits(logits, beam_state, cpu_state, temp_space_allocator_, counter));
