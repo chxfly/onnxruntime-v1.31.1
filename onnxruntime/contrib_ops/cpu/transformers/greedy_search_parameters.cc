@@ -50,6 +50,7 @@ void GreedySearchParameters::ParseFromInputs(OpKernelContext* context) {
   // num_return_sequences = num_return_sequences_tensor ? static_cast<int>(*num_return_sequences_tensor->Data<int32_t>()) : 1;
   // ORT_ENFORCE(num_return_sequences >= 1, "num_return_sequences shall be a positive integer, got ", num_return_sequences);
   // ORT_ENFORCE(num_beams >= num_return_sequences, "num_return_sequences (", num_return_sequences, ") shall be be no more than num_beams (", num_beams, ")");
+  num_beams = static_cast<int>(1);
 
   // auto* temperature_tensor = context->Input<Tensor>(5);
   // temperature = temperature_tensor ? static_cast<float>(*temperature_tensor->Data<float>()) : 1;

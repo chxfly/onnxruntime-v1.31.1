@@ -318,7 +318,7 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
                                  AllocatorPtr& allocator,                                    // default allocator
                                  onnxruntime::concurrency::ThreadPool* thread_pool,          // thread pool (for CPU only)
                                  transformers::ILogitsProcessorList* logits_processors,      // logits processors
-                                 const transformers::IGreedySearchParameters* parameters,    // parameters
+                                 const transformers::IBeamSearchParameters* parameters,    // parameters
                                  int step,                                                   // iteration counter
                                  void* stream,                                               // cuda stream (for CUDA only)
                                  const transformers::IConsoleDumper* dumper) {               // tensor dumper
@@ -648,6 +648,28 @@ Status UpdateDecoderFeeds(
   ORT_UNUSED_PARAMETER(beam_next_tokens);
   ORT_UNUSED_PARAMETER(beam_indices);
   ORT_UNUSED_PARAMETER(num_beams);
+  ORT_UNUSED_PARAMETER(dumper);
+
+  return Status::OK();
+}
+
+// Update decoder inputs given decoder outputs of last iteration for greedy search
+template <typename T>
+Status UpdateDecoderFeeds(
+    AllocatorPtr allocator,
+    void* stream,
+    const std::vector<OrtValue>& last_outputs,
+    std::vector<OrtValue>& next_inputs,
+    int current_length,
+    gsl::span<const int32_t> beam_next_tokens,
+    const transformers::IConsoleDumper* dumper) {
+  // TODO: implement this function
+  ORT_UNUSED_PARAMETER(allocator);
+  ORT_UNUSED_PARAMETER(stream);
+  ORT_UNUSED_PARAMETER(last_outputs);
+  ORT_UNUSED_PARAMETER(next_inputs);
+  ORT_UNUSED_PARAMETER(current_length);
+  ORT_UNUSED_PARAMETER(beam_next_tokens);
   ORT_UNUSED_PARAMETER(dumper);
 
   return Status::OK();

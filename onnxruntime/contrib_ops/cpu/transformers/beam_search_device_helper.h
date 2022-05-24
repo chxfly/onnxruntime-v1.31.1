@@ -78,6 +78,20 @@ using ProcessLogitsFunc = std::function<Status(
     void* stream,                                           // cuda stream (for CUDA only)
     const transformers::IConsoleDumper* dumper)>;           // tensor dumper
 
+//TODO: put this in greedysearch namespace
+template <typename T>
+using GreedySearchProcessLogitsFunc = std::function<Status(
+    const OrtValue& logits,                                     // logits output of subgraph
+    transformers::IGreedySearchState<T>* greedy_state,          // state
+    transformers::ISequences* sequences,                        // sequences
+    AllocatorPtr& allocator,                                    // default allocator
+    onnxruntime::concurrency::ThreadPool* thread_pool,          // thread pool (for CPU only)
+    transformers::ILogitsProcessorList* logits_processors,      // logits processors
+    const transformers::IBeamSearchParameters* parameters,    // parameters
+    int step,                                                   // iteration counter
+    void* stream,                                               // cuda stream (for CUDA only)
+    const transformers::IConsoleDumper* dumper)>;               // tensor dumper
+
 template <typename T>
 using DeviceCopyFunc = std::function<Status(
     gsl::span<T> target,
@@ -123,6 +137,17 @@ using InitDecoderFeedsFunc = std::function<Status(
     gsl::span<const int32_t> beam_next_tokens,
     gsl::span<const int32_t> beam_indices,
     int num_beams,
+    const transformers::IConsoleDumper* dumper)>;
+
+// Update decoder inputs given decoder outputs of last iteration (for encoder-decoder model like T5).
+template <typename T>
+using UpdateGreedySearchDecoderFeedsFunc = std::function<Status(
+    AllocatorPtr allocator,
+    void* stream,
+    const std::vector<OrtValue>& last_outputs,
+    std::vector<OrtValue>& next_inputs,
+    int current_length,
+    gsl::span<const int32_t> beam_next_tokens,
     const transformers::IConsoleDumper* dumper)>;
 
 // Update decoder inputs given decoder outputs of last iteration (for encoder-decoder model like T5).
@@ -178,6 +203,18 @@ Status ProcessLogits(const OrtValue& logits,                                 // 
                      int step,                                               // iteration counter
                      void* stream,                                           // cuda stream (for CUDA only)
                      const transformers::IConsoleDumper* dumper);            // tensor dumper
+
+template <typename T>
+Status GreedySearchProcessLogits(const OrtValue& logits,                                     // logits output of subgraph
+                                 transformers::IGreedySearchState<T>* greedy_state,          // state
+                                 transformers::ISequences* sequences,                        // sequences
+                                 AllocatorPtr& allocator,                                    // default allocator
+                                 onnxruntime::concurrency::ThreadPool* thread_pool,          // thread pool (for CPU only)
+                                 transformers::ILogitsProcessorList* logits_processors,      // logits processors
+                                 const transformers::IBeamSearchParameters* parameters,    // parameters
+                                 int step,                                                   // iteration counter
+                                 void* stream,                                               // cuda stream (for CUDA only)
+                                 const transformers::IConsoleDumper* dumper);                // tensor dumper
 
 template <typename T>
 Status DeviceCopy(gsl::span<T> target,

@@ -30,9 +30,8 @@
 #include "logits_processor.h"
 #include "sequences.h"
 #include "dump_tensor.h"
-#include "beam_search_scorer.h"
-#include "beam_search_impl_gpt.h"
-#include "beam_search_impl_t5.h"
+#include "greedy_search_impl_gpt.h"
+#include "greedy_search_impl_t5.h"
 
 using namespace ONNX_NAMESPACE;
 using namespace onnxruntime::common;
@@ -119,32 +118,7 @@ Status GreedySearch::Compute(OpKernelContext* ctx) const {
   GreedySearchParameters parameters = parameters_;  // make a copy since we will update the parameters based on inputs later
 
   if (parameters_.model_type == 0) {  // GPT-2
-    // Subgraph has constraint that the output is either float or float16
-    if (!gpt_subgraph_->IsOutputFloat16()) {
-      BeamSearchGpt<float> impl{*ctx_internal, *decoder_session_state, *gpt_subgraph_, thread_pool, cuda_stream_, dumper_, parameters,
-                                create_gpt_inputs_func_ ? create_gpt_inputs_func_ : BeamSearchCpuDeviceHelper::CreateGptInputs,
-                                add_to_feeds_func_ ? add_to_feeds_func_ : BeamSearchCpuDeviceHelper::AddToFeeds,
-                                topk_func_ ? topk_func_ : BeamSearchCpuDeviceHelper::TopK,
-                                process_logits_func_ ? process_logits_func_ : BeamSearchCpuDeviceHelper::ProcessLogits<float>,
-                                init_beam_state_func_ ? init_beam_state_func_ : BeamSearchCpuDeviceHelper::InitBeamState<float>,
-                                device_copy_func_ ? device_copy_func_ : BeamSearchCpuDeviceHelper::DeviceCopy<float>,
-                                update_gpt_feeds_func_ ? update_gpt_feeds_func_ : BeamSearchCpuDeviceHelper::UpdateGptFeeds<float>};
-      ORT_RETURN_IF_ERROR(impl.Initialize());
-
-      return impl.Execute(*decoder_feeds_fetches_manager_);
-    } else {
-      BeamSearchGpt<MLFloat16> impl{*ctx_internal, *decoder_session_state, *gpt_subgraph_, thread_pool, cuda_stream_, dumper_, parameters,
-                                    create_gpt_inputs_func_ ? create_gpt_inputs_func_ : BeamSearchCpuDeviceHelper::CreateGptInputs,
-                                    add_to_feeds_func_ ? add_to_feeds_func_ : BeamSearchCpuDeviceHelper::AddToFeeds,
-                                    topk_func_ ? topk_func_ : BeamSearchCpuDeviceHelper::TopK,
-                                    process_logits_fp16_func_,
-                                    init_beam_state_fp16_func_,
-                                    device_copy_func_,
-                                    update_gpt_feeds_fp16_func_};
-      ORT_RETURN_IF_ERROR(impl.Initialize());
-
-      return impl.Execute(*decoder_feeds_fetches_manager_);
-    }
+    ORT_THROW("Not Implemented");
   }
 
   auto* encoder_session_state = ctx_internal->SubgraphSessionState("encoder");
@@ -153,28 +127,26 @@ Status GreedySearch::Compute(OpKernelContext* ctx) const {
 
   // Subgraph has constraint that the output is either float or float16
   if (!t5_decoder_subgraph_->IsOutputFloat16()) {
-    BeamSearchT5<float> impl{
+    GreedySearchT5<float> impl{
         *ctx_internal, *encoder_session_state, *decoder_session_state, *t5_encoder_subgraph_,
         *t5_decoder_subgraph_, thread_pool, cuda_stream_, dumper_, parameters,
         add_to_feeds_func_ ? add_to_feeds_func_ : BeamSearchCpuDeviceHelper::AddToFeeds,
         topk_func_ ? topk_func_ : BeamSearchCpuDeviceHelper::TopK,
-        process_logits_func_ ? process_logits_func_ : BeamSearchCpuDeviceHelper::ProcessLogits<float>,
-        init_beam_state_func_ ? init_beam_state_func_ : BeamSearchCpuDeviceHelper::InitBeamState<float>,
+        process_logits_func_ ? process_logits_func_ : BeamSearchCpuDeviceHelper::GreedySearchProcessLogits<float>,
         device_copy_func_ ? device_copy_func_ : BeamSearchCpuDeviceHelper::DeviceCopy<float>,
         create_encoder_inputs_func_ ? create_encoder_inputs_func_ : BeamSearchCpuDeviceHelper::CreateEncoderInputs,
         init_decoder_feeds_func_ ? init_decoder_feeds_func_ : BeamSearchCpuDeviceHelper::InitDecoderFeeds<float>,
-        update_decoder_feeds_func_ ? update_decoder_feeds_func_ : BeamSearchCpuDeviceHelper::UpdateDecoderFeeds<float>};
+        update_decoder_feeds_func_ ? update_decoder_feeds_func_ : BeamSearchCpuDeviceHelper::UpdateGreedySearchDecoderFeeds<float>};
     ORT_RETURN_IF_ERROR(impl.Initialize());
 
     return impl.Execute(*encoder_feeds_fetches_manager_, *decoder_feeds_fetches_manager_);
   } else {
-    BeamSearchT5<MLFloat16> impl{
+    GreedySearchT5<MLFloat16> impl{
         *ctx_internal, *encoder_session_state, *decoder_session_state, *t5_encoder_subgraph_,
         *t5_decoder_subgraph_, thread_pool, cuda_stream_, dumper_, parameters,
         add_to_feeds_func_ ? add_to_feeds_func_ : BeamSearchCpuDeviceHelper::AddToFeeds,
         topk_func_ ? topk_func_ : BeamSearchCpuDeviceHelper::TopK,
         process_logits_fp16_func_,
-        init_beam_state_fp16_func_,
         device_copy_func_,
         create_encoder_inputs_func_,
         init_decoder_feeds_fp16_func_,

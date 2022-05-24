@@ -32,28 +32,28 @@ template <typename T>
 struct GreedySearchState : public IGreedySearchState<T> {
   Sequences sequences;
 
-  void Init(AllocatorPtr allocator,
+  void Init(AllocatorPtr cpu_allocator,
+            AllocatorPtr allocator,
             int batch_size,
             int vocab_size,
             int sequence_length,
             int max_length,
-            bool output_scores) {
-    // TODO: no need to use buffer rotation
-    this->sequences_space = AllocateBuffer<int32_t>(allocator, sequences_space_buffer_, SafeInt<size_t>(2) * batch_size * max_length);
+            bool is_cuda) {
+    this->sequences_space = AllocateBuffer<int32_t>(cpu_allocator, sequences_space_buffer_, SafeInt<size_t>(2) * batch_size * max_length);
     memset(this->sequences_space.data(), 0, this->sequences_space.size_bytes());
     this->sequences.Init(this->sequences_space, static_cast<int>(batch_size), sequence_length, max_length);
 
-    this->sequence_lengths = AllocateBuffer<int32_t>(allocator, sequence_lengths_buffer_, batch_size);
+    this->sequence_lengths = AllocateBuffer<int32_t>(cpu_allocator, sequence_lengths_buffer_, batch_size);
 
+    // below buffers are on cpu or cuda
     size_t next_token_size = SafeInt<size_t>(batch_size) * vocab_size;
     this->next_token_logits = AllocateBuffer<T>(allocator, next_token_logits_buffer_, next_token_size);
     this->next_token_scores = AllocateBuffer<float>(allocator, next_token_scores_buffer_, next_token_size);
     this->next_tokens = AllocateBuffer<int32_t>(allocator, next_tokens_buffer_, SafeInt<size_t>(batch_size));
 
-    if (output_scores) {
-      size_t elements = SafeInt<size_t>(max_length - sequence_length) * batch_size * vocab_size;
-      this->scores = AllocateBuffer<float>(allocator, scores_buffer_, elements);
-      //bugbug: remaining scores?
+    if (is_cuda) {
+      // buffers used by CUDA operator but not by CPU operator.
+      ORT_UNUSED_PARAMETER(is_cuda);
     }
   }
 
@@ -72,7 +72,6 @@ struct GreedySearchState : public IGreedySearchState<T> {
   BufferUniquePtr next_token_logits_buffer_;
   BufferUniquePtr next_token_scores_buffer_;
   BufferUniquePtr next_tokens_buffer_;
-  BufferUniquePtr scores_buffer_;
 };
 
 // Base class of gready search implementation that is common for both GPT-2 and Bart/T5.
@@ -146,7 +145,7 @@ class GreedySearchBase {
   IConsoleDumper* cuda_dumper_;
   CpuTensorConsoleDumper cpu_dumper_;
 
-  BeamSearchParameters* parameters_;
+  GreedySearchParameters* parameters_;
 
   LogitsProcessorList logits_processors_;
 
@@ -230,27 +229,14 @@ Status GreedySearchBase<T>::GenerateNextToken(
     GreedySearchState<T>& greedy_state,
     int counter) {
   // Process logits to get next token scores
-  ORT_RETURN_IF_ERROR(ProcessLogits(logits, beam_state, cpu_state, temp_space_allocator_, counter));
+  ORT_RETURN_IF_ERROR(ProcessLogits(logits, greedy_state, temp_space_allocator_, counter));
 
-  gsl::span<float>& beam_scores = beam_scorer_->GetNextScores();
-  // It is optional to clone beam_scores. Change it to use same buffer also works for CPU:
-  //    beam_state.beam_scores = beam_scores
-  // Here we make a copy to reduce the coupling with little cost (the buffer size is small).
-  ORT_RETURN_IF_ERROR(device_copy_func_(beam_state.beam_scores, beam_scores, cuda_stream_, DeviceCopyDirection::hostToDevice));
+  next_tokens = greedy_state.next_tokens;
 
-  beam_next_tokens = beam_scorer_->GetNextTokens();
-  beam_indices = beam_scorer_->GetNextIndices();
+  greedy_state.sequences.AppendNextTokenToSequences(next_tokens);
 
 #ifdef DEBUG_BEAM_SEARCH
-  cpu_dumper_.Print("beam_scores after scorer", beam_scores.data(), parameters_->batch_size, parameters_->num_beams);
-  cpu_dumper_.Print("beam_next_tokens after scorer", beam_next_tokens.data(), parameters_->batch_size, parameters_->num_beams);
-  cpu_dumper_.Print("beam_indices after scorer", beam_indices.data(), parameters_->batch_size, parameters_->num_beams);
-#endif
-
-  cpu_state.sequences.AppendNextTokenToSequences(beam_indices, beam_next_tokens);
-
-#ifdef DEBUG_BEAM_SEARCH
-  cpu_state.sequences.PrintSequences(&cpu_dumper_);
+  greedy_state.sequences.PrintSequences(&cpu_dumper_);
 #endif
   return Status::OK();
 }

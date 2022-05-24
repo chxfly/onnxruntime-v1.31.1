@@ -31,6 +31,7 @@
 #include "contrib_ops/cpu/bert/embed_layer_norm_helper.h"
 #include "contrib_ops/cpu/bert/longformer_attention_base.h"
 #include "contrib_ops/cpu/transformers/beam_search.h"
+#include "contrib_ops/cpu/transformers/greedy_search.h"
 #endif
 
 #ifdef ENABLE_TRAINING

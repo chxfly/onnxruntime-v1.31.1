@@ -1,7 +1,7 @@
 #pragma once
 #include "sequences.h"
 #include "beam_search_parameters.h"
-
+#include "greedy_search_parameters.h"
 #include "core/common/inlined_containers.h"
 #include "beam_search_shared.h"
 
