@@ -30,7 +30,6 @@
 #include "logits_processor.h"
 #include "sequences.h"
 #include "dump_tensor.h"
-#include "greedy_search_impl_gpt.h"
 #include "greedy_search_impl_t5.h"
 
 using namespace ONNX_NAMESPACE;
@@ -140,22 +139,23 @@ Status GreedySearch::Compute(OpKernelContext* ctx) const {
     ORT_RETURN_IF_ERROR(impl.Initialize());
 
     return impl.Execute(*encoder_feeds_fetches_manager_, *decoder_feeds_fetches_manager_);
-  } else {
-    GreedySearchT5<MLFloat16> impl{
-        *ctx_internal, *encoder_session_state, *decoder_session_state, *t5_encoder_subgraph_,
-        *t5_decoder_subgraph_, thread_pool, cuda_stream_, dumper_, parameters,
-        add_to_feeds_func_ ? add_to_feeds_func_ : BeamSearchCpuDeviceHelper::AddToFeeds,
-        topk_func_ ? topk_func_ : BeamSearchCpuDeviceHelper::TopK,
-        process_logits_fp16_func_,
-        device_copy_func_,
-        create_encoder_inputs_func_,
-        init_decoder_feeds_fp16_func_,
-        update_decoder_feeds_fp16_func_};
-
-    ORT_RETURN_IF_ERROR(impl.Initialize());
-
-    return impl.Execute(*encoder_feeds_fetches_manager_, *decoder_feeds_fetches_manager_);
   }
+  // else {
+  //   GreedySearchT5<MLFloat16> impl{
+  //       *ctx_internal, *encoder_session_state, *decoder_session_state, *t5_encoder_subgraph_,
+  //       *t5_decoder_subgraph_, thread_pool, cuda_stream_, dumper_, parameters,
+  //       add_to_feeds_func_ ? add_to_feeds_func_ : BeamSearchCpuDeviceHelper::AddToFeeds,
+  //       topk_func_ ? topk_func_ : BeamSearchCpuDeviceHelper::TopK,
+  //       process_logits_fp16_func_,
+  //       device_copy_func_,
+  //       create_encoder_inputs_func_,
+  //       init_decoder_feeds_fp16_func_,
+  //       update_decoder_feeds_fp16_func_};
+
+  //   ORT_RETURN_IF_ERROR(impl.Initialize());
+
+  //   return impl.Execute(*encoder_feeds_fetches_manager_, *decoder_feeds_fetches_manager_);
+  // }
 }
 
 }  // namespace transformers

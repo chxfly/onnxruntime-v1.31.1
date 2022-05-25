@@ -58,7 +58,7 @@ struct GreedySearchState : public IGreedySearchState<T> {
   }
 
   void SetSequence(gsl::span<const int64_t> input_ids_in_cpu, size_t batch_beam_size, int max_length, int sequence_length) {
-    gsl::span<int32_t> sequences_0 = sequences_space;
+    gsl::span<int32_t> sequences_0 = this->sequences_space;
     for (size_t i = 0; i < batch_beam_size; i++) {
       for (int j = 0; j < sequence_length; j++) {
         sequences_0[SafeInt<gsl::index>(i) * max_length + j] = static_cast<int32_t>(input_ids_in_cpu[SafeInt<gsl::index>(i) * sequence_length + j]);
@@ -83,9 +83,9 @@ class GreedySearchBase {
                    concurrency::ThreadPool* thread_pool,
                    void* cuda_stream,
                    IConsoleDumper* cuda_dumper,
-                   BeamSearchParameters& params,
+                   GreedySearchParameters& params,
                    const BeamSearchDeviceHelper::TopkFunc& topk_func,
-                   const BeamSearchDeviceHelper::ProcessLogitsFunc<T>& process_logits_func,
+                   const BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<T>& process_logits_func,
                    const BeamSearchDeviceHelper::DeviceCopyFunc<float>& device_copy_func)
       : context_(context),
         decoder_session_state_(decoder_session_state),
@@ -115,16 +115,13 @@ class GreedySearchBase {
  protected:
   // Process logits and append next tokens to sequences.
   Status GenerateNextToken(const OrtValue& logits,
-                           gsl::span<int32_t>& beam_next_tokens,
-                           gsl::span<int32_t>& beam_indices,
-                           BeamSearchState<T>& beam_state,
-                           BeamSearchCpuState& cpu_state,
+                           gsl::span<int32_t>& next_tokens,
+                           GreedySearchState<T>& greedy_state,
                            int counter);
 
   // Calculate scores from logits, then apply filtering and select next token for each beam.
   Status ProcessLogits(const OrtValue& logits,  // logits output of subgraph
-                       BeamSearchState<T>& beam_state,
-                       BeamSearchCpuState& cpu_state,
+                       GreedySearchState<T>& greedy_state,
                        AllocatorPtr& allocator,
                        int counter);
 
@@ -156,7 +153,7 @@ class GreedySearchBase {
 
   // Device specific functions
   BeamSearchDeviceHelper::TopkFunc topk_func_;
-  BeamSearchDeviceHelper::ProcessLogitsFunc<T> process_logits_func_;
+  BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<T> process_logits_func_;
   BeamSearchDeviceHelper::DeviceCopyFunc<float> device_copy_func_;
 };
 

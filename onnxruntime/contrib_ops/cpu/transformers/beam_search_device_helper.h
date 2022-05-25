@@ -291,6 +291,16 @@ Status UpdateDecoderFeeds(
     int num_beams,
     const transformers::IConsoleDumper* dumper);
 
+template <typename T>
+Status UpdateGreedySearchDecoderFeeds(
+    AllocatorPtr allocator,
+    void* stream,
+    const std::vector<OrtValue>& last_outputs,
+    std::vector<OrtValue>& next_inputs,
+    int current_length,
+    gsl::span<const int32_t> beam_next_tokens,
+    const transformers::IConsoleDumper* dumper);
+
 // ---------------------------------------------------------------
 // Utility Functions
 // ---------------------------------------------------------------

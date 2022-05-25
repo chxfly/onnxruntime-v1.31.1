@@ -96,6 +96,7 @@ class LogitsProcessorList : public ILogitsProcessorList {
  public:
   LogitsProcessorList() = default;
   void Init(const BeamSearchParameters& parameters);
+  void Init(const GreedySearchParameters& parameters);
   void Process(const ISequences* sequences, gsl::span<float>& next_token_scores, int step);
 
  private:

@@ -47,17 +47,13 @@ class GreedySearch : public IControlFlowKernel {
       const BeamSearchDeviceHelper::AddToFeedsFunc& add_to_feeds_func,
       const BeamSearchDeviceHelper::TopkFunc& topk_func,
       const BeamSearchDeviceHelper::DeviceCopyFunc<float>& device_copy_func,
-      const BeamSearchDeviceHelper::ProcessLogitsFunc<float>& process_logits_func,
-      const BeamSearchDeviceHelper::ProcessLogitsFunc<MLFloat16>& process_logits_fp16_func,
-      const BeamSearchDeviceHelper::InitBeamStateFunc<float>& init_beam_state_func,
-      const BeamSearchDeviceHelper::InitBeamStateFunc<MLFloat16>& init_beam_state_fp16_func) {
+      const BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<float>& process_logits_func,
+      const BeamSearchDeviceHelper::ProcessLogitsFunc<MLFloat16>& process_logits_fp16_func) {
     add_to_feeds_func_ = add_to_feeds_func;
     topk_func_ = topk_func;
     device_copy_func_ = device_copy_func;
     process_logits_func_ = process_logits_func;
     process_logits_fp16_func_ = process_logits_fp16_func;
-    init_beam_state_func_ = init_beam_state_func;
-    init_beam_state_fp16_func_ = init_beam_state_fp16_func;
   }
 
   // device helpers for GPT model
@@ -76,7 +72,7 @@ class GreedySearch : public IControlFlowKernel {
   void SetDeviceHelpers_EncoderDecoder(
       const BeamSearchDeviceHelper::CreateEncoderInputsFunc& create_encoder_inputs_func,
       const BeamSearchDeviceHelper::InitDecoderFeedsFunc<float>& init_decoder_feeds_func,
-      const BeamSearchDeviceHelper::UpdateDecoderFeedsFunc<float>& update_decoder_feeds_func,
+      const BeamSearchDeviceHelper::UpdateGreedySearchDecoderFeedsFunc<float>& update_decoder_feeds_func,
       const BeamSearchDeviceHelper::InitDecoderFeedsFunc<MLFloat16>& init_decoder_feeds_fp16_func,
       const BeamSearchDeviceHelper::UpdateDecoderFeedsFunc<MLFloat16>& update_decoder_feeds_fp16_func) {
     create_encoder_inputs_func_ = create_encoder_inputs_func;
@@ -92,11 +88,8 @@ class GreedySearch : public IControlFlowKernel {
   BeamSearchDeviceHelper::TopkFunc topk_func_;
   BeamSearchDeviceHelper::DeviceCopyFunc<float> device_copy_func_;
 
-  BeamSearchDeviceHelper::ProcessLogitsFunc<float> process_logits_func_;
+  BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<float> process_logits_func_;
   BeamSearchDeviceHelper::ProcessLogitsFunc<MLFloat16> process_logits_fp16_func_;
-
-  BeamSearchDeviceHelper::InitBeamStateFunc<float> init_beam_state_func_;
-  BeamSearchDeviceHelper::InitBeamStateFunc<MLFloat16> init_beam_state_fp16_func_;
 
   //------------------------------------------------------------
   // Device specific functions for GPT
@@ -113,7 +106,7 @@ class GreedySearch : public IControlFlowKernel {
   BeamSearchDeviceHelper::InitDecoderFeedsFunc<float> init_decoder_feeds_func_;
   BeamSearchDeviceHelper::InitDecoderFeedsFunc<MLFloat16> init_decoder_feeds_fp16_func_;
 
-  BeamSearchDeviceHelper::UpdateDecoderFeedsFunc<float> update_decoder_feeds_func_;
+  BeamSearchDeviceHelper::UpdateGreedySearchDecoderFeedsFunc<float> update_decoder_feeds_func_;
   BeamSearchDeviceHelper::UpdateDecoderFeedsFunc<MLFloat16> update_decoder_feeds_fp16_func_;
 
   //------------------------------------------------------------

@@ -23,15 +23,15 @@ class GreedySearchT5 : public GreedySearchBase<T> {
                concurrency::ThreadPool* thread_pool,
                void* cuda_stream,
                IConsoleDumper* cuda_dumper,
-               BeamSearchParameters& params,
+               GreedySearchParameters& params,
                const BeamSearchDeviceHelper::AddToFeedsFunc& add_to_feeds_func,
                const BeamSearchDeviceHelper::TopkFunc& topk_func,
-               const BeamSearchDeviceHelper::ProcessLogitsFunc<T>& process_logits_func,
+               const BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<T>& process_logits_func,
                const BeamSearchDeviceHelper::DeviceCopyFunc<float>& device_copy_func,
                const BeamSearchDeviceHelper::CreateEncoderInputsFunc& create_encoder_inputs_func,
                const BeamSearchDeviceHelper::InitDecoderFeedsFunc<T>& init_decoder_feeds_func,
                const BeamSearchDeviceHelper::UpdateGreedySearchDecoderFeedsFunc<T>& update_decoder_feeds_func)
-      : BeamSearchBase<T>(context, decoder_session_state, thread_pool, cuda_stream, cuda_dumper, params, topk_func, process_logits_func, device_copy_func),
+      : GreedySearchBase<T>(context, decoder_session_state, thread_pool, cuda_stream, cuda_dumper, params, topk_func, process_logits_func, device_copy_func),
         encoder_session_state_(encoder_session_state),
         encoder_subgraph_(encoder_subgraph),
         decoder_subgraph_(decoder_subgraph),
@@ -61,7 +61,7 @@ class GreedySearchT5 : public GreedySearchBase<T> {
 
 template <typename T>
 Status GreedySearchT5<T>::Execute(const FeedsFetchesManager& encoder_feeds_fetches_manager,
-                                ` const FeedsFetchesManager& decoder_feeds_fetches_manager) {
+                                  const FeedsFetchesManager& decoder_feeds_fetches_manager) {
   auto status = Status::OK();
 
   const GreedySearchParameters* parameters = this->parameters_;
@@ -83,7 +83,8 @@ Status GreedySearchT5<T>::Execute(const FeedsFetchesManager& encoder_feeds_fetch
   GreedySearchState<T> greedysearch_state;
   greedysearch_state.Init(this->cpu_allocator_,
                           this->temp_space_allocator_,
-                          static_cast<size_t>(parameters->BatchBeamSize()),
+                          static_cast<int>(parameters->BatchBeamSize()),
+                          static_cast<int>(parameters->vocab_size),
                           static_cast<int>(1),          // In encoder-decoder model, the initial sequence_length is 1
                           parameters->max_length,
                           this->IsCuda());

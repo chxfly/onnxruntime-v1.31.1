@@ -344,7 +344,7 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
   gsl::span<T>& next_token_logits = greedy_state->next_token_logits;
   if (input_length > 1) {
     const T* current_logits = logits_data + (input_length - 1) * vocab_size;
-    for (int i = 0; i < batch_beam_size; i++) {
+    for (int i = 0; i < batch_size; i++) {
       gsl::span<const T> source(current_logits, vocab_size);
       gsl::span<T> target = next_token_logits.subspan(SafeInt<gsl::index>(i) * vocab_size, static_cast<gsl::index>(vocab_size));
       gsl::copy(source, target);
@@ -399,7 +399,7 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
 
   gsl::span<const int64_t> next_token_indices = topk_indices->DataAsSpan<int64_t>();
   for (int i = 0; i < batch_size; i++) {
-    greedy_state->next_tokens[offset] = gsl::narrow_cast<int32_t>(next_token_indices[i]);
+    greedy_state->next_tokens[i] = gsl::narrow_cast<int32_t>(next_token_indices[i]);
   }
 
   gsl::span<const int32_t> next_tokens(greedy_state->next_tokens.data(), greedy_state->next_tokens.size());
@@ -655,7 +655,7 @@ Status UpdateDecoderFeeds(
 
 // Update decoder inputs given decoder outputs of last iteration for greedy search
 template <typename T>
-Status UpdateDecoderFeeds(
+Status UpdateGreedySearchDecoderFeeds(
     AllocatorPtr allocator,
     void* stream,
     const std::vector<OrtValue>& last_outputs,
@@ -739,6 +739,15 @@ template Status UpdateDecoderFeeds<float>(
     gsl::span<const int32_t> beam_next_tokens,
     gsl::span<const int32_t> beam_indices,
     int num_beams,
+    const transformers::IConsoleDumper* dumper);
+
+template Status UpdateGreedySearchDecoderFeeds<float>(
+    AllocatorPtr allocator,
+    void* stream,
+    const std::vector<OrtValue>& last_outputs,
+    std::vector<OrtValue>& next_inputs,
+    int current_length,
+    gsl::span<const int32_t> beam_next_tokens,
     const transformers::IConsoleDumper* dumper);
 
 template OrtValue ExpandInputs<int32_t>(const OrtValue& input, int num_beams, AllocatorPtr allocator);

@@ -65,7 +65,7 @@ void Sequences::AppendNextTokenToSequences(
 
 void Sequences::AppendNextTokenToSequences(
     gsl::span<int32_t>& next_tokens) {
-  gsl::span<const int32_t> output(sequences[current_sequences_buffer].data(), sequences[current_sequences_buffer].size());
+  gsl::span<int32_t> output(sequences[current_sequences_buffer].data(), sequences[current_sequences_buffer].size());
 
   // Append next token to each sequence.
   for (int i = 0; i < batch_beam_size_; i++) {
