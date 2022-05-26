@@ -2,6 +2,7 @@ import math
 import numpy
 import os
 
+numpy.random.seed(0)
 scale = 0.007874015718698502
 weight_array = numpy.random.standard_normal(size = (768, 2304))
 bias_array = numpy.random.standard_normal(size = (2304))
@@ -11,7 +12,7 @@ def create_qordered_attention_graph():
 
     nodes = [
         helper.make_node('QuantizeWithOrder', inputs=['input', 'scale_input'], outputs=['input_s8'], name='QuantizeWithOrder_0', domain='com.microsoft', order_input=1, order_output=1),
-        helper.make_node('QuantizeWithOrder', inputs=['weight_fp32', 'scale_weight'], outputs=['weight_col'], name='QuantizeWithOrder_1', domain='com.microsoft', order_input=1, order_output=1),
+        helper.make_node('QuantizeWithOrder', inputs=['weight_fp32', 'scale_weight'], outputs=['weight_col'], name='QuantizeWithOrder_1', domain='com.microsoft', order_input=1, order_output=0),
         helper.make_node(
             'QOrderedAttention',
             inputs=['input_s8', 'scale_input', 'weight_col', 'scale_weight', 'bias', 'scale_bias', 'scale_gemm', 'mask_index', 'scale_output'],
