@@ -101,6 +101,7 @@ for seed in range(10):
 
     ort_output_q = ort_session_qattn.run(None, ort_inputs)
 
+    # find the boundary atol/rtol. assume atol=rtol
     tol_l = 1e-5
     tol_r = 1e-1
     delta = 1e-4
@@ -112,4 +113,4 @@ for seed in range(10):
         else:
             tol_l = tol
 
-    print("seed:", seed, "atol/rtol range:", tol_r, "±", delta)
+    print("fp32 Attn vs QOrdered Attn: seed:", seed, "atol/rtol boundary range:", tol_r, "±", delta)
