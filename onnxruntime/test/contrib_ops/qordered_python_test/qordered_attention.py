@@ -2,7 +2,6 @@ import math
 import numpy
 import os
 
-numpy.random.seed(0)
 DATA_DIR = './qordered_attention'
 
 def create_qordered_attention_graph():
@@ -84,30 +83,33 @@ sess_options = SessionOptions()
 ort_session_qattn = InferenceSession(qattn, sess_options, providers=['CUDAExecutionProvider'])
 ort_session_attn = InferenceSession(attn, sess_options, providers=['CUDAExecutionProvider'])
 
-input_data = numpy.random.standard_normal(size = (1, 32, 768)).astype('float32')
-mask_index_data = numpy.random.randint(1, 2, [1, 32], dtype=numpy.int32)
-input_scale_data = numpy.array(numpy.abs(input_data).max()/127).astype('float32')
+for seed in range(100):
+    numpy.random.seed(seed)
 
-ort_inputs = {
-    'input' : input_data,
-    'mask_index' : mask_index_data
-}
+    input_data = numpy.random.standard_normal(size = (1, 32, 768)).astype('float32')
+    mask_index_data = numpy.random.randint(1, 2, [1, 32], dtype=numpy.int32)
+    input_scale_data = numpy.array(numpy.abs(input_data).max()/127).astype('float32')
 
-ort_output = ort_session_attn.run(None, ort_inputs)
+    ort_inputs = {
+        'input' : input_data,
+        'mask_index' : mask_index_data
+    }
 
-ort_inputs['scale_input'] = input_scale_data
+    ort_output = ort_session_attn.run(None, ort_inputs)
 
-ort_output_q = ort_session_qattn.run(None, ort_inputs)
+    ort_inputs['scale_input'] = input_scale_data
 
-tol_l = 1e-5
-tol_r = 1e-1
-delta = 1e-5
-while (tol_r - tol_l > delta):
-    tol = tol_l + (tol_r - tol_l)/2
-    if_close = numpy.allclose(ort_output_q[0], ort_output[0], rtol = tol, atol = tol)
-    if if_close is True:
-        tol_r = tol
-    else:
-        tol_l = tol
+    ort_output_q = ort_session_qattn.run(None, ort_inputs)
 
-print("atol/rtol range:", tol_r, "±", delta)
+    tol_l = 1e-5
+    tol_r = 1e-1
+    delta = 1e-5
+    while (tol_r - tol_l > delta):
+        tol = tol_l + (tol_r - tol_l)/2
+        if_close = numpy.allclose(ort_output_q[0], ort_output[0], rtol = tol, atol = tol)
+        if if_close is True:
+            tol_r = tol
+        else:
+            tol_l = tol
+
+    print("seed:", seed, "atol/rtol range:", tol_r, "±", delta)
