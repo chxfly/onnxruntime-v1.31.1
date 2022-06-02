@@ -101,7 +101,8 @@ ort_output_q = ort_session_qattn.run(None, ort_inputs)
 
 tol_l = 1e-5
 tol_r = 1e-1
-while (tol_r - tol_l > 1e-5):
+delta = 1e-5
+while (tol_r - tol_l > delta):
     tol = tol_l + (tol_r - tol_l)/2
     if_close = numpy.allclose(ort_output_q[0], ort_output[0], rtol = tol, atol = tol)
     if if_close is True:
@@ -109,4 +110,4 @@ while (tol_r - tol_l > 1e-5):
     else:
         tol_l = tol
 
-print("atol/rtol threshold:", tol_r)
+print("atol/rtol range:", tol_r, "±", delta)
