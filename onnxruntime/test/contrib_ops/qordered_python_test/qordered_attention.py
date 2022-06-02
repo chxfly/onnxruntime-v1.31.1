@@ -83,7 +83,7 @@ sess_options = SessionOptions()
 ort_session_qattn = InferenceSession(qattn, sess_options, providers=['CUDAExecutionProvider'])
 ort_session_attn = InferenceSession(attn, sess_options, providers=['CUDAExecutionProvider'])
 
-for seed in range(100):
+for seed in range(10):
     numpy.random.seed(seed)
 
     input_data = numpy.random.standard_normal(size = (1, 32, 768)).astype('float32')
@@ -103,7 +103,7 @@ for seed in range(100):
 
     tol_l = 1e-5
     tol_r = 1e-1
-    delta = 1e-5
+    delta = 1e-4
     while (tol_r - tol_l > delta):
         tol = tol_l + (tol_r - tol_l)/2
         if_close = numpy.allclose(ort_output_q[0], ort_output[0], rtol = tol, atol = tol)
