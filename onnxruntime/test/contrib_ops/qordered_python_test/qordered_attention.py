@@ -6,15 +6,18 @@ from onnxruntime import SessionOptions, InferenceSession
 numpy.random.seed(0)
 DATA_DIR = './qordered_attention'
 
-hidden_size = 768
-seqlen = 32
+hidden_size = 32
+seqlen = 4
 
 float_range = 0.5
-float_range_2 = 0.15
+float_range_2 = 0.2
 float_range_3 = 0.0
 
-weight_array = numpy.random.uniform(-1 * float_range_2, float_range_2, [hidden_size, 3 * hidden_size])
+# Generate well 'QATed' data
+#weight_array = numpy.random.uniform(-1 * float_range_2, float_range_2, [hidden_size, 3 * hidden_size])
+weight_array = (numpy.random.randint(-127, 128, size = (hidden_size, 3 * hidden_size)) / 127.5 * float_range_2).astype('float32')
 bias_array = numpy.random.uniform(-1 * float_range_3, float_range_3, [3 * hidden_size])
+
 input_data = numpy.random.uniform(-1 * float_range, float_range, [1, seqlen, hidden_size]).astype('float32')
 mask_index_data = numpy.random.randint(1, 2, [1, seqlen], dtype=numpy.int32)
 
@@ -28,7 +31,7 @@ def create_attention_graph():
             outputs=['output'],
             name='Attention_normal',
             domain='com.microsoft',
-            num_heads=12,
+            num_heads=2,
             unidirectional=0,
         ),
     ]
@@ -60,7 +63,7 @@ def create_qordered_attention_graph(scale_input, scale_weight, scale_gemm, scale
             outputs=['output_s8'],
             name='Attention_quantized',
             domain='com.microsoft',
-            num_heads=12,
+            num_heads=2,
             order_bias=1,
             order_input=1,
             order_output=1,
@@ -101,7 +104,7 @@ ort_inputs = {
 ort_output = ort_session_attn.run(None, ort_inputs)
 
 # Calculate scale
-scale = 127
+scale = 127.5
 scale_input = (numpy.abs(input_data).max()/scale).astype('float32')
 scale_weight = (numpy.abs(weight_array).max()/scale).astype('float32')
 scale_gemm = (numpy.abs(numpy.matmul(input_data, weight_array)).max()/scale).astype('float32')
@@ -115,9 +118,9 @@ qattn = create_qordered_attention_graph(scale_input, scale_weight, scale_gemm, s
 ort_session_qattn = InferenceSession(qattn, sess_options, providers=['CUDAExecutionProvider'])
 ort_output_q = ort_session_qattn.run(None, ort_inputs)
 print('fp32 attn output:')
-print(ort_output)
+print(ort_output[0][0][0])
 print('qordered_attn output')
-print(ort_output_q)
+print(ort_output_q[0][0][0])
 
 tol_l = 1e-5
 tol_r = 1e2
@@ -130,3 +133,4 @@ while (tol_r - tol_l > 1e-5):
         tol_l = tol
 
 print("atol/rtol threshold:", tol_r)
+#print(ort_output[0] - ort_output_q[0])
