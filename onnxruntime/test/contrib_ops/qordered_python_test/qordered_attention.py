@@ -18,7 +18,8 @@ float_range_3 = 0.0
 weight_array = (numpy.random.randint(-127, 128, size = (hidden_size, 3 * hidden_size)) / 127.5 * float_range_2).astype('float32')
 bias_array = numpy.random.uniform(-1 * float_range_3, float_range_3, [3 * hidden_size])
 
-input_data = numpy.random.uniform(-1 * float_range, float_range, [1, seqlen, hidden_size]).astype('float32')
+#input_data = numpy.random.uniform(-1 * float_range, float_range, [1, seqlen, hidden_size]).astype('float32')
+input_data = (numpy.random.randint(-127, 128, size = (1, seqlen, hidden_size)) / 127.5 * float_range).astype('float32')
 mask_index_data = numpy.random.randint(1, 2, [1, seqlen], dtype=numpy.int32)
 
 def create_attention_graph():
