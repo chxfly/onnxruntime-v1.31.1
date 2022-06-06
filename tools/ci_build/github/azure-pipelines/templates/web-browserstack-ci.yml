@@ -35,27 +35,6 @@ jobs:
   - task: NodeTool@0
     inputs:
       versionSpec: '16.x'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      patterns: 'Release_*/**/*'
-      path: $(Pipeline.Workspace)/artifacts
-    displayName: 'Download WebAssembly artifacts'
-  - task: CopyFiles@2
-    inputs:
-      sourceFolder: $(Pipeline.Workspace)/artifacts
-      contents: |
-        **/*.wasm
-      targetFolder: $(Build.SourcesDirectory)/js/web/dist
-      flattenFolders: true
-    displayName: 'Binplace dist files'
-  - task: CopyFiles@2
-    inputs:
-      sourceFolder: $(Pipeline.Workspace)/artifacts
-      contents: |
-        **/*.js
-      targetFolder: $(Build.SourcesDirectory)/js/web/lib/wasm/binding
-      flattenFolders: true
-    displayName: 'Binplace js files'
   - script: |
      npm ci
     workingDirectory: '$(Build.SourcesDirectory)/js'
@@ -64,6 +43,16 @@ jobs:
      npm ci
     workingDirectory: '$(Build.SourcesDirectory)/js/common'
     displayName: 'npm ci /js/common/'
+  - script: |
+     node -p "require.resolve('acorn')"
+    workingDirectory: '$(Build.SourcesDirectory)/js/web'
+    displayName: 'debug failure 1'
+    continueOnError: true
+  - script: |
+     find -iname "package.json" | grep 'acorn'
+    workingDirectory: '$(Build.SourcesDirectory)/js/web'
+    displayName: 'debug failure 1'
+    continueOnError: true
   - script: |
      npm ci
     workingDirectory: '$(Build.SourcesDirectory)/js/web'
