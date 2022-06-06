@@ -39,11 +39,14 @@ struct GreedySearchState : public IGreedySearchState<T> {
             int sequence_length,
             int max_length,
             bool is_cuda) {
+    // below buffers are on cpu
     this->sequences_space = AllocateBuffer<int32_t>(cpu_allocator, sequences_space_buffer_, SafeInt<size_t>(2) * batch_size * max_length);
     memset(this->sequences_space.data(), 0, this->sequences_space.size_bytes());
     this->sequences.Init(this->sequences_space, static_cast<int>(batch_size), sequence_length, max_length);
 
     this->sequence_lengths = AllocateBuffer<int32_t>(cpu_allocator, sequence_lengths_buffer_, batch_size);
+    this->eos_meet = AllocateBuffer<bool>(cpu_allocator, eos_meet_buffer_, batch_size);
+    memset(this->eos_meet.data(), 0, this->eos_meet.size_bytes());
 
     // below buffers are on cpu or cuda
     size_t next_token_size = SafeInt<size_t>(batch_size) * vocab_size;
@@ -72,6 +75,7 @@ struct GreedySearchState : public IGreedySearchState<T> {
   BufferUniquePtr next_token_logits_buffer_;
   BufferUniquePtr next_token_scores_buffer_;
   BufferUniquePtr next_tokens_buffer_;
+  BufferUniquePtr eos_meet_buffer_;
 };
 
 // Base class of gready search implementation that is common for both GPT-2 and Bart/T5.
@@ -117,7 +121,8 @@ class GreedySearchBase {
   Status GenerateNextToken(const OrtValue& logits,
                            gsl::span<int32_t>& next_tokens,
                            GreedySearchState<T>& greedy_state,
-                           int counter);
+                           int counter,
+                           int eos_token_id);
 
   // Calculate scores from logits, then apply filtering and select next token for each beam.
   Status ProcessLogits(const OrtValue& logits,  // logits output of subgraph
@@ -224,7 +229,8 @@ Status GreedySearchBase<T>::GenerateNextToken(
     const OrtValue& logits,
     gsl::span<int32_t>& next_tokens,
     GreedySearchState<T>& greedy_state,
-    int counter) {
+    int counter,
+    int eos_token_id) {
   // Process logits to get next token scores
   ORT_RETURN_IF_ERROR(ProcessLogits(logits, greedy_state, temp_space_allocator_, counter));
 
@@ -235,6 +241,17 @@ Status GreedySearchBase<T>::GenerateNextToken(
 #ifdef DEBUG_BEAM_SEARCH
   greedy_state.sequences.PrintSequences(&cpu_dumper_);
 #endif
+
+  gsl::span<int32_t> sequence_lengths = greedy_state.sequence_lengths;
+  gsl::span<bool>& eos_meet = greedy_state.eos_meet;
+
+  for (size_t batch_id = 0; batch_id < next_tokens.size(); ++batch_id) {
+    if (next_tokens[batch_id] == eos_token_id) {
+      eos_meet[batch_id] = true;
+      sequence_lengths[batch_id] = greedy_state.sequences.GetSequenceLength();
+    }
+  }
+
   return Status::OK();
 }
 

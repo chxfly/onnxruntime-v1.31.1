@@ -368,7 +368,6 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
 #endif
 
   ORT_UNUSED_PARAMETER(output_scores);
-  // bugbug ??
   // if (output_scores) {
   //   // Append next token scores to the scores output.
   //   gsl::copy(next_token_scores, greedy_state->remaining_scores);
@@ -566,19 +565,17 @@ Status CreateEncoderInputs(
   int64_t* encoder_input_ids_data = encoder_input_ids.GetMutable<Tensor>()->MutableData<int64_t>();
   int64_t* mask = mask_data;
   for (int i = 0; i < batch_size; i++) {
-    int32_t abs_position = 0;
     for (int j = 0; j < sequence_length; j++, word_id++, encoder_input_ids_data++, mask++) {
       *encoder_input_ids_data = static_cast<int64_t>(*word_id);
       if (*word_id == pad_token_id) {
         *mask = 0;
       } else {
         *mask = 1;
-        abs_position++;
       }
     }
 
     for (int k = 0; k < num_beams; k++) {
-      sequence_lengths[SafeInt<gsl::index>(i) * num_beams + k] = abs_position;
+      sequence_lengths[SafeInt<gsl::index>(i) * num_beams + k] = 0;  //bugbug
     }
   }
 

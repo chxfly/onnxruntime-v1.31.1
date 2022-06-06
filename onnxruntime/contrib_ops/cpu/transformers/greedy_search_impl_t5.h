@@ -16,21 +16,21 @@ template <typename T>
 class GreedySearchT5 : public GreedySearchBase<T> {
  public:
   GreedySearchT5(OpKernelContextInternal& context,
-               const SessionState& encoder_session_state,
-               const SessionState& decoder_session_state,
-               T5EncoderSubgraph& encoder_subgraph,
-               T5DecoderSubgraph& decoder_subgraph,
-               concurrency::ThreadPool* thread_pool,
-               void* cuda_stream,
-               IConsoleDumper* cuda_dumper,
-               GreedySearchParameters& params,
-               const BeamSearchDeviceHelper::AddToFeedsFunc& add_to_feeds_func,
-               const BeamSearchDeviceHelper::TopkFunc& topk_func,
-               const BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<T>& process_logits_func,
-               const BeamSearchDeviceHelper::DeviceCopyFunc<float>& device_copy_func,
-               const BeamSearchDeviceHelper::CreateEncoderInputsFunc& create_encoder_inputs_func,
-               const BeamSearchDeviceHelper::InitDecoderFeedsFunc<T>& init_decoder_feeds_func,
-               const BeamSearchDeviceHelper::UpdateGreedySearchDecoderFeedsFunc<T>& update_decoder_feeds_func)
+                 const SessionState& encoder_session_state,
+                 const SessionState& decoder_session_state,
+                 T5EncoderSubgraph& encoder_subgraph,
+                 T5DecoderSubgraph& decoder_subgraph,
+                 concurrency::ThreadPool* thread_pool,
+                 void* cuda_stream,
+                 IConsoleDumper* cuda_dumper,
+                 GreedySearchParameters& params,
+                 const BeamSearchDeviceHelper::AddToFeedsFunc& add_to_feeds_func,
+                 const BeamSearchDeviceHelper::TopkFunc& topk_func,
+                 const BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<T>& process_logits_func,
+                 const BeamSearchDeviceHelper::DeviceCopyFunc<float>& device_copy_func,
+                 const BeamSearchDeviceHelper::CreateEncoderInputsFunc& create_encoder_inputs_func,
+                 const BeamSearchDeviceHelper::InitDecoderFeedsFunc<T>& init_decoder_feeds_func,
+                 const BeamSearchDeviceHelper::UpdateGreedySearchDecoderFeedsFunc<T>& update_decoder_feeds_func)
       : GreedySearchBase<T>(context, decoder_session_state, thread_pool, cuda_stream, cuda_dumper, params, topk_func, process_logits_func, device_copy_func),
         encoder_session_state_(encoder_session_state),
         encoder_subgraph_(encoder_subgraph),
@@ -124,7 +124,7 @@ Status GreedySearchT5<T>::Execute(const FeedsFetchesManager& encoder_feeds_fetch
   int current_length = 1;
   if (current_length + 1 < parameters->max_length) {
     ++iteration_counter;
-    ORT_RETURN_IF_ERROR(this->GenerateNextToken(encoder_fetches[0], next_tokens, greedysearch_state, iteration_counter));
+    ORT_RETURN_IF_ERROR(this->GenerateNextToken(encoder_fetches[0], next_tokens, greedysearch_state, iteration_counter, parameters->eos_token_id));
     ++current_length;  // Increase sequence length after a new token is generated.
     ORT_RETURN_IF_ERROR(decoder_subgraph_.CreateInitialFeeds(next_tokens.as_span<const int32_t>(),
                                                              this->implicit_inputs_,
@@ -148,10 +148,19 @@ Status GreedySearchT5<T>::Execute(const FeedsFetchesManager& encoder_feeds_fetch
     ORT_RETURN_IF_ERROR(status);
 
     const OrtValue& logits = decoder_fetches[0];
-    ORT_RETURN_IF_ERROR(this->GenerateNextToken(logits, next_tokens, greedysearch_state, iteration_counter));
+    ORT_RETURN_IF_ERROR(this->GenerateNextToken(logits, next_tokens, greedysearch_state, iteration_counter, parameters->eos_token_id));
 
     // When all batches are finished, stop earlier to avoid wasting computation.
-    if (greedysearch_state.all_done) {
+    gsl::span<bool>& eos_meet = greedysearch_state.eos_meet;
+    size_t batch_id = 0;
+    while(batch_id < eos_meet.size()) {
+      if (eos_meet[batch_id] == false) {
+        break;
+      }
+      ++batch_id;
+    }
+
+    if (batch_id == eos_meet.size()) {
       break;
     }
 
@@ -172,8 +181,17 @@ Status GreedySearchT5<T>::Execute(const FeedsFetchesManager& encoder_feeds_fetch
     decoder_fetches.clear();
   }
 
-  // copy sequences to output buffer
-  // TODO
+  // Copy the sequences to output
+  gsl::span<int32_t> output = output_sequences->MutableDataAsSpan<int32_t>();
+  //gsl::span<int32_t>& sequence_lengths = greedysearch_state.sequence_lengths;
+  std::fill_n(output.data(), output.size(), parameters->pad_token_id);
+  for (int batch_id = 0; batch_id < parameters->batch_size; ++batch_id) {
+    auto batch_output = output.subspan(batch_id * parameters->max_length,  parameters->max_length);
+    //int32_t sequence_length = sequence_lengths[batch_id];
+    gsl::span<const int32_t> sequence_source = greedysearch_state.sequences.GetSequence(batch_id);
+    // bugbug: batch good?
+    gsl::copy(sequence_source, batch_output);
+  }
 
   return status;
 }

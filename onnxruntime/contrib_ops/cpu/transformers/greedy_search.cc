@@ -156,6 +156,8 @@ Status GreedySearch::Compute(OpKernelContext* ctx) const {
 
   //   return impl.Execute(*encoder_feeds_fetches_manager_, *decoder_feeds_fetches_manager_);
   // }
+
+  return Status::OK();
 }
 
 }  // namespace transformers
