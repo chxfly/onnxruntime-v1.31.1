@@ -27,18 +27,94 @@ enum OrderCublasLt {
 
 // generate random data without precision loss if quantized.
 template <typename T>
-static std::vector<T> GenData(std::vector<int64_t> const& shape, float scale) {
+static std::vector<T> GenData(std::vector<int64_t> const& shape, float scale,
+                              float min = -128.0, float max = 127.0) {
   int64_t n = std::accumulate(shape.begin(), shape.end(), 1LL, std::multiplies<int64_t>());
 
   scale = std::is_same<T, int8_t>::value ? 1.0f : scale;  // using scale = 1.0f to generate int8_t data,
   std::vector<T> r(n);
   RandomValueGenerator random{};
-  std::vector<int> tmp = random.Uniform<int32_t>(shape, -128, 127);
+  std::vector<int> tmp = random.Uniform<int32_t>(shape, static_cast<int>(min), static_cast<int>(max));
   for (int64_t i = 0; i < n; i++) {
     r[i] = static_cast<T>(tmp[i] * scale);
   }
   return r;
 }
+
+template <>
+std::vector<float> GenData(std::vector<int64_t> const& shape, float scale,
+                              float min, float max) {
+  int64_t n = std::accumulate(shape.begin(), shape.end(), 1LL, std::multiplies<int64_t>());
+
+  ORT_IGNORE_RETURN_VALUE(scale);
+  std::vector<float> r(n);
+  RandomValueGenerator random{};
+  return random.Uniform<float>(shape, static_cast<float>(min), static_cast<float>(max));
+}
+
+template <>
+std::vector<MLFloat16> GenData(std::vector<int64_t> const& shape, float scale,
+                              float min, float max) {
+  int64_t n = std::accumulate(shape.begin(), shape.end(), 1LL, std::multiplies<int64_t>());
+
+  ORT_IGNORE_RETURN_VALUE(scale);
+  std::vector<MLFloat16> r(n);
+  RandomValueGenerator random{};
+  auto float_data =  random.Uniform<float>(shape, static_cast<float>(min), static_cast<float>(max));
+
+  std::vector<MLFloat16> fp16_data;
+  fp16_data.reserve(float_data.size());
+
+  for (auto e : float_data) {
+      fp16_data.emplace_back(e);
+  }
+
+  return fp16_data;
+}
+
+template <typename T>
+static std::vector<T> GenZerosData(std::vector<int64_t> const& shape) {
+  int64_t n = std::accumulate(shape.begin(), shape.end(), 1LL, std::multiplies<int64_t>());
+
+  std::vector<T> r(n);
+  for (int64_t i = 0; i < n; i++) {
+    r[i] = static_cast<T>(0.f);
+  }
+  return r;
+}
+
+template <typename T>
+static std::vector<T> GenOnesData(std::vector<int64_t> const& shape) {
+  int64_t n = std::accumulate(shape.begin(), shape.end(), 1LL, std::multiplies<int64_t>());
+
+  std::vector<T> r(n);
+  for (int64_t i = 0; i < n; i++) {
+    r[i] = static_cast<T>(1.f);
+  }
+  return r;
+}
+
+static std::vector<MLFloat16> CastFloatToFp16(const std::vector<float>& float_data) {
+    std::vector<MLFloat16> fp16_vector;
+    fp16_vector.reserve(float_data.size());
+
+    for (auto e : float_data) {
+        fp16_vector.emplace_back(e);
+    }
+
+    return fp16_vector;
+}
+
+// static std::vector<float> CastFp16ToFloat(const std::vector<MLFloat16>& fp16_vector) {
+//     std::vector<float> float_data;
+//     float_data.reserve(fp16_vector.size());
+
+//     for (const auto& e : fp16_vector) {
+//         float_data.emplace_back(e.ToFloat());
+//     }
+
+//     return float_data;
+// }
 
 class OrderedIndex {
   OrderCublasLt order_;
@@ -639,7 +715,7 @@ RunQOrdered_Gelu_Test(std::vector<int64_t> const& shape, float scale_X, float sc
   for (int64_t i = 0; i < N; i++) {
     float x = scale_X * (float)vecX[i];
     float r = (x * (0.5f * (1.0f + std::erff(x / sqrt_of_2)))) / scale_Y;
-    int8_t q = static_cast<int8_t>((int)std::nearbyintf(std::min(127.0f, std::max(-128.0f, r)))); 
+    int8_t q = static_cast<int8_t>((int)std::nearbyintf(std::min(127.0f, std::max(-128.0f, r))));
     vecY[i] = q;
   }
 
@@ -659,6 +735,161 @@ RunQOrdered_Gelu_Test(std::vector<int64_t> const& shape, float scale_X, float sc
 TEST(QOrderedTest, Gelu_3x11x12) {
   RunQOrdered_Gelu_Test({3, 11, 12}, 1.0f / 32.0f, 1.0f/128.0f, ORDER_COL32);
   RunQOrdered_Gelu_Test({3, 11, 12}, 1.0f / 32.0f, 1.0f/128.0f, ORDER_ROW);
+}
+
+static void QuantizeAndFindScale(const std::vector<MLFloat16>& data, std::vector<int8_t>& quantized_data, float& scale) {
+    float max = std::abs(data[0].ToFloat());
+
+    for (const auto& e : data) {
+        auto val = std::abs(e.ToFloat());
+
+        if (val  > max) {
+            max = e;
+        }
+    }
+
+    scale = (max * 2.f) / 255.f;
+
+    quantized_data.reserve(data.size());
+
+    for(const auto& e : data) {
+
+        float val = e.ToFloat() / scale;
+        val = std::max(-128.0f, val);
+        val = std::min(127.0f, val);
+        quantized_data.push_back(static_cast<int8_t>(std::round(val)));
+    }
+
+}
+
+static void QKVGemmScale(MLFloat16* mat_A, MLFloat16* mat_B, int64_t batch,
+                         int64_t sequence, int64_t hidden, float& scale) {
+
+    // Do the MatMul and along the way compute the max value needed to get the scale
+    float max = 0;
+
+    for (int64_t b = 0; b < batch; ++b) {
+        int64_t base_offset = b * sequence * hidden;
+
+        for (int64_t i = 0; i < sequence; ++i) {
+            for (int64_t j = 0; j < 3 * hidden; ++j) {
+                float sum = 0;
+
+                for (int64_t k = 0; k < hidden; ++k) {
+                    sum += (mat_A[base_offset + i * hidden + k].ToFloat() * mat_B[k * 3 * hidden + j].ToFloat());
+                }
+
+                auto abs_sum = std::abs(sum);
+                if (abs_sum > max) {
+                    max = abs_sum;
+                }
+            }
+
+        }
+    }
+
+    scale = (max * 2.f) / 255.f;
+
+}
+TEST(QOrderedTest, QOrderedAttention) {
+    OpTester test_qorder("QOrderedAttention", 1, onnxruntime::kMSDomain);
+
+    test_qorder.AddAttribute("num_heads", (int64_t)2);
+    test_qorder.AddAttribute("unidirectional", (int64_t)0);
+    test_qorder.AddAttribute("order_input", (int64_t)1);
+    test_qorder.AddAttribute("order_output", (int64_t)1);
+    test_qorder.AddAttribute("order_weight", (int64_t)0);
+    test_qorder.AddAttribute("order_bias", (int64_t)1);
+
+    int64_t batch = 1;
+    int64_t sequence = 4;
+    int64_t hidden = 32;
+
+    int64_t size = batch * sequence * hidden;
+
+    // Input
+    std::vector<MLFloat16> input_data = GenData<MLFloat16>({batch, sequence, hidden}, 1.f, -0.5, 0.5);
+    std::vector<int8_t> input;
+    float input_scale;
+
+    QuantizeAndFindScale(input_data, input, input_scale);
+
+    test_qorder.AddInput<int8_t>("input", {batch, sequence, hidden}, input);
+
+    test_qorder.AddInput<float>("scale_input", {1}, {input_scale});
+
+    // Weight
+    std::vector<MLFloat16> weight_data = GenData<MLFloat16>({hidden, hidden * 3}, 1.f, -0.2, 0.2);
+
+    std::vector<int8_t> weight;
+    float weight_scale;
+
+    QuantizeAndFindScale(weight_data, weight, weight_scale);
+
+    auto weight_reordered = Reorder({hidden, hidden * 3}, weight, ORDER_ROW, ORDER_COL);
+
+    test_qorder.AddInput<int8_t>("weight", {hidden, hidden * 3}, weight_reordered);
+
+    test_qorder.AddInput<float>("scale_weight", {1}, {weight_scale});
+
+    // Bias
+    std::vector<float> bias;
+    bias.resize(3 * hidden, 0.f);
+    test_qorder.AddInput<float>("bias", {hidden * 3}, bias);
+    test_qorder.AddInput<float>("scale_bias", {1}, {1.f}); // Not used anyway
+
+    // QKV Gemm scale
+    float qkv_gemm_scale = 0.1f;
+    QKVGemmScale(input_data.data(), weight_data.data(), batch, sequence, hidden, qkv_gemm_scale);
+    test_qorder.AddInput<float>("scale_gemm", {1}, {qkv_gemm_scale});
+
+    // Mask
+    std::vector<int32_t> mask = GenOnesData<int32_t>({batch, sequence});
+    test_qorder.AddInput<int32_t>("mask", {batch, sequence}, mask);
+
+    // Non-quantized model
+    // inputs=['input', 'weight', 'bias', 'mask_float32', 'global_weight', 'global_bias', 'global'],
+
+    OpTester test_nonq("Attention", 1, onnxruntime::kMSDomain);
+    test_nonq.AddAttribute("num_heads", (int64_t)2);
+    test_nonq.AddAttribute("unidirectional", (int64_t)0);
+    test_nonq.AddInput<MLFloat16>("input", {batch, sequence, hidden}, input_data);
+    test_nonq.AddInput<MLFloat16>("weight", {hidden, 3 * hidden}, weight_data);
+    test_nonq.AddInput<MLFloat16>("bias", {3 * hidden}, CastFloatToFp16(bias));
+    test_nonq.AddInput<int32_t>("mask", {batch, sequence}, mask);
+
+    std::vector<MLFloat16> dummy_output(size, MLFloat16(0.f));
+    test_nonq.AddOutput<MLFloat16>("output", {batch, sequence, hidden},
+                                  dummy_output, false, 0.0f, 0.0f /* abs error */);
+
+    std::vector<OrtValue> non_quantized_fetches;
+    test_nonq.Run(non_quantized_fetches, DefaultCudaExecutionProvider());
+
+    const MLFloat16* raw_out_data = non_quantized_fetches[0].GetMutable<Tensor>()->Data<MLFloat16>();
+
+    // Output of the quantized model
+    std::vector<MLFloat16> output_data;
+    for (int64_t i = 0; i < size; ++i) {
+        output_data.push_back(raw_out_data[i]);
+    }
+
+    std::vector<int8_t> output;
+    float output_scale;
+
+    QuantizeAndFindScale(output_data, output, output_scale);
+
+    test_qorder.AddInput<float>("scale_output", {1}, {output_scale});
+
+    test_qorder.AddOutput<int8_t>("output", {batch, sequence, hidden},
+        output, false, 0.1f, 0.1f /* abs error */);
+
+    // Run the quantized model
+
+    std::vector<std::unique_ptr<IExecutionProvider>> execution_providers;
+    execution_providers.push_back(DefaultCudaExecutionProvider());
+
+    test_qorder.Run(OpTester::ExpectResult::kExpectSuccess, "", {}, nullptr, &execution_providers);
+
 }
 
 }  // namespace test
