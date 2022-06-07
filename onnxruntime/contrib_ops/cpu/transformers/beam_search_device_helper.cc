@@ -163,6 +163,20 @@ void InitBeamState(transformers::IBeamSearchState<T>* beam_state,
 }
 
 template <typename T>
+void InitGreedyState(transformers::IGreedySearchState<T>* greedy_state,
+                     gsl::span<int32_t>& sequence_lengths,
+                     int, /*batch_size*/
+                     void* /*stream*/) {
+
+  memset(greedy_state->next_token_logits.data(), 0, greedy_state->next_token_logits.size_bytes());
+  memset(greedy_state->next_token_scores.data(), 0, greedy_state->next_token_scores.size_bytes());
+  memset(greedy_state->next_tokens.data(), 0, greedy_state->next_tokens.size_bytes());
+  memset(greedy_state->next_positions.data(), 0, greedy_state->next_positions.size_bytes());
+
+  gsl::copy(sequence_lengths, greedy_state->next_positions);
+}
+
+template <typename T>
 Status ProcessLogits(const OrtValue& logits,                                 // logits output of subgraph
                      transformers::IBeamSearchState<T>* beam_state,          // state
                      transformers::IBeamSearchCpuState* cpu_state,           // state in CPU
@@ -681,6 +695,12 @@ template void InitBeamState<float>(
     gsl::span<int32_t>& sequence_lengths,
     int batch_size,
     int num_beams,
+    void* stream);
+
+template void InitGreedyState<float>(
+    transformers::IGreedySearchState<float>* greedy_state,
+    gsl::span<int32_t>& sequence_lengths,
+    int batch_size,
     void* stream);
 
 template Status ProcessLogits<float>(

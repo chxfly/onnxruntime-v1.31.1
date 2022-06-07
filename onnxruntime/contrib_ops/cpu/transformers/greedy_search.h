@@ -48,12 +48,16 @@ class GreedySearch : public IControlFlowKernel {
       const BeamSearchDeviceHelper::TopkFunc& topk_func,
       const BeamSearchDeviceHelper::DeviceCopyFunc<float>& device_copy_func,
       const BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<float>& process_logits_func,
-      const BeamSearchDeviceHelper::ProcessLogitsFunc<MLFloat16>& process_logits_fp16_func) {
+      const BeamSearchDeviceHelper::ProcessLogitsFunc<MLFloat16>& process_logits_fp16_func,
+      const BeamSearchDeviceHelper::InitGreedyStateFunc<float>& init_greedy_state_func,
+      const BeamSearchDeviceHelper::InitBeamStateFunc<MLFloat16>& init_beam_state_fp16_func) {
     add_to_feeds_func_ = add_to_feeds_func;
     topk_func_ = topk_func;
     device_copy_func_ = device_copy_func;
     process_logits_func_ = process_logits_func;
     process_logits_fp16_func_ = process_logits_fp16_func;
+    init_greedy_state_func_ = init_greedy_state_func;
+    init_beam_state_fp16_func_ = init_beam_state_fp16_func;
   }
 
   // device helpers for GPT model
@@ -89,7 +93,10 @@ class GreedySearch : public IControlFlowKernel {
   BeamSearchDeviceHelper::DeviceCopyFunc<float> device_copy_func_;
 
   BeamSearchDeviceHelper::GreedySearchProcessLogitsFunc<float> process_logits_func_;
-  BeamSearchDeviceHelper::ProcessLogitsFunc<MLFloat16> process_logits_fp16_func_;
+  BeamSearchDeviceHelper::ProcessLogitsFunc<MLFloat16> process_logits_fp16_func_; //todo
+
+  BeamSearchDeviceHelper::InitGreedyStateFunc<float> init_greedy_state_func_;
+  BeamSearchDeviceHelper::InitBeamStateFunc<MLFloat16> init_beam_state_fp16_func_; //todo
 
   //------------------------------------------------------------
   // Device specific functions for GPT

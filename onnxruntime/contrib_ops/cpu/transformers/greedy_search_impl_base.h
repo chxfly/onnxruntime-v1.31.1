@@ -48,6 +48,8 @@ struct GreedySearchState : public IGreedySearchState<T> {
     this->eos_meet = AllocateBuffer<bool>(cpu_allocator, eos_meet_buffer_, batch_size);
     memset(this->eos_meet.data(), 0, this->eos_meet.size_bytes());
 
+    this->next_positions = AllocateBuffer<int32_t>(cpu_allocator, next_positions_buffer_, batch_size);
+
     // below buffers are on cpu or cuda
     size_t next_token_size = SafeInt<size_t>(batch_size) * vocab_size;
     this->next_token_logits = AllocateBuffer<T>(allocator, next_token_logits_buffer_, next_token_size);
@@ -69,12 +71,22 @@ struct GreedySearchState : public IGreedySearchState<T> {
     }
   }
 
+  void SetSequence(gsl::span<const int32_t> input_ids_in_cpu, size_t batch_beam_size, int max_length, int sequence_length) {
+    gsl::span<int32_t> sequences_0 = this->sequences_space;
+    for (size_t i = 0; i < batch_beam_size; i++) {
+      for (int j = 0; j < sequence_length; j++) {
+        sequences_0[SafeInt<gsl::index>(i) * max_length + j] = static_cast<int32_t>(input_ids_in_cpu[SafeInt<gsl::index>(i) * sequence_length + j]);
+      }
+    }
+  }
+
  private:
   BufferUniquePtr sequences_space_buffer_;
   BufferUniquePtr sequence_lengths_buffer_;
   BufferUniquePtr next_token_logits_buffer_;
   BufferUniquePtr next_token_scores_buffer_;
   BufferUniquePtr next_tokens_buffer_;
+  BufferUniquePtr next_positions_buffer_;
   BufferUniquePtr eos_meet_buffer_;
 };
 

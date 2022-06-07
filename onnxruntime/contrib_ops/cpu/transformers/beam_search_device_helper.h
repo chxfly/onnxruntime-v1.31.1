@@ -64,6 +64,13 @@ using InitBeamStateFunc = std::function<void(
     void* stream)>;
 
 template <typename T>
+using InitGreedyStateFunc = std::function<void(
+    transformers::IGreedySearchState<T>* greedy_state,
+    gsl::span<int32_t>& sequence_lengths,
+    int batch_size,
+    void* stream)>;
+
+template <typename T>
 using ProcessLogitsFunc = std::function<Status(
     const OrtValue& logits,                                 // logits output of subgraph
     transformers::IBeamSearchState<T>* beam_state,          // state
@@ -189,6 +196,12 @@ void InitBeamState(transformers::IBeamSearchState<T>* beam_state,
                    int batch_size,
                    int num_beams,
                    void* stream);
+
+template <typename T>
+void InitGreedyState(transformers::IGreedySearchState<T>* greedy_state,
+                     gsl::span<int32_t>& sequence_lengths,
+                     int batch_size,
+                     void* stream);
 
 template <typename T>
 Status ProcessLogits(const OrtValue& logits,                                 // logits output of subgraph
