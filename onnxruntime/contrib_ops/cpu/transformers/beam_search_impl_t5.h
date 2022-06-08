@@ -175,6 +175,7 @@ Status BeamSearchT5<T>::Execute(const FeedsFetchesManager& encoder_feeds_fetches
     iteration_counter++;
 #ifdef DEBUG_BEAM_SEARCH
     auto cur_len = std::to_string(current_length);
+    const IConsoleDumper* dumper = this->GetConsoleDumper();
     dumper->Print("***CurrentLength", cur_len, true);
 #endif
 

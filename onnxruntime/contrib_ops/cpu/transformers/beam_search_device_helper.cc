@@ -368,7 +368,7 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
 
 #ifdef DEBUG_BEAM_SEARCH
   dumper->Print("logits", logits);
-  dumper->Print("next_token_logits", next_token_logits.data(), batch_size, num_beams, vocab_size);
+  dumper->Print("next_token_logits", next_token_logits.data(), batch_size, 1, vocab_size);
 #endif
 
   // Get scores for candidates of next token: next_token_scores = log_softmax(next_token_logits, dim=-1)
@@ -378,7 +378,7 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
   logits_processors->Process(sequences, next_token_scores, step);
 
 #ifdef DEBUG_BEAM_SEARCH
-  dumper->Print("next_token_scores after logits processor", next_token_scores.data(), batch_size, num_beams, vocab_size);
+  dumper->Print("next_token_scores after logits processor", next_token_scores.data(), batch_size, 1, vocab_size);
 #endif
 
   ORT_UNUSED_PARAMETER(output_scores);

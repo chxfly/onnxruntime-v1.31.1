@@ -133,7 +133,7 @@ Status GreedySearchGpt<T>::Execute(const FeedsFetchesManager& feeds_fetches_mana
   greedy_state.SetSequence(input_ids, static_cast<size_t>(parameters->BatchBeamSize()), parameters->max_length, parameters->sequence_length);
 
 #ifdef DEBUG_BEAM_SEARCH
-  const IConsoleDumper* dumper = GetConsoleDumper();
+  const IConsoleDumper* dumper = this->GetConsoleDumper();
   dumper->Print("input_ids", feeds[0]);
   dumper->Print("position_ids", feeds[1]);
   dumper->Print("attention_mask", feeds[2]);
