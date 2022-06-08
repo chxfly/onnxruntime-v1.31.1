@@ -717,6 +717,18 @@ template Status ProcessLogits<float>(
     void* stream,
     const transformers::IConsoleDumper* dumper);
 
+template Status GreedySearchProcessLogits<float>(
+    const OrtValue& logits,
+    transformers::IGreedySearchState<float>* greedy_state,
+    transformers::ISequences* sequences,
+    AllocatorPtr& allocator,
+    onnxruntime::concurrency::ThreadPool* thread_pool,
+    transformers::ILogitsProcessorList* logits_processors,
+    const transformers::IBeamSearchParameters* parameters,
+    int step,
+    void* stream,
+    const transformers::IConsoleDumper* dumper);
+
 template Status DeviceCopy<float>(
     gsl::span<float> target,
     gsl::span<const float> source,

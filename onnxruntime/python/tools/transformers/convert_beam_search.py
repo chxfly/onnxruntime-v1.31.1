@@ -7,10 +7,14 @@ This converts GPT2 or T5 model to onnx with beam search operator.
 
 Example 1: convert gpt2 model with beam search:
    python convert_beam_search.py -m gpt2 --decoder_onnx .\onnx_models\gpt2_past_fp32.onnx --output .\onnx_models\gpt2_beam_search.onnx --output_sequences_scores
-   
+
 Example 2: convert T5 model with beam search:
    python ./models/t5/convert_to_onnx.py -m t5-small -s
    python convert_beam_search.py -m t5-small --model_type t5 --decoder_onnx ./onnx_models/t5-small_decoder.onnx --encoder_decoder_init_onnx ./onnx_models/t5-small_encoder_decoder_init.onnx --output ./onnx_models/t5_small_beam_search.onnx
+
+Example 3: convert gpt2 model with greedy search
+   python convert_beam_search.py -m gpt2 --decoder_onnx ./onnx_models/gpt2_past_fp32.onnx --output ./onnx_models/gpt2_greedy_search.onnx --num_beams 1
+
 """
 
 import argparse
@@ -500,6 +504,154 @@ def convert_model(args):
     onnx.save(new_model, args.output)
 
 
+def convert_greedy_search_model(args):
+    if os.path.exists(args.decoder_onnx):
+        print(f"skip convert_to_onnx since path existed: {args.decoder_onnx}")
+    else:
+        assert args.model_type == "gpt2", "please have onnx model ready for model type that is not gpt2"
+        gpt2_to_onnx(args)
+
+    # TODO: fix shape inference for T5. Currently symbolic shape inference on T5 is broken.
+    enable_shape_inference = args.model_type == "gpt2"
+
+    if enable_shape_inference:
+        print(f"Run symbolic shape inference on {args.decoder_onnx}. The file will be overwritten.")
+        shape_inference(args.decoder_onnx)
+
+    global config
+    if args.model_type == "gpt2":
+        config = GPT2Config.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
+    else:
+        config = T5Config.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
+    print(config)
+
+    eos_token_id = config.eos_token_id
+    pad_token_id = config.eos_token_id
+    vocab_size = config.vocab_size
+
+    # if vocab_size is given in parameters use that.
+    if args.vocab_size != -1:
+        vocab_size = args.vocab_size
+
+    model = onnx.load(args.decoder_onnx)
+    model.graph.name = f"{args.model_type} decoder subgraph"
+
+    if args.model_type == "gpt2":
+        verify_gpt2_subgraph(model.graph, args.precision)
+    else:
+        verify_t5_decoder_subgraph(model.graph, args.precision)
+
+    inputs = [
+        "input_ids",
+        "max_length",
+        "min_length",
+        "repetition_penalty",
+    ]
+    # if args.prefix_vocab_mask:
+    #     inputs.append("prefix_vocab_mask")
+
+    outputs = ["sequences"]
+    # if args.output_sequences_scores:
+    #     outputs.append("sequences_scores")
+
+    # if args.output_token_scores:
+    #     assert args.output_sequences_scores, "--output_token_scores requires --output_sequences_scores"
+    #     outputs.append("scores")
+
+    node = helper.make_node(
+        "GreedySearch",
+        inputs=inputs,
+        outputs=outputs,
+        name=f"GreedySearch_{args.model_type}",
+    )
+    node.domain = "com.microsoft"
+    node.attribute.extend(
+        [
+            helper.make_attribute("eos_token_id", eos_token_id),
+            helper.make_attribute("pad_token_id", pad_token_id),
+            helper.make_attribute("model_type", 0 if args.model_type == "gpt2" else 1),
+            helper.make_attribute("decoder", model.graph),
+        ]
+    )
+
+    if args.model_type == "t5":
+        if enable_shape_inference:
+            print(f"Run symbolic shape inference on {args.encoder_decoder_init_onnx}. The file will be overwritten.")
+            shape_inference(args.encoder_decoder_init_onnx)
+        init_model = onnx.load(args.encoder_decoder_init_onnx)
+        init_model.graph.name = f"{args.model_type} encoder decoder init subgraph"
+        verify_t5_encoder_decoder_init_subgraph(init_model.graph, args.precision)
+        node.attribute.extend(
+            [
+                helper.make_attribute("encoder_decoder_init", init_model.graph),
+            ]
+        )
+
+    from onnx import TensorProto
+
+    # graph inputs
+    input_ids = helper.make_tensor_value_info("input_ids", TensorProto.INT32, ["batch_size", "sequence_length"])
+    max_length = helper.make_tensor_value_info("max_length", TensorProto.INT32, [1])
+    min_length = helper.make_tensor_value_info("min_length", TensorProto.INT32, [1])
+    repetition_penalty = helper.make_tensor_value_info("repetition_penalty", TensorProto.FLOAT, [1])
+
+    graph_inputs = [
+        input_ids,
+        max_length,
+        min_length,
+        repetition_penalty,
+    ]
+
+    # if args.prefix_vocab_mask:
+    #     prefix_vocab_mask = helper.make_tensor_value_info(
+    #         "prefix_vocab_mask", TensorProto.INT32, ["batch_size", vocab_size]
+    #     )
+    #     graph_inputs.append(prefix_vocab_mask)
+
+    # graph outputs
+    sequences = helper.make_tensor_value_info(
+        "sequences",
+        TensorProto.INT32,
+        ["batch_size", "num_return_sequences", "max_length"],
+    )
+
+    # sequences_scores = helper.make_tensor_value_info(
+    #     "sequences_scores", TensorProto.FLOAT, ["batch_size", "num_return_sequences"]
+    # )
+
+    # scores = helper.make_tensor_value_info(
+    #     "scores",
+    #     TensorProto.FLOAT,
+    #     ["max_length - sequence_length", "batch_size", "num_beams", vocab_size],
+    # )
+
+    initializers = []
+
+    graph_outputs = [sequences]
+
+    # if args.output_sequences_scores:
+    #     graph_outputs.append(sequences_scores)
+
+    # if args.output_token_scores:
+    #     graph_outputs.append(scores)
+
+    new_graph = helper.make_graph(
+        [node],
+        f"{args.model_type}-greedy-search",
+        graph_inputs,
+        graph_outputs,
+        initializers,
+    )
+
+    # Create the model
+    new_model = helper.make_model(
+        new_graph,
+        producer_name="onnxruntime.transformers",
+        opset_imports=model.opset_import,
+    )
+    onnx.save(new_model, args.output)
+
+
 def test_torch_performance(args, model, input_ids, attention_mask, eos_token_id, pad_token_id, bad_words_ids):
     if args.use_gpu and not torch.cuda.is_available():
         logger.error("Please install PyTorch with Cuda, and use a machine with GPU for testing gpu performance.")
@@ -732,7 +884,10 @@ def main(argv=None, sentences=None):
     if os.path.exists(args.output):
         print(f"skip conversion since path existed: {args.output}")
     else:
-        convert_model(args)
+        if args.num_beams ==1 and args.num_return_sequences == 1:
+            convert_greedy_search_model(args)
+        else:
+            convert_model(args)
 
     return test_model(args, use_vocab_mask=True, sentences=sentences)
 
