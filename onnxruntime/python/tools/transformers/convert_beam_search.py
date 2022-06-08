@@ -282,7 +282,7 @@ def create_ort_session(model_path, use_gpu):
         else:
             print("use CUDAExecutionProvider")
 
-    ort_session = InferenceSession(model_path, sess_options, providers=execution_providers)
+    ort_session = InferenceSession(model_path, sess_options, providers=["CPUExecutionProvider"])
     return ort_session
 
 
@@ -559,7 +559,7 @@ def convert_greedy_search_model(args):
     #     outputs.append("scores")
 
     node = helper.make_node(
-        "GreedySearch",
+        "greedySearch",
         inputs=inputs,
         outputs=outputs,
         name=f"GreedySearch_{args.model_type}",

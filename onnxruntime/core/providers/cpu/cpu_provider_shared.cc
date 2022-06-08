@@ -173,6 +173,10 @@ struct ProviderHostCPUImpl : ProviderHostCPU {
   void BeamSearch__Init(contrib::transformers::BeamSearch* p, const OpKernelInfo& info) override { p->contrib::transformers::BeamSearch::Init(info); }
   virtual Status BeamSearch__Compute(const contrib::transformers::BeamSearch* p, OpKernelContext* ctx) { return p->contrib::transformers::BeamSearch::Compute(ctx); }
   virtual Status BeamSearch__SetupSubgraphExecutionInfo(contrib::transformers::BeamSearch* p, const SessionState& session_state, const std::string& attribute_name, const SessionState& subgraph_session_state) override { return p->contrib::transformers::BeamSearch::SetupSubgraphExecutionInfo(session_state, attribute_name, subgraph_session_state); }
+
+  // void GreedySearch__Init(contrib::transformers::GreedySearch* p, const OpKernelInfo& info) override { p->contrib::transformers::GreedySearch::Init(info); }
+  // virtual Status GreedySearch__Compute(const contrib::transformers::GreedySearch* p, OpKernelContext* ctx) { return p->contrib::transformers::GreedySearch::Compute(ctx); }
+  // virtual Status GreedySearch__SetupSubgraphExecutionInfo(contrib::transformers::GreedySearch* p, const SessionState& session_state, const std::string& attribute_name, const SessionState& subgraph_session_state) override { return p->contrib::transformers::GreedySearch::SetupSubgraphExecutionInfo(session_state, attribute_name, subgraph_session_state); }
 #endif
 
 #ifdef ENABLE_TRAINING
