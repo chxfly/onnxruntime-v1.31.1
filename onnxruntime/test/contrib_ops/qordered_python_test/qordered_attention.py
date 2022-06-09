@@ -11,7 +11,7 @@ seqlen = 4
 
 float_range = 0.5
 float_range_2 = 0.2
-float_range_3 = 0.0
+float_range_3 = 0.2
 
 # Generate well 'QATed' data
 #weight_array = numpy.random.uniform(-1 * float_range_2, float_range_2, [hidden_size, 3 * hidden_size])
@@ -76,7 +76,7 @@ def create_qordered_attention_graph(scale_input, scale_weight, scale_gemm, scale
 
     initializers = [
         numpy_helper.from_array(weight_array.astype('float32').reshape([hidden_size, 3 * hidden_size]), name='weight'),
-        numpy_helper.from_array(bias_array.astype('float32').reshape([3 * hidden_size]), name='bias'),
+        numpy_helper.from_array(bias_array.astype('float32').reshape([3 * hidden_size])/scale_gemm, name='bias'),
         numpy_helper.from_array(numpy.array(scale_input, dtype='float32'), name='scale_input'),
         numpy_helper.from_array(numpy.array(scale_weight, dtype='float32'), name='scale_weight'),
         numpy_helper.from_array(numpy.array(1, dtype='float32'), name='scale_bias'),
