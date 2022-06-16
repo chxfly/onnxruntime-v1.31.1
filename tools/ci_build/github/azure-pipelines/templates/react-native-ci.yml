@@ -52,6 +52,10 @@ jobs:
     inputs:
       versionSpec: '16.x'
 
+  - task: JavaToolInstaller@0
+    inputs:
+      versionSpec: '11'
+
   - script:
       brew install coreutils ninja npm yarn
     displayName: Install coreutils, ninja, npm, and yarn
