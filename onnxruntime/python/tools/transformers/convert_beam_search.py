@@ -788,21 +788,11 @@ def test_model(args, use_vocab_mask: bool = False, sentences: List[str] = None):
 
     ort_session = create_ort_session(args.output, args.use_gpu)
 
-    vocab_mask = np.ones((vocab_size), dtype=np.int32)
-    if use_vocab_mask:
-        for bad_word_id in bad_words_ids:
-            vocab_mask[bad_word_id] = 0
-
     inputs = {
         "input_ids": input_ids.cpu().numpy().astype(np.int32),
         "max_length": np.array([args.max_length], dtype=np.int32),
         "min_length": np.array([args.min_length], dtype=np.int32),
-        "num_beams": np.array([args.num_beams], dtype=np.int32),
-        "num_return_sequences": np.array([args.num_return_sequences], dtype=np.int32),
-        "temperature": np.array([args.temperature], dtype=np.float32),
-        "length_penalty": np.array([args.length_penalty], dtype=np.float32),
         "repetition_penalty": np.array([args.repetition_penalty], dtype=np.float32),
-        "vocab_mask": vocab_mask,
     }
 
     test_data_dir = Path(args.output).parent.as_posix()
@@ -835,13 +825,12 @@ def test_model(args, use_vocab_mask: bool = False, sentences: List[str] = None):
     if args.output_token_scores:
         print("scores", result[2])
 
-    (batch_size, num_sequences, max_length) = sequences.shape
+    (batch_size, max_length) = sequences.shape
     ort_decoded_sequences = []
     for i in range(batch_size):
-        for j in range(num_sequences):
-            decoded_sequence = tokenizer.decode(sequences[i][j], skip_special_tokens=True)
-            ort_decoded_sequences.append(decoded_sequence)
-            print(f"batch {i} sequence {j}: {decoded_sequence}")
+        decoded_sequence = tokenizer.decode(sequences[i], skip_special_tokens=True)
+        ort_decoded_sequences.append(decoded_sequence)
+        print(f"batch {i}: {decoded_sequence}")
 
     if not args.disable_parity:
         torch_sequences = beam_outputs.sequences.reshape(batch_size, args.num_return_sequences, -1)
@@ -877,19 +866,21 @@ def test_model(args, use_vocab_mask: bool = False, sentences: List[str] = None):
 
 
 def main(argv=None, sentences=None):
+    base = '/home/wy/onnxruntime-dev/wangye/greedysearch/onnxruntime/python/tools/transformers/'
+    argv = ["-m", "gpt2", "--decoder_onnx", base + "onnx_models/gpt2_past_fp32.onnx", "--output", base + "onnx_models/gpt2_greedy_search.onnx", "--num_beams", "1",]
     args = parse_arguments(argv)
-    if args.model_type == "t5":
-        assert args.encoder_decoder_init_onnx, "please export t5 to onnx models before using this tool"
+    # if args.model_type == "t5":
+    #     assert args.encoder_decoder_init_onnx, "please export t5 to onnx models before using this tool"
 
-    if os.path.exists(args.output):
-        print(f"skip conversion since path existed: {args.output}")
-    else:
-        if args.num_beams ==1 and args.num_return_sequences == 1:
-            convert_greedy_search_model(args)
-        else:
-            convert_model(args)
+    # if os.path.exists(args.output):
+    #     print(f"skip conversion since path existed: {args.output}")
+    # else:
+    #     if args.num_beams ==1 and args.num_return_sequences == 1:
+    #         convert_greedy_search_model(args)
+    #     else:
+    #         convert_model(args)
 
-    return test_model(args, use_vocab_mask=True, sentences=sentences)
+    return test_model(args, use_vocab_mask=False, sentences=sentences)
 
 
 if __name__ == "__main__":

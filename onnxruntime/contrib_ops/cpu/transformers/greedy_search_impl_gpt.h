@@ -100,8 +100,8 @@ Status GreedySearchGpt<T>::Execute(const FeedsFetchesManager& feeds_fetches_mana
   const GreedySearchParameters* parameters = this->parameters_;
 
   // Allocate output tensors.
-  int64_t sequences_dims[] = {parameters->batch_size, parameters->num_return_sequences, parameters->max_length};
-  TensorShape sequences_shape(&sequences_dims[0], sizeof(sequences_dims) / sizeof(sequences_dims[0]));
+  int64_t sequences_dims[] = {parameters->batch_size, parameters->max_length};
+  TensorShape sequences_shape(&sequences_dims[0], 2);
   Tensor* output_sequences = this->context_.Output(0, sequences_shape);
 
   std::vector<OrtValue> feeds;
@@ -188,17 +188,24 @@ Status GreedySearchGpt<T>::Execute(const FeedsFetchesManager& feeds_fetches_mana
     }
     fetches.clear();
   }
-
+  std::cout << "191" << std::endl;
   // Copy the sequences to output
   gsl::span<int32_t> output = output_sequences->MutableDataAsSpan<int32_t>();
   //gsl::span<int32_t>& sequence_lengths = greedy_state.sequence_lengths;
+  std::cout << "195" << std::endl;
   std::fill_n(output.data(), output.size(), parameters->pad_token_id);
+  std::cout << "197" << std::endl;
   for (int batch_id = 0; batch_id < parameters->batch_size; ++batch_id) {
     auto batch_output = output.subspan(batch_id * parameters->max_length,  parameters->max_length);
+    std::cout << "200" << std::endl;
     //int32_t sequence_length = sequence_lengths[batch_id];
     gsl::span<const int32_t> sequence_source = greedy_state.sequences.GetSequence(batch_id);
+    std::cout << "203" << std::endl;
+    std::cout << sequence_source[0] << std::endl;
+    std::cout << batch_output[0] << std::endl;
     // bugbug: batch good?
     gsl::copy(sequence_source, batch_output);
+    std::cout << "206" << std::endl;
   }
 
   return status;

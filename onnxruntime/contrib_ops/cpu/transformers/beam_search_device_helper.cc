@@ -355,24 +355,20 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
   // Get logits for the last token:
   //    next_token_logits = logits[:, -1, :], and the result shape is (batch_size, vocab_size)
   // When input_length == 1, use logits directly in SoftmaxCPU below so it only need for input_length > 1.
-  gsl::span<T>& next_token_logits = greedy_state->next_token_logits;
-  if (input_length > 1) {
-    const T* current_logits = logits_data + (input_length - 1) * vocab_size;
-    for (int i = 0; i < batch_size; i++) {
-      gsl::span<const T> source(current_logits, vocab_size);
-      gsl::span<T> target = next_token_logits.subspan(SafeInt<gsl::index>(i) * vocab_size, static_cast<gsl::index>(vocab_size));
-      gsl::copy(source, target);
-      current_logits += input_length * vocab_size;
-    }
+  gsl::span<T>& next_token_scores = greedy_state->next_token_scores;
+  const T* current_logits = logits_data + (input_length - 1) * vocab_size;
+  for (int i = 0; i < batch_size; i++) {
+    gsl::span<const T> source(current_logits, vocab_size);
+    gsl::span<T> target = next_token_scores.subspan(SafeInt<gsl::index>(i) * vocab_size, static_cast<gsl::index>(vocab_size));
+    gsl::copy(source, target);
+    current_logits += input_length * vocab_size;
   }
+
 
 #ifdef DEBUG_BEAM_SEARCH
   dumper->Print("logits", logits);
-  dumper->Print("next_token_logits", next_token_logits.data(), batch_size, 1, vocab_size);
+  dumper->Print("next_token_logits", next_token_scores.data(), batch_size, 1, vocab_size);
 #endif
-
-  // Get scores for candidates of next token: next_token_scores = log_softmax(next_token_logits, dim=-1)
-  gsl::span<T>& next_token_scores = greedy_state->next_token_scores;
 
   // Apply all score processors that updates scores
   logits_processors->Process(sequences, next_token_scores, step);
@@ -390,7 +386,7 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
 
   // next_tokens = torch.argmax(scores, dim=-1)
   int64_t next_token_scores_dims[] = {static_cast<int64_t>(batch_size), vocab_size};
-  TensorShape next_token_scores_shape(&next_token_scores_dims[0], 1);
+  TensorShape next_token_scores_shape(&next_token_scores_dims[0], 2);
   auto element_type = DataTypeImpl::GetType<T>();
   OrtValue next_token_scores_value;
   Tensor::InitOrtValue(element_type, next_token_scores_shape, next_token_scores.data(), allocator->Info(), next_token_scores_value);
@@ -404,7 +400,6 @@ Status GreedySearchProcessLogits(const OrtValue& logits,                        
   std::unique_ptr<Tensor> topk_scores;
   std::unique_ptr<Tensor> topk_indices;
   ORT_RETURN_IF_ERROR(TopK(&input, axis, top_k, largest, sorted, allocator, stream, thread_pool, topk_scores, topk_indices));
-
 #ifdef DEBUG_BEAM_SEARCH
   dumper->Print("topk_scores", *(topk_scores.get()));
   dumper->Print("topk_indices", *(topk_indices.get()));
