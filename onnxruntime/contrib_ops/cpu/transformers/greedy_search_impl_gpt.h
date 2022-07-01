@@ -145,6 +145,10 @@ Status GreedySearchGpt<T>::Execute(const FeedsFetchesManager& feeds_fetches_mana
   TensorShape shape(&dims[0], 2);
   Tensor::InitOrtValue(DataTypeImpl::GetType<int32_t>(), shape, greedy_state.next_positions.data(), this->temp_space_allocator_->Info(), position_ids); //bugbug: next_positions
 
+#ifdef DEBUG_BEAM_SEARCH
+  dumper->Print("very first position_ids",position_ids);
+#endif
+
   int current_length = parameters->sequence_length;
   int iteration_counter = 0;
   while (current_length < parameters->max_length) {
@@ -180,6 +184,10 @@ Status GreedySearchGpt<T>::Execute(const FeedsFetchesManager& feeds_fetches_mana
     // Increase sequence length after a new token is generated.
     ++current_length;
 
+#ifdef DEBUG_BEAM_SEARCH
+  dumper->Print("position_ids before updatefeeds",position_ids);
+#endif
+
     // Prepare inputs for next round of subgraph call.
     if (current_length < parameters->max_length) {
       ORT_RETURN_IF_ERROR(UpdateFeeds(fetches, feeds, current_length,
@@ -188,24 +196,20 @@ Status GreedySearchGpt<T>::Execute(const FeedsFetchesManager& feeds_fetches_mana
     }
     fetches.clear();
   }
-  std::cout << "191" << std::endl;
   // Copy the sequences to output
   gsl::span<int32_t> output = output_sequences->MutableDataAsSpan<int32_t>();
   //gsl::span<int32_t>& sequence_lengths = greedy_state.sequence_lengths;
-  std::cout << "195" << std::endl;
   std::fill_n(output.data(), output.size(), parameters->pad_token_id);
-  std::cout << "197" << std::endl;
+
   for (int batch_id = 0; batch_id < parameters->batch_size; ++batch_id) {
     auto batch_output = output.subspan(batch_id * parameters->max_length,  parameters->max_length);
-    std::cout << "200" << std::endl;
+
     //int32_t sequence_length = sequence_lengths[batch_id];
     gsl::span<const int32_t> sequence_source = greedy_state.sequences.GetSequence(batch_id);
-    std::cout << "203" << std::endl;
     std::cout << sequence_source[0] << std::endl;
     std::cout << batch_output[0] << std::endl;
-    // bugbug: batch good?
     gsl::copy(sequence_source, batch_output);
-    std::cout << "206" << std::endl;
+
   }
 
   return status;

@@ -165,7 +165,7 @@ void InitBeamState(transformers::IBeamSearchState<T>* beam_state,
 template <typename T>
 void InitGreedyState(transformers::IGreedySearchState<T>* greedy_state,
                      gsl::span<int32_t>& sequence_lengths,
-                     int, /*batch_size*/
+                     int batch_size,
                      void* /*stream*/) {
 
   memset(greedy_state->next_token_logits.data(), 0, greedy_state->next_token_logits.size_bytes());
@@ -173,7 +173,10 @@ void InitGreedyState(transformers::IGreedySearchState<T>* greedy_state,
   memset(greedy_state->next_tokens.data(), 0, greedy_state->next_tokens.size_bytes());
   memset(greedy_state->next_positions.data(), 0, greedy_state->next_positions.size_bytes());
 
-  gsl::copy(sequence_lengths, greedy_state->next_positions);
+  gsl::span<int32_t>& next_position = greedy_state->next_positions;
+  for (int i = 0; i < batch_size; i++) {
+    next_position[SafeInt<gsl::index>(i)] = sequence_lengths[i] - 1;
+  }
 }
 
 template <typename T>

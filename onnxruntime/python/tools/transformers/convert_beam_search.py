@@ -34,6 +34,7 @@ from onnx import onnx_pb as onnx_proto
 from packaging import version
 from transformers import GPT2Config, T5Config
 
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "models", "gpt2"))
 from convert_to_onnx import main as convert_gpt2_to_onnx
 from gpt2_helper import PRETRAINED_GPT2_MODELS
