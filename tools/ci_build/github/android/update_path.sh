@@ -8,6 +8,6 @@ find . -name "*$1" | while IFS= read -r pathname; do
     new_pathname=${pathname//$origin_repo/$current_repo}
     d1=$(dirname $new_pathname)
     if [ "$pathname" != "$new_pathname" ]; then
-        mkdir -p "$d1"  && mv $pathname $new_pathname
+        mkdir -p "$d1"  && cp $pathname $new_pathname
     fi
 done
