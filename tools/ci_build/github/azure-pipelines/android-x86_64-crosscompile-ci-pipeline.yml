@@ -1,7 +1,7 @@
 # Known Limits
 # 1. Anchors are not supported in GHA
 # https://github.community/t/support-for-yaml-anchors/16128/90
-# 2. today most cloud-based CI services are still lacking hardware acceleration support from the host VM, 
+# 2. today most cloud-based CI services are still lacking hardware acceleration support from the host VM,
 # which is the no.1 blocker for running tests on modern Android Emulators (especially on recent API levels) on CI.
 
 jobs:
@@ -103,7 +103,7 @@ jobs:
     inputs:
       pathToPublish: $(Build.ArtifactStagingDirectory)
       artifactName: NNAPIBuildOutput
-      
+
   - template: templates/clean-agent-build-directory-step.yml
 
 - job: Test_NNAPI_EP
@@ -114,7 +114,7 @@ jobs:
     clean: all
   dependsOn: Build_NNAPI_EP
   variables:
-    origin_repo: $[ dependencies.Build_NNAPI_EP.outputs['setvarStep.myOutputVar'] ]  
+    origin_repo: $[ dependencies.Build_NNAPI_EP.outputs['setvarStep.myOutputVar'] ]
   condition: and(succeeded(), notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'))
   steps:
     - script: echo $(origin_repo)
@@ -122,6 +122,7 @@ jobs:
 
     - script: |
         set -ex
+        sudo xcode-select --switch /Applications/Xcode_12.4.app/Contents/Developer
         clang --version
         gcc --version
         gcov --version
@@ -147,11 +148,11 @@ jobs:
     - script: |
         python3 tools/python/run_android_emulator.py \
         --android-sdk-root ${ANDROID_SDK_ROOT} \
-        --create-avd --system-image "system-images;android-30;google_apis;x86_64" \
+        --create-avd --system-image "system-images;android-29;google_apis;x86_64" \
         --start --emulator-extra-args="-partition-size 4096" \
         --emulator-pid-file $(Build.BinariesDirectory)/emulator.pid
       displayName: Start Android emulator
-      
+
     - script: |
         python3 tools/ci_build/build.py \
         --android \
@@ -193,5 +194,5 @@ jobs:
           --emulator-pid-file $(Build.BinariesDirectory)/emulator.pid
       displayName: Stop Android emulator
       condition: always()
-      
+
     - template: templates/clean-agent-build-directory-step.yml
