@@ -93,6 +93,12 @@ jobs:
       targetFolder: $(Build.ArtifactStagingDirectory)
       overWrite: true
 
+  - powershell: echo "##vso[task.setvariable variable=myOutputVar;isOutput=true]$(Build.SourcesDirectory)"
+    name: setvarStep
+
+  - script: echo $(setvarStep.myOutputVar)
+    name: echovar
+
   - task: PublishBuildArtifacts@1
     inputs:
       pathToPublish: $(Build.ArtifactStagingDirectory)
@@ -107,10 +113,18 @@ jobs:
   workspace:
     clean: all
   dependsOn: Build_NNAPI_EP
+  variables:
+    origin_repo: $[ dependencies.Build_NNAPI_EP.outputs['setvarStep.myOutputVar'] ]  
   condition: and(succeeded(), notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'))
   steps:
+    - script: echo $(origin_repo)
+      name: echovar
+
     - script: |
         set -ex
+        clang --version
+        gcc --version
+        gcov --version
         system_profiler SPSoftwareDataType SPHardwareDataType
       displayName: 'Mac Agent Info'
 
