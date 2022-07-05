@@ -136,6 +136,7 @@ jobs:
 
     - script: |
         /bin/bash tools/ci_build/github/android/update_path.sh ".gcno" $(origin_repo) $(Build.SourcesDirectory)
+        find . -name *.gcno
       displayName: Update gcno path
 
     - task: UsePythonVersion@0
