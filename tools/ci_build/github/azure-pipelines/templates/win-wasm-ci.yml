@@ -54,6 +54,10 @@ jobs:
      git submodule update --init --recursive
     workingDirectory: '$(Build.SourcesDirectory)'
     displayName: 'Checkout submodules'
+  - script: |
+      choco install sccache
+      sccache --version
+    displayName: 'Install Sccache'
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.7'
