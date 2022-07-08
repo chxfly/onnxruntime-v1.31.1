@@ -74,8 +74,8 @@ jobs:
     displayName: 'Install python modules'
   - script: |
       set -ex
-      choco install ccache
-      ccache --version
+      choco install sccache
+      sccache --version
     displayName: 'Install Ccache'
   - task: PythonScript@0
     displayName: 'Build and test'
@@ -84,10 +84,10 @@ jobs:
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm'
       workingDirectory: '$(Build.BinariesDirectory)'
     env:
-      EM_COMPILER_WRAPPER: ccache
+      EM_COMPILER_WRAPPER: sccache
   - script: |
-      ccache --show-stats
-      ccache --zero-stats
+      sccache --show-stats
+      sccache --stop-server
     displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (threads)'
@@ -96,10 +96,10 @@ jobs:
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
     env:
-      EM_COMPILER_WRAPPER: ccache
+      EM_COMPILER_WRAPPER: sccache
   - script: |
-      ccache --show-stats
-      ccache --zero-stats
+      sccache --show-stats
+      sccache --stop-server
     displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (simd + threads)'
@@ -108,10 +108,10 @@ jobs:
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_simd --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
     env:
-      EM_COMPILER_WRAPPER: ccache
+      EM_COMPILER_WRAPPER: sccache
   - script: |
-      ccache --show-stats
-      ccache --zero-stats
+      sccache --show-stats
+      sccache --stop-server
   - task: PythonScript@0
     displayName: 'Build and test (simd)'
     inputs:
