@@ -55,8 +55,11 @@ jobs:
     workingDirectory: '$(Build.SourcesDirectory)'
     displayName: 'Checkout submodules'
   - script: |
-      choco install sccache
+      choco install -y sccache
       sccache --version
+      which sccache
+      set CC=sccache-cl
+      set CXX=sccache-cl
     displayName: 'Install Sccache'
   - task: UsePythonVersion@0
     inputs:
