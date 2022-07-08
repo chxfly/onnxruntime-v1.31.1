@@ -54,16 +54,6 @@ jobs:
      git submodule update --init --recursive
     workingDirectory: '$(Build.SourcesDirectory)'
     displayName: 'Checkout submodules'
-  - script: |
-      set -ex
-      choco install -y sccache
-      sccache --version
-      which sccache
-      ls /c/ProgramData/chocolatey/
-      ls /c/ProgramData/chocolatey/tools/
-      C:\ProgramData\chocolatey\tools\shimgen.exe  -p C:\ProgramData\chocolatey\tools\bin\sccache.exe -c em++ -o C:\ProgramData\chocolatey\bin\sccache-cl.exe
-      where sccache-cl
-    displayName: 'Install Sccache'
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.7'
@@ -82,6 +72,11 @@ jobs:
      python -m pip install -q setuptools wheel numpy ninja
     workingDirectory: '$(Build.BinariesDirectory)'
     displayName: 'Install python modules'
+  - script: |
+      set -ex
+      choco install ccache
+      ccache --version
+    displayName: 'Install Ccache'
   - task: PythonScript@0
     displayName: 'Build and test'
     inputs:
@@ -89,11 +84,10 @@ jobs:
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm'
       workingDirectory: '$(Build.BinariesDirectory)'
     env:
-      CC: sccache-cl
-      CXX: sccache-cl
+      EM_COMPILER_WRAPPER: ccache
   - script: |
-      sccache --show-stats
-      sccache --stop-server
+      ccache --show-stats
+      ccache --zero-stats
     displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (threads)'
@@ -102,11 +96,10 @@ jobs:
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
     env:
-      CC: sccache-cl
-      CXX: sccache-cl
+      EM_COMPILER_WRAPPER: ccache
   - script: |
-        sccache --show-stats
-        sccache --stop-server
+      ccache --show-stats
+      ccache --zero-stats
     displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (simd + threads)'
@@ -115,17 +108,16 @@ jobs:
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_simd --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
     env:
-      CC: sccache-cl
-      CXX: sccache-cl
+      EM_COMPILER_WRAPPER: ccache
+  - script: |
+      ccache --show-stats
+      ccache --zero-stats
   - task: PythonScript@0
     displayName: 'Build and test (simd)'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_simd'
       workingDirectory: '$(Build.BinariesDirectory)'
-    env:
-      CC: sccache-cl
-      CXX: sccache-cl
   - ${{ if eq(parameters.SkipPublish, false) }}:
     - script: |
         copy $(Build.BinariesDirectory)\wasm\${{ parameters.BuildConfig }}\ort-wasm*.* $(Build.ArtifactStagingDirectory)
