@@ -92,10 +92,8 @@ jobs:
       CC: sccache-cl
       CXX: sccache-cl
   - script: |
-      if which sccache > /dev/null; then
-        sccache --show-stats
-        sccache --stop-server
-      fi
+      sccache --show-stats
+      sccache --stop-server
     displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (threads)'
@@ -107,10 +105,8 @@ jobs:
       CC: sccache-cl
       CXX: sccache-cl
   - script: |
-      if which sccache > /dev/null; then
         sccache --show-stats
         sccache --stop-server
-      fi
     displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (simd + threads)'
