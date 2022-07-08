@@ -55,12 +55,13 @@ jobs:
     workingDirectory: '$(Build.SourcesDirectory)'
     displayName: 'Checkout submodules'
   - script: |
+      set -ex
       choco install -y sccache
       sccache --version
       where sccache
       ls /c/ProgramData/chocolatey/
       ls /c/ProgramData/chocolatey/tools/
-      /c/ProgramData/chocolatey/tools/shimgen.exe  -p /c/ProgramData/chocolatey/bin/sccache.exe -c cl -o /c/ProgramData/chocolatey/bin/sccache-cl.exe
+      C:\ProgramData\chocolatey\tools\shimgen.exe  -p C:\ProgramData\chocolatey\tools\bin\sccache.exe -c cl -o C:\ProgramData\chocolatey\tools\bin\sccache-cl.exe
       which sccache-cl
     displayName: 'Install Sccache'
   - task: UsePythonVersion@0
