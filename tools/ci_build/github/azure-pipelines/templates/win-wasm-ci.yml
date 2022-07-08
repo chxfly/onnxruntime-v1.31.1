@@ -58,11 +58,11 @@ jobs:
       set -ex
       choco install -y sccache
       sccache --version
-      where sccache
+      which sccache
       ls /c/ProgramData/chocolatey/
       ls /c/ProgramData/chocolatey/tools/
-      C:\ProgramData\chocolatey\tools\shimgen.exe  -p C:\ProgramData\chocolatey\tools\bin\sccache.exe -c cl -o C:\ProgramData\chocolatey\tools\bin\sccache-cl.exe
-      which sccache-cl
+      C:\ProgramData\chocolatey\tools\shimgen.exe  -p C:\ProgramData\chocolatey\tools\bin\sccache.exe -c cl -o C:\ProgramData\chocolatey\bin\sccache-cl.exe
+      where sccache-cl
     displayName: 'Install Sccache'
   - task: UsePythonVersion@0
     inputs:
