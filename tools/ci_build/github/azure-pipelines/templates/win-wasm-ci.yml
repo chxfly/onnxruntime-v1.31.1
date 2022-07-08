@@ -58,8 +58,8 @@ jobs:
       choco install -y sccache
       sccache --version
       which sccache
-      set CC=sccache-cl
-      set CXX=sccache-cl
+      /c/ProgramData/Chocolatey/tools/shimgen.exe  -p /c/ProgramData/Chocolatey/bin/sccache.exe -c cl -o /c/ProgramData/Chocolatey/bin/sccache-cl.exe
+      which sccache-cl
     displayName: 'Install Sccache'
   - task: UsePythonVersion@0
     inputs:
@@ -85,24 +85,48 @@ jobs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm'
       workingDirectory: '$(Build.BinariesDirectory)'
+    env:
+      CC: sccache-cl
+      CXX: sccache-cl
+  - script: |
+      if which sccache > /dev/null; then
+        sccache --show-stats
+        sccache --stop-server
+      fi
+    displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (threads)'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
+    env:
+      CC: sccache-cl
+      CXX: sccache-cl
+  - script: |
+      if which sccache > /dev/null; then
+        sccache --show-stats
+        sccache --stop-server
+      fi
+    displayName: 'show Sccache stats'
   - task: PythonScript@0
     displayName: 'Build and test (simd + threads)'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_simd --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
+    env:
+      CC: sccache-cl
+      CXX: sccache-cl
   - task: PythonScript@0
     displayName: 'Build and test (simd)'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
       arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_simd'
       workingDirectory: '$(Build.BinariesDirectory)'
+    env:
+      CC: sccache-cl
+      CXX: sccache-cl
   - ${{ if eq(parameters.SkipPublish, false) }}:
     - script: |
         copy $(Build.BinariesDirectory)\wasm\${{ parameters.BuildConfig }}\ort-wasm*.* $(Build.ArtifactStagingDirectory)
