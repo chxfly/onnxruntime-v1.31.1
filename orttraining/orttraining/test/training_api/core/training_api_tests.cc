@@ -44,6 +44,10 @@ void GenerateRandomInput(gsl::span<const int64_t> dims, OrtValue& input) {
   std::vector<float> data(shape.Size());
   std::for_each(data.begin(), data.end(),
                 [&generator_float, &distribution_float](float& value) { value = distribution_float(generator_float); });
+  for (auto& num: data){
+    std::cout<<num <<",";
+  }
+  std::cout<<"\n";
   CreateInputOrtValue<float>(dims, data, &input);
 }
 
@@ -77,6 +81,12 @@ TEST(TrainingApiTest, ModuleTrainStep) {
     std::vector<OrtValue> fetches;
     ORT_ENFORCE(model->TrainStep(inputs, fetches).IsOK());
     ORT_ENFORCE(fetches.size() == 1);
+    std::vector<float> loss;
+    OrtValueToVec(fetches[0], loss);
+    for(auto& v:loss){
+      std::cout<<v<<",";
+    }
+    std::cout<<"\n";
     bias_grad = bias_param->Gradient();
 
     if (step > 1) {
@@ -151,6 +161,11 @@ TEST(TrainingApiTest, OptimStep) {
     std::vector<OrtValue>& inputs = *it;
     std::vector<OrtValue> fetches;
     ORT_ENFORCE(model->TrainStep(inputs, fetches).IsOK());
+    std::vector<float> loss;
+    OrtValueToVec(fetches[0], loss);
+    for(auto& v:loss){
+      std::cout<<v<<",";
+    }
     std::vector<float> grads;
     CudaOrtValueToCpuVec(model->NamedParameters().at(param_name)->Gradient(), grads,
                          cuda_provider, cpu_provider);
