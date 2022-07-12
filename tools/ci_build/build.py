@@ -2044,7 +2044,8 @@ def derive_linux_build_property():
 
 
 def build_nuget_package(
-    source_dir, build_dir, configs, use_cuda, use_openvino, use_tensorrt, use_dnnl, use_nuphar, use_tvm, use_winml
+    source_dir, build_dir, configs, use_cuda, use_openvino, use_tensorrt, use_dnnl, use_nuphar, use_tvm, use_winml,
+    enable_training_on_device
 ):
     if not (is_windows() or is_linux()):
         raise BuildError(
@@ -2063,7 +2064,12 @@ def build_nuget_package(
     target_name = "/t:CreatePackage"
     execution_provider = '/p:ExecutionProvider="None"'
     package_name = '/p:OrtPackageId="Microsoft.ML.OnnxRuntime"'
-    if use_winml:
+    if enable_training_on_device:
+        if use_cuda:
+            package_name = '/p:OrtPackageId="Microsoft.ML.OnnxRuntime.Training.Gpu"'
+        else:
+            package_name = '/p:OrtPackageId="Microsoft.ML.OnnxRuntime.Training"'
+    elif use_winml:
         package_name = '/p:OrtPackageId="Microsoft.AI.MachineLearning"'
         target_name = "/t:CreateWindowsAIPackage"
     elif use_openvino:
@@ -2120,15 +2126,11 @@ def build_nuget_package(
             ]
             run_subprocess(cmd_args, cwd=csharp_build_dir)
 
-        if is_windows():
-            if use_openvino:
-                # user needs to make sure nuget is installed and added to the path variable
-                nuget_exe = "nuget.exe"
-            else:
-                # this path is setup by cmake/nuget_helpers.cmake for MSVC on Windows
-                nuget_exe = os.path.normpath(os.path.join(native_dir, config, "nuget_exe", "src", "nuget.exe"))
+        if use_winml:
+            # this path is setup by cmake/nuget_helpers.cmake for MSVC on Windows
+            nuget_exe = os.path.normpath(os.path.join(native_dir, config, "nuget_exe", "src", "nuget.exe"))
         else:
-            # user needs to make sure nuget is installed and can be found
+            # user needs to make sure nuget is installed and added to PATH variable
             nuget_exe = "nuget"
 
         nuget_exe_arg = '/p:NugetExe="' + nuget_exe + '"'
@@ -2707,6 +2709,7 @@ def main():
                 args.use_nuphar,
                 args.use_tvm,
                 args.use_winml,
+                args.enable_training_on_device,
             )
 
     if args.test and args.build_nuget:

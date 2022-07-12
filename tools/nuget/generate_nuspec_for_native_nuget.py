@@ -149,10 +149,15 @@ def generate_description(list, package_name):
 
     if package_name == "Microsoft.AI.MachineLearning":
         description = "This package contains Windows ML binaries."
+    elif "Microsoft.ML.OnnxRuntime.Training" in package_name:  # This is a Microsoft.ML.OnnxRuntime.Training.* package
+        description = (
+            "This package contains native shared library artifacts " "for all supported platforms of ON-Device ORTTraining ."
+        )
     elif "Microsoft.ML.OnnxRuntime" in package_name:  # This is a Microsoft.ML.OnnxRuntime.* package
         description = (
             "This package contains native shared library artifacts " "for all supported platforms of ONNX Runtime."
         )
+
 
     list.append("<description>" + description + "</description>")
 
@@ -296,9 +301,9 @@ def generate_metadata(list, args):
 def generate_files(list, args):
     files_list = ["<files>"]
 
-    is_cpu_package = args.package_name in ["Microsoft.ML.OnnxRuntime", "Microsoft.ML.OnnxRuntime.OpenMP"]
+    is_cpu_package = args.package_name in ["Microsoft.ML.OnnxRuntime", "Microsoft.ML.OnnxRuntime.OpenMP", "Microsoft.ML.OnnxRuntime.Training"]
     is_mklml_package = args.package_name == "Microsoft.ML.OnnxRuntime.MKLML"
-    is_cuda_gpu_package = args.package_name == "Microsoft.ML.OnnxRuntime.Gpu"
+    is_cuda_gpu_package = args.package_name in ["Microsoft.ML.OnnxRuntime.Gpu", "Microsoft.ML.OnnxRuntime.Training.Gpu"]
     is_dml_package = args.package_name == "Microsoft.ML.OnnxRuntime.DirectML"
     is_windowsai_package = args.package_name == "Microsoft.AI.MachineLearning"
     is_snpe_package_win = args.package_name == "Microsoft.ML.OnnxRuntime.Snpe_Win"
@@ -325,6 +330,7 @@ def generate_files(list, args):
             "cuda_ep_shared_lib": "onnxruntime_providers_cuda.dll",
             "onnxruntime_perf_test": "onnxruntime_perf_test.exe",
             "onnx_test_runner": "onnx_test_runner.exe",
+            "onnxruntime_test_trainer": "onnxruntime_test_trainer.exe",
         }
 
         copy_command = "copy"
@@ -343,6 +349,7 @@ def generate_files(list, args):
             "cuda_ep_shared_lib": "libonnxruntime_providers_cuda.so",
             "onnxruntime_perf_test": "onnxruntime_perf_test",
             "onnx_test_runner": "onnx_test_runner",
+            "onnxruntime_test_trainer": "onnxruntime_test_trainer",
         }
 
         copy_command = "cp"
@@ -360,6 +367,12 @@ def generate_files(list, args):
         "<file src="
         + '"'
         + os.path.join(args.sources_path, "include\\onnxruntime\\core\\session\\onnxruntime_*.h")
+        + '" target="build\\native\\include" />'
+    )
+    files_list.append(
+        "<file src="
+        + '"'
+        + os.path.join(args.sources_path, "orttraining\\orttraining\\training_api\\include\\onnxruntime_training_c_api.h")
         + '" target="build\\native\\include" />'
     )
     files_list.append(
@@ -760,6 +773,19 @@ def generate_files(list, args):
                 "<file src="
                 + '"'
                 + os.path.join(args.native_build_path, nuget_dependencies["onnx_test_runner"])
+                + runtimes
+                + " />"
+            )
+
+        if (
+            args.is_release_build.lower() != "true"
+            and args.target_architecture == "x64"
+            and os.path.exists(os.path.join(args.native_build_path, nuget_dependencies["onnxruntime_test_trainer"]))
+        ):
+            files_list.append(
+                "<file src="
+                + '"'
+                + os.path.join(args.native_build_path, nuget_dependencies["onnxruntime_test_trainer"])
                 + runtimes
                 + " />"
             )
