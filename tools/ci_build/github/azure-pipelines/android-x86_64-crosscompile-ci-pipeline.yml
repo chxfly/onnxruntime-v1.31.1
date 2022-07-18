@@ -68,7 +68,9 @@ jobs:
   - task: CopyFiles@2
     displayName: Copy apks
     inputs:
-      contents: 'build_nnapi/**/*.apk'
+      contents: |
+        build_nnapi/Debug/*
+        build_nnapi/Debug/java/androidtest/android/**
       targetFolder: $(Build.ArtifactStagingDirectory)
       overWrite: true
 
@@ -162,6 +164,7 @@ jobs:
         --android_abi=x86_64 \
         --android_api=29 \
         --use_nnapi \
+        --build_java \
         --code_coverage \
         --test
       displayName: NNAPI EP, Test, CodeCoverage on Android Emulator
