@@ -8,7 +8,7 @@ jobs:
 - job: BUILD_NNAPI_EP
   pool:
     vmImage: 'macOS-11'
-  timeoutInMinutes: 90
+  timeoutInMinutes: 180
   workspace:
     clean: all
   steps:

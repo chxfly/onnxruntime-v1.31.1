@@ -57,9 +57,7 @@ def main():
     cmd.append(os.path.join(source_dir, "onnxruntime"))
     cmd.extend([".", "-o"])
     cmd.append(os.path.join(cwd, "coverage_rpt.txt"))
-    my_env =  os.environ.copy()
-    my_env["LOGLEVEL"]='DEBUG'
-    run_subprocess(cmd, cwd=os.path.join(cwd, "CMakeFiles"), env=my_env)
+    run_subprocess(cmd, cwd=os.path.join(cwd, "CMakeFiles"))
 
 
 if __name__ == "__main__":
