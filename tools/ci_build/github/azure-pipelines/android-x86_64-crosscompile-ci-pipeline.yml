@@ -82,6 +82,7 @@ jobs:
           sccache --show-stats
           sccache --stop-server
         fi
+
         python3 tools/ci_build/build.py \
           --android \
           --build_dir build_nnapi \
@@ -95,7 +96,8 @@ jobs:
           --cmake_generator=Ninja \
           --path_to_protoc_exe $(Build.SourcesDirectory)/protobuf_install/bin/protoc \
           --build_java \
-          --code_coverage \
+          --code_coverage
+
         if which sccache > /dev/null; then
           sccache --show-stats
           sccache --stop-server
