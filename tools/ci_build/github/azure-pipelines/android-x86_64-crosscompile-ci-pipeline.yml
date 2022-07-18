@@ -5,123 +5,13 @@
 # which is the no.1 blocker for running tests on modern Android Emulators (especially on recent API levels) on CI.
 
 jobs:
-- job: Build_NNAPI_EP
-  pool: Linux-CPU-2019
-  timeoutInMinutes: 30
-  workspace:
-    clean: all
-  condition: notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')
-  steps:
-  - task: UsePythonVersion@0
-    displayName: Use Python $(pythonVersion)
-    inputs:
-      versionSpec: $(pythonVersion)
-
-  - script: sudo apt-get update -y && sudo apt-get install -y coreutils ninja-build
-    displayName: Install coreutils and ninja
-
-  - script: /bin/bash tools/ci_build/github/android/setup_gradle_wrapper.sh $(pwd)
-    displayName: Setup gradle wrapper to use gradle 6.8.3
-
-  # We build the host protoc to <ORT_ROOT>/protobuf_install
-  - script: |
-      /bin/bash $(Build.SourcesDirectory)/tools/ci_build/github/apple/build_host_protoc.sh \
-        $(Build.SourcesDirectory) \
-        $(Build.BinariesDirectory)/protobuf \
-        $(Build.SourcesDirectory)/protobuf_install
-    displayName: Build Host Protoc
-
-  - script: |
-      export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-      export ANDROID_HOME=/usr/local/lib/android/sdk
-      export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk-bundle
-      export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk-bundle
-      env | grep ANDROID
-    displayName: set Android ENVs
-
-  # Start switching to jdk 11 after the Android Emulator is started since Android SDK manager requires java 8
-  - task: JavaToolInstaller@0
-    displayName: Use jdk 11
-    inputs:
-      versionSpec: '11'
-      jdkArchitectureOption: 'x64'
-      jdkSourceOption: 'PreInstalled'
-
-  - script: |
-      python3 tools/ci_build/build.py \
-        --android \
-        --build_dir build_nnapi \
-        --android_sdk_path $ANDROID_HOME \
-        --android_ndk_path $ANDROID_NDK_HOME \
-        --android_abi=x86_64 \
-        --android_api=29 \
-        --skip_submodule_sync \
-        --parallel \
-        --use_nnapi \
-        --cmake_generator=Ninja \
-        --path_to_protoc_exe $(Build.SourcesDirectory)/protobuf_install/bin/protoc \
-        --build_java \
-        --code_coverage \
-        --skip_tests
-    displayName: NNAPI EP, Build
-
-  - task: CopyFiles@2
-    displayName: Copy apks
-    inputs:
-      contents: |
-        build_nnapi/Debug/*
-        build_nnapi/Debug/java/androidtest/android/**
-      targetFolder: $(Build.ArtifactStagingDirectory)
-      overWrite: true
-
-  - task: CopyFiles@2
-    displayName: Copy apks
-    inputs:
-      contents: 'build_nnapi/**/*.gcno'
-      targetFolder: $(Build.ArtifactStagingDirectory)
-      overWrite: true
-
-  - task: CopyFiles@2
-    displayName: Copy test data
-    inputs:
-      contents: 'build_nnapi/**/testdata/**'
-      targetFolder: $(Build.ArtifactStagingDirectory)
-      overWrite: true
-
-  - task: CopyFiles@2
-    displayName: Copy Test Executables
-    inputs:
-      contents: 'build_nnapi/Debug/*'
-      targetFolder: $(Build.ArtifactStagingDirectory)
-      overWrite: true
-
-  - powershell: echo "##vso[task.setvariable variable=myOutputVar;isOutput=true]$(Build.SourcesDirectory)"
-    name: setvarStep
-
-  - script: echo $(setvarStep.myOutputVar)
-    name: echovar
-
-  - task: PublishBuildArtifacts@1
-    inputs:
-      pathToPublish: $(Build.ArtifactStagingDirectory)
-      artifactName: NNAPIBuildOutput
-
-  - template: templates/clean-agent-build-directory-step.yml
-
-- job: Test_NNAPI_EP
+- job: BUILD_NNAPI_EP
   pool:
     vmImage: 'macOS-11'
   timeoutInMinutes: 90
   workspace:
     clean: all
-  dependsOn: Build_NNAPI_EP
-  variables:
-    origin_repo: $[ dependencies.Build_NNAPI_EP.outputs['setvarStep.myOutputVar'] ]
-  condition: and(succeeded(), notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'))
   steps:
-    - script: echo $(origin_repo)
-      name: echovar
-
     - script: |
         set -ex
         sudo xcode-select --switch /Applications/Xcode_12.4.app/Contents/Developer
@@ -131,16 +21,34 @@ jobs:
         system_profiler SPSoftwareDataType SPHardwareDataType
       displayName: 'Mac Agent Info'
 
-    - task: DownloadPipelineArtifact@2
-      inputs:
-        source: 'current'
-        artifact: 'NNAPIBuildOutput'
-        path: $(Build.SourcesDirectory)
-
     - script: |
-        /bin/bash tools/ci_build/github/android/update_path.sh ".gcno" $(origin_repo) $(Build.SourcesDirectory)
-        find . -name *.gcno
-      displayName: Update gcno path
+        export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+        export ANDROID_HOME=/usr/local/lib/android/sdk
+        export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk-bundle
+        export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk-bundle
+        env | grep ANDROID
+      displayName: set Android ENVs
+
+    - script: brew install coreutils ninja
+      displayName: Install coreutils and ninja
+
+    - task: AzureKeyVault@2
+      inputs:
+        connectedServiceName: 'AIInfraBuild'
+        KeyVaultName: 'zhanyi-cache-test'
+        SecretsFilter: 'zhanyi-conn-string'
+        RunAsPreJob: false
+
+    - script: /bin/bash tools/ci_build/github/android/setup_gradle_wrapper.sh $(pwd)
+      displayName: Setup gradle wrapper to use gradle 6.8.3
+
+    # We build the host protoc to <ORT_ROOT>/protobuf_install
+    - script: |
+        /bin/bash $(Build.SourcesDirectory)/tools/ci_build/github/apple/build_host_protoc.sh \
+          $(Build.SourcesDirectory) \
+          $(Build.BinariesDirectory)/protobuf \
+          $(Build.SourcesDirectory)/protobuf_install
+      displayName: Build Host Protoc
 
     - task: UsePythonVersion@0
       displayName: Use Python $(pythonVersion)
@@ -155,19 +63,47 @@ jobs:
         --emulator-pid-file $(Build.BinariesDirectory)/emulator.pid
       displayName: Start Android emulator
 
+    # Start switching to jdk 11 after the Android Emulator is started since Android SDK manager requires java 8
+    - task: JavaToolInstaller@0
+      displayName: Use jdk 11
+      inputs:
+        versionSpec: '11'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+
+    - script: /bin/bash tools/ci_build/github/android/setup_gradle_wrapper.sh $(pwd)
+      displayName: Setup gradle wrapper to use gradle 6.8.3
+
     - script: |
+        set -ex
+        brew install sccache
+        source '$(Build.SourcesDirectory)/tools/ci_build/github/apple/set_sccache.sh'
+        if which sccache > /dev/null; then
+          sccache --show-stats
+          sccache --stop-server
+        fi
         python3 tools/ci_build/build.py \
-        --android \
-        --build_dir build_nnapi \
-        --android_sdk_path $ANDROID_HOME \
-        --android_ndk_path $ANDROID_NDK_HOME \
-        --android_abi=x86_64 \
-        --android_api=29 \
-        --use_nnapi \
-        --build_java \
-        --code_coverage \
-        --test
-      displayName: NNAPI EP, Test, CodeCoverage on Android Emulator
+          --android \
+          --build_dir build_nnapi \
+          --android_sdk_path $ANDROID_HOME \
+          --android_ndk_path $ANDROID_NDK_HOME \
+          --android_abi=x86_64 \
+          --android_api=29 \
+          --skip_submodule_sync \
+          --parallel \
+          --use_nnapi \
+          --cmake_generator=Ninja \
+          --path_to_protoc_exe $(Build.SourcesDirectory)/protobuf_install/bin/protoc \
+          --build_java \
+          --code_coverage \
+        if which sccache > /dev/null; then
+          sccache --show-stats
+          sccache --stop-server
+        fi
+      displayName: NNAPI EP, Build Test, CodeCoverage on Android Emulator
+      env:
+        SCCACHE_AZURE_CONNECTION_STRING: '$(zhanyi-conn-string)'
+        SCCACHE_AZURE_BLOB_CONTAINER: 'zhanyi-sccache'
 
     - script: |
         pwd
