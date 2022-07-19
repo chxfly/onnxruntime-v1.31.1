@@ -14,7 +14,6 @@ jobs:
   steps:
     - script: |
         set -ex
-        sudo xcode-select --switch /Applications/Xcode_12.4.app/Contents/Developer
         clang --version
         gcc --version
         gcov --version
@@ -31,13 +30,6 @@ jobs:
 
     - script: brew install coreutils ninja
       displayName: Install coreutils and ninja
-
-    - task: AzureKeyVault@2
-      inputs:
-        connectedServiceName: 'AIInfraBuild'
-        KeyVaultName: 'zhanyi-cache-test'
-        SecretsFilter: 'zhanyi-conn-string'
-        RunAsPreJob: false
 
     # We build the host protoc to <ORT_ROOT>/protobuf_install
     - script: |
@@ -64,14 +56,6 @@ jobs:
         jdkSourceOption: 'PreInstalled'
 
     - script: |
-        set -ex
-        brew install sccache
-        source '$(Build.SourcesDirectory)/tools/ci_build/github/apple/set_sccache.sh'
-        if which sccache > /dev/null; then
-          sccache --show-stats
-          sccache --stop-server
-        fi
-
         python3 tools/ci_build/build.py \
           --android \
           --build_dir build_nnapi \
@@ -86,21 +70,8 @@ jobs:
           --path_to_protoc_exe $(Build.SourcesDirectory)/protobuf_install/bin/protoc \
           --build_java \
           --code_coverage
-
-        if which sccache > /dev/null; then
-          sccache --show-stats
-          sccache --stop-server
-        fi
       displayName: NNAPI EP, Build Test, CodeCoverage on Android Emulator
-      env:
-        SCCACHE_AZURE_CONNECTION_STRING: '$(zhanyi-conn-string)'
-        SCCACHE_AZURE_BLOB_CONTAINER: 'zhanyi-sccache'
 
-    - script: |
-        pwd
-        echo $(Build.SourcesDirectory)
-        find . $(Build.SourcesDirectory)
-      displayName: Check Test Output
     - script: |
         python3 -m pip install gcovr && \
         python3 tools/ci_build/coverage.py \
@@ -109,6 +80,12 @@ jobs:
       displayName: Retrieve runtime code coverage files from the emulator and analyze
     - script: cat '$(Build.SourcesDirectory)/build_nnapi/Debug/coverage_rpt.txt'
       displayName: Print coverage report
+
+    - script: |
+        pwd
+        echo $(Build.SourcesDirectory)
+        find . $(Build.SourcesDirectory)
+      displayName: Check Test Output
 
     - task: PublishPipelineArtifact@0
       displayName: 'Publish code coverage report'
