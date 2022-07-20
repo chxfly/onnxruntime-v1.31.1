@@ -35,11 +35,11 @@ const withOrt = (config) => {
           generateCode
               .mergeContents({
                 src: contents,
-                newSrc: '  pod \'onnxruntime-react-native\', :path => \'../node_modules/onnxruntime-react-native\'',
+                newSrc: '  pod \'onnxruntime-react-native\', :path => \'../node_modules/onnxruntime-react-native2\'',
                 tag: 'onnxruntime-react-native',
                 anchor: /^target.+do$/,
                 offset: 1,
-                comment: '  # onnxruntime-react-native'
+                comment: '  # onnxruntime-react-native *DEBUG*'
               })
               .contents;
       fs.writeFileSync(podFilePath, updatedContents);

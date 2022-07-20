@@ -189,6 +189,7 @@ jobs:
     displayName: Bootstrap Android and iOS e2e tests
 
   - script: |
+      cat Podfile
       pod install
     workingDirectory: '$(Build.SourcesDirectory)/js/react_native/e2e/ios'
     displayName: Pod install for onnxruntime react native ios e2e tests
