@@ -127,6 +127,12 @@ jobs:
         system_profiler SPSoftwareDataType SPHardwareDataType
       displayName: 'Mac Agent Info'
 
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        source: 'current'
+        artifact: 'NNAPIBuildOutput'
+        path: $(Build.SourcesDirectory)
+
     - script: |
         /bin/bash tools/ci_build/github/android/update_path.sh ".gcno" $(origin_repo) $(Build.SourcesDirectory)
         find . -name *.gcno
