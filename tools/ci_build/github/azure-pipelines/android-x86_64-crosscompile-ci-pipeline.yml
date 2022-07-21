@@ -86,10 +86,11 @@ jobs:
   - task: CopyFiles@2
     displayName: Copy Test Executables
     inputs:
-      build/Debug/*
-      build/Debug/java/androidtest/android/**
-    targetFolder: $(Build.ArtifactStagingDirectory)
-    overWrite: true
+      contents: |
+      build_nnapi/Debug/*
+      build_nnapi/Debug/java/androidtest/android/**
+      targetFolder: $(Build.ArtifactStagingDirectory)
+      overWrite: true
 
   - powershell: echo "##vso[task.setvariable variable=myOutputVar;isOutput=true]$(Build.SourcesDirectory)"
     name: setvarStep
