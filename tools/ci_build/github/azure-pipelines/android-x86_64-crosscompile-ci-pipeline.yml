@@ -87,8 +87,8 @@ jobs:
     displayName: Copy Test Executables
     inputs:
       contents: |
-      build_nnapi/Debug/*
-      build_nnapi/Debug/java/androidtest/android/**
+        build_nnapi/Debug/*
+        build_nnapi/Debug/java/androidtest/android/**
       targetFolder: $(Build.ArtifactStagingDirectory)
       overWrite: true
 
