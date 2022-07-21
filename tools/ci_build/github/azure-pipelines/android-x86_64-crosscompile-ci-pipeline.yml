@@ -5,13 +5,119 @@
 # which is the no.1 blocker for running tests on modern Android Emulators (especially on recent API levels) on CI.
 
 jobs:
-- job: BUILD_NNAPI_EP
+- job: Build_NNAPI_EP
+  pool: Linux-CPU-2019
+  timeoutInMinutes: 30
+  workspace:
+    clean: all
+  condition: notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')
+  steps:
+  - task: UsePythonVersion@0
+    displayName: Use Python $(pythonVersion)
+    inputs:
+      versionSpec: $(pythonVersion)
+
+  - script: sudo apt-get update -y && sudo apt-get install -y coreutils ninja-build
+    displayName: Install coreutils and ninja
+
+  - script: /bin/bash tools/ci_build/github/android/setup_gradle_wrapper.sh $(pwd)
+    displayName: Setup gradle wrapper to use gradle 6.8.3
+
+  # We build the host protoc to <ORT_ROOT>/protobuf_install
+  - script: |
+      /bin/bash $(Build.SourcesDirectory)/tools/ci_build/github/apple/build_host_protoc.sh \
+        $(Build.SourcesDirectory) \
+        $(Build.BinariesDirectory)/protobuf \
+        $(Build.SourcesDirectory)/protobuf_install
+    displayName: Build Host Protoc
+  - script: |
+      export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+      export ANDROID_HOME=/usr/local/lib/android/sdk
+      export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk-bundle
+      export ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk-bundle
+      env | grep ANDROID
+    displayName: set Android ENVs
+  # Start switching to jdk 11 after the Android Emulator is started since Android SDK manager requires java 8
+  - task: JavaToolInstaller@0
+    displayName: Use jdk 11
+    inputs:
+      versionSpec: '11'
+      jdkArchitectureOption: 'x64'
+      jdkSourceOption: 'PreInstalled'
+
+  - script: |
+      python3 tools/ci_build/build.py \
+        --android \
+        --build_dir build_nnapi \
+        --android_sdk_path $ANDROID_HOME \
+        --android_ndk_path $ANDROID_NDK_HOME \
+        --android_abi=x86_64 \
+        --android_api=29 \
+        --skip_submodule_sync \
+        --parallel \
+        --use_nnapi \
+        --cmake_generator=Ninja \
+        --path_to_protoc_exe $(Build.SourcesDirectory)/protobuf_install/bin/protoc \
+        --build_java \
+        --skip_tests
+    displayName: NNAPI EP, Build
+
+  - task: CopyFiles@2
+    displayName: Copy apks
+    inputs:
+      contents: 'build_nnapi/**/*.apk'
+      targetFolder: $(Build.ArtifactStagingDirectory)
+      overWrite: true
+
+  - task: CopyFiles@2
+    displayName: Copy apks
+    inputs:
+      contents: 'build_nnapi/**/*.gcno'
+      targetFolder: $(Build.ArtifactStagingDirectory)
+      overWrite: true
+
+  - task: CopyFiles@2
+    displayName: Copy test data
+    inputs:
+      contents: 'build_nnapi/**/testdata/**'
+      targetFolder: $(Build.ArtifactStagingDirectory)
+      overWrite: true
+
+  - task: CopyFiles@2
+    displayName: Copy Test Executables
+    inputs:
+      build/Debug/*
+      build/Debug/java/androidtest/android/**
+    targetFolder: $(Build.ArtifactStagingDirectory)
+    overWrite: true
+
+  - powershell: echo "##vso[task.setvariable variable=myOutputVar;isOutput=true]$(Build.SourcesDirectory)"
+    name: setvarStep
+
+  - script: echo $(setvarStep.myOutputVar)
+    name: echovar
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: $(Build.ArtifactStagingDirectory)
+      artifactName: NNAPIBuildOutput
+
+  - template: templates/clean-agent-build-directory-step.yml
+
+- job: TEST_NNAPI_EP
   pool:
     vmImage: 'macOS-11'
   timeoutInMinutes: 180
   workspace:
     clean: all
+  dependsOn: Build_NNAPI_EP
+  variables:
+    origin_repo: $[ dependencies.Build_NNAPI_EP.outputs['setvarStep.myOutputVar'] ]
+
   steps:
+    - script: echo $(origin_repo)
+      name: echovar
+
     - script: |
         set -ex
         clang --version
@@ -19,6 +125,11 @@ jobs:
         gcov --version
         system_profiler SPSoftwareDataType SPHardwareDataType
       displayName: 'Mac Agent Info'
+
+    - script: |
+        /bin/bash tools/ci_build/github/android/update_path.sh ".gcno" $(origin_repo) $(Build.SourcesDirectory)
+        find . -name *.gcno
+      displayName: Update gcno path
 
     - task: UsePythonVersion@0
       displayName: Use Python $(pythonVersion)
@@ -69,7 +180,8 @@ jobs:
           --cmake_generator=Ninja \
           --path_to_protoc_exe $(Build.SourcesDirectory)/protobuf_install/bin/protoc \
           --build_java \
-          --code_coverage
+          --code_coverage \
+          --test
       displayName: NNAPI EP, Build Test, CodeCoverage on Android Emulator
 
     - script: |
@@ -84,7 +196,7 @@ jobs:
     - script: |
         pwd
         echo $(Build.SourcesDirectory)
-        find . $(Build.SourcesDirectory)
+        find $(Build.SourcesDirectory) -type f
       displayName: Check Test Output
 
     - task: PublishPipelineArtifact@0
