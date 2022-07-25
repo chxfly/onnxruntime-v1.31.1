@@ -59,6 +59,7 @@ jobs:
         --cmake_generator=Ninja \
         --path_to_protoc_exe $(Build.SourcesDirectory)/protobuf_install/bin/protoc \
         --build_java \
+        --code_coverage \
         --skip_tests
     displayName: NNAPI EP, Build
 
@@ -70,7 +71,7 @@ jobs:
       overWrite: true
 
   - task: CopyFiles@2
-    displayName: Copy apks
+    displayName: Copy gcno
     inputs:
       contents: 'build_nnapi/**/*.gcno'
       targetFolder: $(Build.ArtifactStagingDirectory)
