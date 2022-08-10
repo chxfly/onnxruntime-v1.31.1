@@ -1,7 +1,6 @@
+import argparse
 import os
 import shutil
-import argparse
-
 
 HR_Model_Path_ONNX = ".\\test\\data\\ONNX\\"
 HR_Model_Path_ORT = ".\\test\\data\\ORT\\"
@@ -46,8 +45,8 @@ if(args.build):
         ## Building WASM - Release - WASM
         #command = "..\\..\\build.bat --build_wasm --skip_tests --skip_submodule_sync --config "+configuration+" --wasm_malloc dlmalloc --emsdk_version releases-upstream-823d37b15d1ab61bc9ac0665ceef6951d3703842-64bit"
         ## print(command)
-        #os.system(command)   
-        
+        #os.system(command)
+
 
     ## Copying WASM artifacts - WASM-SIMD
     file_name = "ort-wasm-simd.wasm"
@@ -59,14 +58,14 @@ if(args.build):
     file_name_source = "ort-wasm-simd.js"
     #test for Yulong - seem to not work...
     file_name = "ort-wasm-simd.js"
-    shutil.copyfile(Build_Path+file_name_source,Binding_Path+file_name)  
+    shutil.copyfile(Build_Path+file_name_source,Binding_Path+file_name)
     file_name = "ort-wasm.js"
-    shutil.copyfile(Build_Path+file_name_source,Binding_Path+file_name)  
+    shutil.copyfile(Build_Path+file_name_source,Binding_Path+file_name)
 
     #file_name = "ort-wasm.js"
     #shutil.copyfile(Build_Path+file_name,Binding_Path+file_name)
 
-      
+
 
 if(args.run):
     model_name = args.run
@@ -77,6 +76,3 @@ if(args.run):
     os.system(command)
 
 exit()
-
-
-
