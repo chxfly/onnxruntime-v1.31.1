@@ -731,6 +731,7 @@ class OpTester {
            const std::unordered_set<std::string>& excluded_provider_types = {},
            const RunOptions* run_options = nullptr,
            std::vector<std::unique_ptr<IExecutionProvider>>* execution_providers = nullptr,
+           ExecutionMode execution_mode = ExecutionMode::ORT_SEQUENTIAL,
            const Graph::ResolveOptions& resolve_options = {});
 
   void Run(SessionOptions session_options,
@@ -800,15 +801,6 @@ class OpTester {
 
   size_t GetNumPrePackedWeightsShared() const {
     return prepacked_weights_container_.GetNumberOfElements();
-  }
-
-  void SetUpDefaultSessionOptions(SessionOptions& so) {
-    so.use_per_session_threads = false;
-    so.session_logid = op_;
-    so.session_log_verbosity_level = 1;
-    so.execution_mode = ExecutionMode::ORT_SEQUENTIAL;
-    so.use_deterministic_compute = use_determinism_;
-    so.graph_optimization_level = TransformerLevel::Default;  // 'Default' == off
   }
 
   bool test_allow_released_onnx_opset_only_ = true;
@@ -905,7 +897,7 @@ class OpTester {
         // values *could* be nullptr for a non-optional tensor if it is empty.
         // Update the data buffer of the input only if values if non-nullptr.
         if (values != nullptr) {
-          auto* data_ptr = value.GetMutable<Tensor>()->template MutableData<T>();
+          auto* data_ptr = value.GetMutable<Tensor>()->MutableData<T>();
           for (int64_t i = 0; i < values_count; i++) {
             data_ptr[i] = values[i];
           }
@@ -987,7 +979,7 @@ class OpTester {
                         shape,
                         allocator);
 
-        auto* data_ptr = tensor.template MutableData<T>();
+        auto* data_ptr = tensor.MutableData<T>();
         for (int64_t x = 0; x < values_count; ++x) {
           data_ptr[x] = seq_tensors->tensors[i].data[x];
         }

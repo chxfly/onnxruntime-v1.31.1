@@ -1,18 +1,18 @@
 /**
-* Copyright (c) 2016-present, Facebook, Inc.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (c) 2016-present, Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /* Modifications Copyright (c) Microsoft. */
 
 #include "core/providers/cpu/nn/conv.h"
@@ -56,7 +56,7 @@ Status Conv<T>::Compute(OpKernelContext* context) const {
 
   TensorShapeVector Y_dims({N, M});
   TensorShape input_shape = X->Shape().Slice(2);
-  ORT_RETURN_IF_ERROR(conv_attrs_.InferOutputShape(input_shape, kernel_shape, strides, dilations, pads, Y_dims));
+  ORT_RETURN_IF_ERROR(conv_attrs_.InferPadsAndOutputShape(input_shape, kernel_shape, strides, dilations, pads, Y_dims));
   Tensor* Y = context->Output(0, Y_dims);
   TensorShape output_shape = Y->Shape().Slice(2);
 
@@ -85,15 +85,15 @@ Status Conv<T>::Compute(OpKernelContext* context) const {
     ORT_RETURN_IF_ERROR(context->GetTempSpaceAllocator(&alloc));
 
     auto* col_data = alloc->Alloc(SafeInt<size_t>(sizeof(T)) * col_buffer_size);
-    col_buffer = BufferUniquePtr(col_data, BufferDeleter(alloc));
+    col_buffer = BufferUniquePtr(col_data, BufferDeleter(std::move(alloc)));
   }
 
   T* col_buffer_data = static_cast<T*>(col_buffer.get());
 
   concurrency::ThreadPool* thread_pool = context->GetOperatorThreadPool();
 
-  const T* Xdata = X->template Data<T>();
-  T* Ydata = Y->template MutableData<T>();
+  const T* Xdata = X->Data<T>();
+  T* Ydata = Y->MutableData<T>();
 
   for (int image_id = 0; image_id < N; ++image_id) {
     for (int group_id = 0; group_id < conv_attrs_.group; ++group_id) {
@@ -137,7 +137,7 @@ Status Conv<T>::Compute(OpKernelContext* context) const {
           output_image_size,
           kernel_dim,
           1,
-          W->template Data<T>() + group_id * W_offset,
+          W->Data<T>() + group_id * W_offset,
           col_buffer_data == nullptr ? Xdata + group_id * X_offset : col_buffer_data,
           0,
           Ydata + group_id * Y_offset,
@@ -146,7 +146,7 @@ Status Conv<T>::Compute(OpKernelContext* context) const {
 
     if (B != nullptr) {
       auto Ymatrix = EigenMatrixMap<T>(Ydata, output_image_size, M);
-      auto Bvec = ConstEigenVectorMap<T>(B->template Data<T>(), M);
+      auto Bvec = ConstEigenVectorMap<T>(B->Data<T>(), M);
       Ymatrix.rowwise() += Bvec.transpose();
     }
 
@@ -158,7 +158,7 @@ Status Conv<T>::Compute(OpKernelContext* context) const {
 }
 
 Status Conv<float>::Compute(OpKernelContext* context) const {
-  //("Conv<float>::Compute - start"); 
+  //("Conv<float>::Compute - start");
   size_t num_inputs = OpKernel::Node().InputDefs().size();
   const Tensor* X = context->Input<Tensor>(0);
   const Tensor* W = context->Input<Tensor>(1);
@@ -169,9 +169,10 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
   const int64_t M = W->Shape()[0];
   ORT_RETURN_IF_ERROR(conv_attrs_.ValidateInputShape(X, W));
 
+  // kernel_shape is an optional attribute and has to be inferred from W if not provided
   TensorShapeVector kernel_shape;
   ORT_RETURN_IF_ERROR(conv_attrs_.ComputeKernelShape(W->Shape(), kernel_shape));
-  ////checkMemory("Conv<float>::Compute - #1"); 
+  ////checkMemory("Conv<float>::Compute - #1");
   ConvPadVector pads(conv_attrs_.pads);
   if (pads.empty()) {
     pads.resize(kernel_shape.size() * 2, 0);
@@ -184,19 +185,15 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
   if (strides.empty()) {
     strides.resize(kernel_shape.size(), 1);
   }
-  ////checkMemory("Conv<float>::Compute - #2"); 
+  ////checkMemory("Conv<float>::Compute - #2");
   TensorShapeVector Y_dims({N, M});
   ////checkMemory("Conv<float>::Compute - #2 - 1");
   TensorShape input_shape = X->Shape().Slice(2);
-  ////checkMemory("Conv<float>::Compute - #2 - 2");
-  ORT_RETURN_IF_ERROR(conv_attrs_.InferOutputShape(input_shape, kernel_shape, strides, dilations, pads, Y_dims));
-  ////checkMemory("Conv<float>::Compute - #2 - 3");
-  //printf("%d\n",(int)M);
-  //printf("%d\n",(int)N);
+  ORT_RETURN_IF_ERROR(conv_attrs_.InferPadsAndOutputShape(input_shape, kernel_shape, strides, dilations, pads, Y_dims));
   Tensor* Y = context->Output(0, TensorShape(Y_dims));
   ////checkMemory("Conv<float>::Compute - #2 - 4");
   TensorShape output_shape = Y->Shape().Slice(2);
-  ////checkMemory("Conv<float>::Compute - #3"); 
+  ////checkMemory("Conv<float>::Compute - #3");
   // Bail out early if one of the dimensions is zero.
   if (Y->Shape().Size() == 0) {
     return Status::OK();
@@ -205,16 +202,16 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
   AllocatorPtr alloc;
   ORT_RETURN_IF_ERROR(context->GetTempSpaceAllocator(&alloc));
 
-  const auto* Xdata = X->template Data<float>();
-  const auto* Bdata = B != nullptr ? B->template Data<float>() : nullptr;
-  auto* Ydata = Y->template MutableData<float>();
+  const auto* Xdata = X->Data<float>();
+  const auto* Bdata = B != nullptr ? B->Data<float>() : nullptr;
+  auto* Ydata = Y->MutableData<float>();
   // Check for the optional Conv/Sum fusion.
   float Beta = 0.0f;
   if (Sum != nullptr) {
     const auto& sum_shape = Sum->Shape();
     ORT_RETURN_IF_NOT(Y->Shape() == sum_shape, "output and sum shape must match");
     // If the output was not allocated inplace with the sum tensor, then copy here.
-    const auto* sum_data = Sum->template Data<float>();
+    const auto* sum_data = Sum->Data<float>();
     if (Ydata != sum_data) {
       memcpy(Ydata, sum_data, sum_shape.Size() * sizeof(float));
     }
@@ -222,7 +219,7 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
   }
   const size_t kernel_rank = kernel_shape.size();
   concurrency::ThreadPool* thread_pool = context->GetOperatorThreadPool();
-  ////checkMemory("Conv<float>::Compute - #4"); 
+  ////checkMemory("Conv<float>::Compute - #4");
   if (kernel_rank >= 1 && kernel_rank <= 3) {
     MLAS_CONV_PARAMETERS Parameters;
     size_t WorkingBufferSize;
@@ -245,11 +242,11 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
 
     auto* working_data = WorkingBufferSize > 0 ? alloc->Alloc(SafeInt<size_t>(sizeof(float)) * WorkingBufferSize)
                                                : nullptr;
-    BufferUniquePtr working_buffer(working_data, BufferDeleter(alloc));
+    BufferUniquePtr working_buffer(working_data, BufferDeleter(std::move(alloc)));
 
     MlasConv(&Parameters,
              Xdata,
-             W->template Data<float>(),
+             W->Data<float>(),
              Bdata,
              static_cast<float*>(working_buffer.get()),
              Ydata,
@@ -265,7 +262,7 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
     const int64_t col_buffer_size = kernel_dim * output_image_size;
 
     auto* col_data = alloc->Alloc(SafeInt<size_t>(sizeof(float)) * col_buffer_size);
-    BufferUniquePtr col_buffer(col_data, BufferDeleter(alloc));
+    BufferUniquePtr col_buffer(col_data, BufferDeleter(std::move(alloc)));
     auto* col_buffer_data = static_cast<float*>(col_buffer.get());
 
     for (int image_id = 0; image_id < N; ++image_id) {
@@ -289,7 +286,7 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
             output_image_size,
             kernel_dim,
             1,
-            W->template Data<float>() + group_id * W_offset,
+            W->Data<float>() + group_id * W_offset,
             col_buffer_data,
             Beta,
             Ydata + group_id * Y_offset,
@@ -302,7 +299,7 @@ Status Conv<float>::Compute(OpKernelContext* context) const {
       Ydata += Y_offset * conv_attrs_.group;
     }
   }
-  ////checkMemory("Conv<float>::Compute - end"); 
+  ////checkMemory("Conv<float>::Compute - end");
   return Status::OK();
 }
 

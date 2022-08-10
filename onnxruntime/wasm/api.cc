@@ -74,11 +74,11 @@ OrtSessionOptions* OrtCreateSessionOptions(size_t graph_optimization_level,
                                            size_t log_verbosity_level) {
   OrtSessionOptions* session_options = nullptr;
   //Shalva
-  //printf("enable_cpu_mem_arena - %d\n",enable_cpu_mem_arena);  
+  //printf("enable_cpu_mem_arena - %d\n",enable_cpu_mem_arena);
   //printf("enable_mem_pattern - %d\n",enable_mem_pattern);
   /////////
   RETURN_NULLPTR_IF_ERROR(CreateSessionOptions, &session_options);
-  //checkMemory("WASM API - OrtCreateSessionOptions - Line 81 - start");  
+  //checkMemory("WASM API - OrtCreateSessionOptions - Line 81 - start");
   // assume that a graph optimization level is checked and properly set at JavaScript
   RETURN_NULLPTR_IF_ERROR(SetSessionGraphOptimizationLevel,
                           session_options,
@@ -119,14 +119,18 @@ OrtSessionOptions* OrtCreateSessionOptions(size_t graph_optimization_level,
   // Enable ORT CustomOps in onnxruntime-extensions
   RETURN_NULLPTR_IF_ERROR(EnableOrtCustomOps, session_options);
 #endif
-  //checkMemory("WASM API - OrtCreateSessionOptions - Line 122 - end"); 
+
+#if defined(USE_XNNPACK)
+  RETURN_NULLPTR_IF_ERROR(SessionOptionsAppendExecutionProvider, session_options, "XNNPACK", nullptr, nullptr, 0);
+#endif
+
   return session_options;
 }
 
 int OrtAddSessionConfigEntry(OrtSessionOptions* session_options,
                              const char* config_key,
                              const char* config_value) {
-  //checkMemory("WASM API - OrtAddSessionConfigEntry - Line 129 - start");  
+  //checkMemory("WASM API - OrtAddSessionConfigEntry - Line 129 - start");
   return CHECK_STATUS(AddSessionConfigEntry, session_options, config_key, config_value);
 }
 
@@ -135,7 +139,7 @@ void OrtReleaseSessionOptions(OrtSessionOptions* session_options) {
 }
 
 OrtSession* OrtCreateSession(void* data, size_t data_length, OrtSessionOptions* session_options) {
-  checkMemory("WASM API - OrtCreateSession - Line 137 - start"); 
+  checkMemory("WASM API - OrtCreateSession - Line 137 - start");
   // OrtSessionOptions must not be nullptr.
   if (session_options == nullptr) {
     return nullptr;
@@ -157,24 +161,24 @@ OrtSession* OrtCreateSession(void* data, size_t data_length, OrtSessionOptions* 
 }
 
 void OrtReleaseSession(OrtSession* session) {
-  //checkMemory("WASM API - OrtReleaseSession - Line 159 - start");  
+  //checkMemory("WASM API - OrtReleaseSession - Line 159 - start");
   Ort::GetApi().ReleaseSession(session);
 }
 
 size_t OrtGetInputCount(OrtSession* session) {
-  //checkMemory("WASM API - OrtGetInputCount - Line 164 - start");  
+  //checkMemory("WASM API - OrtGetInputCount - Line 164 - start");
   size_t input_count = 0;
   return (CHECK_STATUS(SessionGetInputCount, session, &input_count) == ORT_OK) ? input_count : 0;
 }
 
 size_t OrtGetOutputCount(OrtSession* session) {
-  //checkMemory("WASM API - OrtGetOutputCount - Line 170 - start");  
+  //checkMemory("WASM API - OrtGetOutputCount - Line 170 - start");
   size_t output_count = 0;
   return (CHECK_STATUS(SessionGetOutputCount, session, &output_count) == ORT_OK) ? output_count : 0;
 }
 
 char* OrtGetInputName(OrtSession* session, size_t index) {
-  //checkMemory("WASM API - OrtGetInputName - Line 176 - start");  
+  //checkMemory("WASM API - OrtGetInputName - Line 176 - start");
   OrtAllocator* allocator = nullptr;
   RETURN_NULLPTR_IF_ERROR(GetAllocatorWithDefaultOptions, &allocator);
 
@@ -195,16 +199,16 @@ char* OrtGetOutputName(OrtSession* session, size_t index) {
 }
 
 void OrtFree(void* ptr) {
-  checkMemory("WASM API - OrtFree - Line 197 - start");  
+  checkMemory("WASM API - OrtFree - Line 197 - start");
   OrtAllocator* allocator = nullptr;
   if (CHECK_STATUS(GetAllocatorWithDefaultOptions, &allocator) == ORT_OK) {
     allocator->Free(allocator, ptr);
   }
-  checkMemory("WASM API - OrtFree - Line 202 - end");  
+  checkMemory("WASM API - OrtFree - Line 202 - end");
 }
 
 OrtValue* OrtCreateTensor(int data_type, void* data, size_t data_length, size_t* dims, size_t dims_length) {
-  //checkMemory("OrtCreateTensor - Line 199 - start"); 
+  //checkMemory("OrtCreateTensor - Line 199 - start");
   std::vector<int64_t> shapes(dims_length);
   for (size_t i = 0; i < dims_length; i++) {
     shapes[i] = dims[i];
@@ -221,7 +225,7 @@ OrtValue* OrtCreateTensor(int data_type, void* data, size_t data_length, size_t*
 
     const char* const* strings = reinterpret_cast<const char* const*>(data);
     RETURN_NULLPTR_IF_ERROR(FillStringTensor, value, strings, data_length / sizeof(const char*));
-    //checkMemory("OrtCreateTensor - Line 216 - return"); 
+    //checkMemory("OrtCreateTensor - Line 216 - return");
     return value;
   } else {
     OrtMemoryInfo* memoryInfo = nullptr;
@@ -254,7 +258,7 @@ int OrtGetTensorData(OrtValue* tensor, int* data_type, void** data, size_t** dim
       return error_code;                                          \
     }                                                             \
   } while (false)
-  //checkMemory("OrtCreateTensorData - Line 249 - start"); 
+  //checkMemory("OrtCreateTensorData - Line 249 - start");
   OrtTensorTypeAndShapeInfo* info = nullptr;
   OrtAllocator* allocator = nullptr;
   size_t* p_dims = nullptr;
@@ -317,7 +321,7 @@ int OrtGetTensorData(OrtValue* tensor, int* data_type, void** data, size_t** dim
     reinterpret_cast<char*>(p_string_data)[buf_size] = '\0';
     *data = p_string_data;
   }
-  //checkMemory("OrtCreateTensorData - Line 312 - end"); 
+  //checkMemory("OrtCreateTensorData - Line 312 - end");
   Ort::GetApi().ReleaseTensorTypeAndShapeInfo(info);
   return ORT_OK;
 }

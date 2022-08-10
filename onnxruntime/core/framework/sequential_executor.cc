@@ -76,10 +76,10 @@ static void CalculateTotalOutputSizes(OpKernelContextInternal* op_kernel_context
 #if defined(TRACE_EXECUTION)
       const TensorShape& tensor_shape = tensor.Shape();
       std::cout << node_name << " output[" << i << "]"
-                         << " size=" << tensor_size
-                         << " shape=" << tensor_shape.ToString()
-                         << " element_size=" << tensor.DataType()->Size()
-                         << "\n";
+                << " size=" << tensor_size
+                << " shape=" << tensor_shape.ToString()
+                << " element_size=" << tensor.DataType()->Size()
+                << "\n";
 #endif
       total_output_sizes += tensor_size;
       auto shape_str = tensor.Shape().ToString();
@@ -145,12 +145,12 @@ static Status ReleaseNodeMLValues(ExecutionFrame& frame,
                                   const SequentialExecutionPlan::NodeExecutionPlan& node_exec_plan,
                                   const logging::Logger& logger);
 
-Status SequentialExecutor::Execute(const SessionState& session_state, const std::vector<int>& feed_mlvalue_idxs,
-                                   const std::vector<OrtValue>& feeds, const std::vector<int>& fetch_mlvalue_idxs,
+Status SequentialExecutor::Execute(const SessionState& session_state, gsl::span<const int> feed_mlvalue_idxs,
+                                   gsl::span<const OrtValue> feeds, gsl::span<const int> fetch_mlvalue_idxs,
                                    std::vector<OrtValue>& fetches,
                                    const std::unordered_map<size_t, CustomAllocator>& fetch_allocators,
                                    const logging::Logger& logger) {
-  //checkMemory("SequentialExecutor::Execute - Start"); 
+  //checkMemory("SequentialExecutor::Execute - Start");
   const bool is_profiler_enabled = session_state.Profiler().IsEnabled();
   TimePoint tp;
   TimePoint sync_time_begin;
@@ -164,23 +164,23 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
   if (is_profiler_enabled) {
     tp = session_state.Profiler().Start();
   }
-  ////checkMemory("SequentialExecutor::Execute - #1"); 
+  ////checkMemory("SequentialExecutor::Execute - #1");
   ExecutionFrame frame{feed_mlvalue_idxs, feeds, fetch_mlvalue_idxs, fetches, fetch_allocators, session_state};
-  ////checkMemory("SequentialExecutor::Execute - #1 - #2"); 
+  ////checkMemory("SequentialExecutor::Execute - #1 - #2");
 #if !defined(ORT_MINIMAL_BUILD)
   const auto* const to_be_executed_nodes = session_state.GetToBeExecutedNodes(fetch_mlvalue_idxs);
   const bool only_execute_path_to_fetches = only_execute_path_to_fetches_ && (to_be_executed_nodes != nullptr);
-  ////checkMemory("SequentialExecutor::Execute - #1 - #3"); 
+  ////checkMemory("SequentialExecutor::Execute - #1 - #3");
   if (only_execute_path_to_fetches) {
     VLOGS(logger, 1) << to_be_executed_nodes->size() << " nodes to be executed\n";
   }
 #else
   ORT_UNUSED_PARAMETER(only_execute_path_to_fetches_);
 #endif
-  ////checkMemory("SequentialExecutor::Execute - #1 - #4"); 
+  ////checkMemory("SequentialExecutor::Execute - #1 - #4");
   LOGS(logger, INFO) << "Begin execution";
   const SequentialExecutionPlan& seq_exec_plan = *session_state.GetExecutionPlan();
-  ////checkMemory("SequentialExecutor::Execute - #1 - #5"); 
+  ////checkMemory("SequentialExecutor::Execute - #1 - #5");
   const auto& exec_plan_vec = seq_exec_plan.execution_plan;
   VLOGS(logger, 1) << "Size of execution plan vector: " << exec_plan_vec.size();
 
@@ -188,7 +188,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 #if defined(TRACE_EXECUTION)
   std::cout << std::make_pair(&seq_exec_plan, &session_state) << std::endl;
 #endif
-  ////checkMemory("SequentialExecutor::Execute - #2"); 
+  ////checkMemory("SequentialExecutor::Execute - #2");
   const auto& graph_viewer = session_state.GetGraphViewer();
 
 #ifdef CONCURRENCY_VISUALIZER
@@ -214,22 +214,20 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 #endif
 
 #ifdef DEBUG_NODE_INPUTS_OUTPUTS
-    size_t program_counter = 0;
-    utils::NodeDumpContext dump_context { session_state.GetGraphExecutionCounter(), program_counter };
+  size_t program_counter = 0;
+  utils::NodeDumpContext dump_context{session_state.GetGraphExecutionCounter(), program_counter};
 #endif
-
-  ////checkMemory("SequentialExecutor::Execute - #3"); 
   for (const auto& node_exec_plan : exec_plan_vec) {
     if (terminate_flag_) {
       LOGS(logger, WARNING) << "Exiting due to terminate flag being set to true.";
       return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Exiting due to terminate flag being set to true.");
     }
-    
+
     auto node_index = node_exec_plan.node_index;
-    ////checkMemory("SequentialExecutor::Execute - start of for loop"); 
+    ////checkMemory("SequentialExecutor::Execute - start of for loop");
     //printf("node index - %lu",node_index);
     //printf("node idex - %lu \n",node_index);
-    ////checkMemory("SequentialExecutor::Execute - start of for loop"); 
+    ////checkMemory("SequentialExecutor::Execute - start of for loop");
 #if !defined(ORT_MINIMAL_BUILD)
     // If it is not necessary to execute the node.
     if (only_execute_path_to_fetches && to_be_executed_nodes->count(node_index) == 0) {
@@ -238,7 +236,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 #endif
 
     const auto& node = *graph_viewer.GetNode(node_exec_plan.node_index);
-    ////checkMemory("SequentialExecutor::Execute - LOOP - #1"); 
+    ////checkMemory("SequentialExecutor::Execute - LOOP - #1");
 #ifdef CONCURRENCY_VISUALIZER
     series.write_flag(node.Name().c_str());
 #endif
@@ -258,7 +256,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
     auto p_op_kernel = session_state.GetKernel(node_index);
 
 
-    
+
     // if a kernel has been added in the session state, it better be NON-null.
     if (p_op_kernel == nullptr)
       return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Got nullptr from GetKernel for node: ",
@@ -271,12 +269,12 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
     // construct OpKernelContext
     // TODO: log kernel inputs?
     OpKernelContextInternal op_kernel_context(session_state, frame, *p_op_kernel, logger, terminate_flag_);
-    
+
     //if(node_index==11){
-      ////checkMemory("SequentialExecutor::Execute - after OpKernelContextInternal op_kernel_context"); 
+      ////checkMemory("SequentialExecutor::Execute - after OpKernelContextInternal op_kernel_context");
     //}
 
-    ////checkMemory("SequentialExecutor::Execute - LOOP - #2"); 
+    ////checkMemory("SequentialExecutor::Execute - LOOP - #2");
     // TODO: log kernel outputs?
     if (is_profiler_enabled) {
       sync_time_begin = session_state.Profiler().Start();
@@ -286,12 +284,12 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
     int queue_id = p_op_kernel->KernelDef().ExecQueueId();
 
     if(node_index==11){
-      ////checkMemory("SequentialExecutor::Execute - after KernelDef().ExecQueueId()"); 
+      ////checkMemory("SequentialExecutor::Execute - after KernelDef().ExecQueueId()");
     }
 
     if (seq_exec_plan.NodeHasFence(node_index)) {
       if(node_index==11){
-        ////checkMemory("SequentialExecutor::Execute - after node has fence - shouldn't be called"); 
+        ////checkMemory("SequentialExecutor::Execute - after node has fence - shouldn't be called");
       }
       for (int input_index = 0; input_index < op_kernel_context.InputCount(); ++input_index) {
         Fence_t fence = op_kernel_context.InputFence(input_index);
@@ -326,7 +324,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
     dump_context.program_counter = program_counter++;
     utils::DumpNodeInputs(dump_context, op_kernel_context, p_op_kernel->Node(), session_state);
 #endif
-    ////checkMemory("SequentialExecutor::Execute - LOOP - #3"); 
+    ////checkMemory("SequentialExecutor::Execute - LOOP - #3");
     const std::string node_name_for_profiling = [&]() -> std::string {
       if (!is_profiler_enabled) return {};
       // Derive something meaningful for profile traces and logs if node name field is blank in execution graph
@@ -343,7 +341,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
       VLOGS(logger, 1) << "Computing kernel: " << node_name_for_profiling;
 
       kernel_begin_time = session_state.Profiler().Start();
-      ////checkMemory("SequentialExecutor::Execute - LOOP - before CalculateTotalInputSizes"); 
+      ////checkMemory("SequentialExecutor::Execute - LOOP - before CalculateTotalInputSizes");
       // Calculate total input sizes for this operation.
       CalculateTotalInputSizes(&op_kernel_context, p_op_kernel,
                                input_activation_sizes, input_parameter_sizes,
@@ -367,11 +365,11 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
         }
 #endif
         //if(node_index==11){
-        //  //checkMemory("SequentialExecutor::Execute - before compute"); 
+        //  //checkMemory("SequentialExecutor::Execute - before compute");
         //}
         compute_status = p_op_kernel->Compute(&op_kernel_context);
         //if(node_index==11){
-        //  //checkMemory("SequentialExecutor::Execute - after compute"); 
+        //  //checkMemory("SequentialExecutor::Execute - after compute");
         //}
       }
       ORT_CATCH(const std::exception& ex) {
@@ -389,10 +387,12 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
       std::ostringstream ss;
       ss << "Non-zero status code returned while running " << node.OpType() << " node. Name:'" << node.Name()
          << "' Status Message: " << compute_status.ErrorMessage();
-      //If the computation failed, we still can record the memory consumption
+      // If the computation failed, we still can record the memory consumption
 #if !defined(ORT_MINIMAL_BUILD) && defined(ORT_MEMORY_PROFILE)
-      MemoryInfo::MemoryInfoProfile::CreateEvents("dynamic activations_" + std::to_string(MemoryInfo::GetIteration()),
-                                                  MemoryInfo::MemoryInfoProfile::GetAndIncreasePid(), MemoryInfo::MapType::DynamicActivation, "", 0);
+      session_state.GetMemoryProfiler()->CreateEvents(
+          "dynamic activations_" + std::to_string(session_state.GetMemoryProfiler()->GetMemoryInfo().GetIteration()),
+          session_state.GetMemoryProfiler()->GetAndIncreasePid(),
+          MemoryInfo::MapType::DynamicActivation, "", 0);
 #endif
       const auto msg_string = ss.str();
       LOGS(logger, ERROR) << msg_string;
@@ -435,12 +435,12 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
       sync_time_begin = session_state.Profiler().Start();
     }
     //if(node_index==11){
-    //  //checkMemory("SequentialExecutor::Execute - before syncing"); 
+    //  //checkMemory("SequentialExecutor::Execute - before syncing");
     //}
     // sync after compute for outputs
     if (seq_exec_plan.NodeHasFence(node_index)) {
       //if(node_index==11){
-      //  //checkMemory("SequentialExecutor::Execute - in syncing - before kernel context input count loop"); 
+      //  //checkMemory("SequentialExecutor::Execute - in syncing - before kernel context input count loop");
       //}
       for (int input_index = 0; input_index < op_kernel_context.InputCount(); ++input_index) {
         Fence_t fence = op_kernel_context.InputFence(input_index);
@@ -449,7 +449,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
         }
       }
       if(node_index==11){
-        ////checkMemory("SequentialExecutor::Execute - in syncing - before kernel context ImplicitInputCount loop"); 
+        ////checkMemory("SequentialExecutor::Execute - in syncing - before kernel context ImplicitInputCount loop");
       }
       for (int input_index = 0; input_index < op_kernel_context.ImplicitInputCount(); ++input_index) {
         Fence_t fence = op_kernel_context.ImplicitInputFence(input_index);
@@ -458,7 +458,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
         }
       }
       if(node_index==11){
-        ////checkMemory("SequentialExecutor::Execute - in syncing - before kernel context OutputCount loop"); 
+        ////checkMemory("SequentialExecutor::Execute - in syncing - before kernel context OutputCount loop");
       }
       for (int output_index = 0; output_index < op_kernel_context.OutputCount(); ++output_index) {
         Fence_t fence = op_kernel_context.OutputFence(output_index);
@@ -482,7 +482,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
 #endif
     if (is_profiler_enabled) {
       if(node_index==11){
-        ////checkMemory("SequentialExecutor::Execute - profiling - shouldn't be called"); 
+        ////checkMemory("SequentialExecutor::Execute - profiling - shouldn't be called");
       }
       session_state.Profiler().EndTimeAndRecordEvent(profiling::NODE_EVENT,
                                                      node_name_for_profiling + "_fence_after",
@@ -496,11 +496,11 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
     // free ml-values corresponding to this node
     VLOGS(logger, 1) << "Releasing node ML values.";
     if(node_index==11){
-      ////checkMemory("SequentialExecutor::Execute - before ReleaseNodeMLValues"); 
+      ////checkMemory("SequentialExecutor::Execute - before ReleaseNodeMLValues");
     }
     ORT_RETURN_IF_ERROR(ReleaseNodeMLValues(frame, seq_exec_plan, node_exec_plan, logger));
   }
-  ////checkMemory("SequentialExecutor::Execute - #4"); 
+  ////checkMemory("SequentialExecutor::Execute - #4");
 #ifdef ENABLE_NVTX_PROFILE
   // Make sure forward Range object call Begin and End.
   if (!forward_range.IsBeginCalled()) {
@@ -517,16 +517,17 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
     backward_range.End();
   }
 #endif
-  ////checkMemory("SequentialExecutor::Execute - #5"); 
+  ////checkMemory("SequentialExecutor::Execute - #5");
   VLOGS(logger, 1) << "Fetching output.";
   // ExecutionFrame::Finalize will update 'fetches' with the final output
   ORT_RETURN_IF_ERROR(frame.GetOutputs(fetches));
   VLOGS(logger, 1) << "Done with execution.";
 
 #if !defined(ORT_MINIMAL_BUILD) && defined(ORT_MEMORY_PROFILE)
-  MemoryInfo::MemoryInfoProfile::CreateEvents("dynamic activations_" + std::to_string(MemoryInfo::GetIteration()),
-                                              MemoryInfo::MemoryInfoProfile::GetAndIncreasePid(), MemoryInfo::MapType::DynamicActivation, "", 0);
-  MemoryInfo::MemoryInfoProfile::Clear();
+  session_state.GetMemoryProfiler()->CreateEvents(
+      "dynamic activations_" + std::to_string(session_state.GetMemoryProfiler()->GetMemoryInfo().GetIteration()),
+      session_state.GetMemoryProfiler()->GetAndIncreasePid(), MemoryInfo::MapType::DynamicActivation, "", 0);
+  session_state.GetMemoryProfiler()->Clear();
 #endif
 
   if (frame.HasMemoryPatternPlanner()) {
@@ -539,8 +540,8 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
     }
 
     if (all_tensors) {
-      auto mem_patterns = std::make_unique<MemoryPatternGroup>();
-      ORT_RETURN_IF_ERROR(frame.GeneratePatterns(mem_patterns.get()));
+      MemoryPatternGroup mem_patterns;
+      ORT_RETURN_IF_ERROR(frame.GeneratePatterns(mem_patterns));
       ORT_RETURN_IF_ERROR(session_state.UpdateMemoryPatternGroupCache(feeds, std::move(mem_patterns)));
     }
   }
@@ -560,7 +561,7 @@ Status SequentialExecutor::Execute(const SessionState& session_state, const std:
                        << i.second << " bytes for " << i.first << std::endl;
   }
 #endif
-  ////checkMemory("SequentialExecutor::Execute - END"); 
+  ////checkMemory("SequentialExecutor::Execute - END");
   return Status::OK();
 }
 
@@ -568,14 +569,14 @@ static Status ReleaseNodeMLValues(ExecutionFrame& frame,
                                   const SequentialExecutionPlan& seq_exec_plan,
                                   const SequentialExecutionPlan::NodeExecutionPlan& node_exec_plan,
                                   const logging::Logger& logger) {
-  ////checkMemory("ReleaseNodeMLValues - start"); 
-  
+  ////checkMemory("ReleaseNodeMLValues - start");
+
   for (auto i = node_exec_plan.free_from_index; i <= node_exec_plan.free_to_index; ++i) {
     auto ort_value_idx = seq_exec_plan.to_be_freed[i];
     VLOGS(logger, 1) << "Releasing ort_value with index: " << ort_value_idx;
     ORT_RETURN_IF_ERROR(frame.ReleaseMLValue(ort_value_idx));
   }
-  ////checkMemory("ReleaseNodeMLValues - end"); 
+  ////checkMemory("ReleaseNodeMLValues - end");
   return Status::OK();
 }
 }  // namespace onnxruntime
