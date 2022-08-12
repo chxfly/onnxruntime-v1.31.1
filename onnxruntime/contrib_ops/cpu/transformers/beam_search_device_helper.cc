@@ -628,7 +628,8 @@ Status UpdateDecoderFeeds(
 
   // Update input_ids with next tokens.
   int batch_beam_size = static_cast<int>(beam_next_tokens.length());
-
+  // bugbug: temp workaround
+  has_hidden_state = true;
   // TODO(tianleiwu): Reuse buffer for input_ids to reduce memory allocation.
   OrtValue input_ids;
   int sequence_length = has_hidden_state ? 1 : current_length;
