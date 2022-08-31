@@ -81,14 +81,6 @@ stages:
         artifactName: 'drop-linux'
         targetPath: '$(Build.BinariesDirectory)/Release'
 
-    - task: PublishTestResults@2
-      displayName: 'Publish unit test results'
-      inputs:
-        testResultsFiles: '**/*.results.xml'
-        searchFolder: '$(Build.BinariesDirectory)'
-        testRunTitle: 'Unit Test Run'
-      condition: succeededOrFailed()
-
     - template: templates/clean-agent-build-directory-step.yml
 
 - stage: Linux_Test_Stage
@@ -105,7 +97,14 @@ stages:
     - task: DownloadPipelineArtifact@2
       displayName: 'Download Pipeline Artifact'
       inputs:
-        buildType: 'current'
+        ${{ if eq(parameters.specificArtifact, true) }}:
+          source: 'specific'
+          project: 'onnxruntime'
+          pipeline: $(Build.DefinitionName)
+          runVersion: 'specific'
+          runId: ${{ parameters.runId }}
+        ${{ if ne(parameters.specificArtifact, true) }}:
+          source: 'current'
         artifactName: 'drop-linux'
         targetPath: '$(Build.BinariesDirectory)/Release'
 
