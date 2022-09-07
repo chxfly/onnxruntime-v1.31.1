@@ -62,6 +62,7 @@
 #include "core/optimizer/slice_elimination.h"
 #include "core/optimizer/transpose_optimizer/ort_transpose_optimizer.h"
 #include "core/optimizer/unsqueeze_elimination.h"
+#include "core/optimizer/duplicate_dq_node.h"
 #ifdef ENABLE_TRAINING
 #include "orttraining/core/optimizer/bitmask_dropout_replacement.h"
 #include "orttraining/core/optimizer/bias_softmax_dropout_fusion.h"
@@ -198,6 +199,8 @@ InlinedVector<std::unique_ptr<GraphTransformer>> GenerateTransformers(
       // shouldn't affect the end result - just easier to debug any issue if it's last.
       auto cpu_allocator = cpu_execution_provider.GetAllocator(0, OrtMemTypeDefault);
       transformers.emplace_back(std::make_unique<TransposeOptimizer>(std::move(cpu_allocator)));
+      // only Level-1 will be ran ahead of graph::partition, so DuplicateDQTransformer have to be placed here.
+      transformers.emplace_back(std::make_unique<DuplicateDQTransformer>());
     } break;
 
     case TransformerLevel::Level2: {
