@@ -160,9 +160,9 @@ AllocatorPtr CUDAExecutionProvider::CreateCudaAllocator(OrtDevice::DeviceId devi
   }
 }
 
-CUDAExecutionProvider::PerThreadContext::PerThreadContext(OrtDevice::DeviceId device_id, cudaStream_t stream, size_t /*gpu_mem_limit*/,
-                                                          ArenaExtendStrategy /*arena_extend_strategy*/, CUDAExecutionProviderExternalAllocatorInfo /*external_allocator_info*/,
-                                                          OrtArenaCfg* /*default_memory_arena_cfg*/) {
+CUDAExecutionProvider::PerThreadContext::PerThreadContext(OrtDevice::DeviceId device_id, cudaStream_t stream, size_t gpu_mem_limit,
+                                                          ArenaExtendStrategy arena_extend_strategy, CUDAExecutionProviderExternalAllocatorInfo external_allocator_info,
+                                                          OrtArenaCfg* default_memory_arena_cfg) {
   CUDA_CALL_THROW(cudaSetDevice(device_id));
 
   CUBLAS_CALL_THROW(cublasCreate(&cublas_handle_));
@@ -170,6 +170,8 @@ CUDAExecutionProvider::PerThreadContext::PerThreadContext(OrtDevice::DeviceId de
 
   CUDNN_CALL_THROW(cudnnCreate(&cudnn_handle_));
   CUDNN_CALL_THROW(cudnnSetStream(cudnn_handle_, stream));
+
+  allocator_ = CreateCudaAllocator(device_id, gpu_mem_limit, arena_extend_strategy, external_allocator_info, default_memory_arena_cfg);
 
 #if defined(CUDA_VERSION) && CUDA_VERSION >= 10000
   cuda_graph_.SetStream(stream);
@@ -353,10 +355,10 @@ void CUDAExecutionProvider::ReleasePerThreadContext() const {
 
 AllocatorPtr CUDAExecutionProvider::GetAllocator(int id, OrtMemType mem_type) const {
   if (mem_type == OrtMemTypeDefault) {
-    return CreateCudaAllocator(info_.device_id, info_.gpu_mem_limit, info_.arena_extend_strategy, info_.external_allocator_info, info_.default_memory_arena_cfg);
+    return GetPerThreadContext().GetAllocator();
+  } else {
+    return IExecutionProvider::GetAllocator(id, mem_type);
   }
-
-  return IExecutionProvider::GetAllocator(id, mem_type);
 }
 
 Status CUDAExecutionProvider::Sync() const {
