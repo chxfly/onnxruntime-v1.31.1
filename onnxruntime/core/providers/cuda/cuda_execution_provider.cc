@@ -153,11 +153,7 @@ AllocatorPtr CUDAExecutionProvider::CreateCudaAllocator(OrtDevice::DeviceId devi
         device_id,
         true,
         {default_memory_arena_cfg ? *default_memory_arena_cfg
-                                  : OrtArenaCfg(gpu_mem_limit, static_cast<int>(arena_extend_strategy), -1, -1, -1)},
-        // make it stream aware
-        true,
-        // enable cross stream sharing?
-        false);
+                                  : OrtArenaCfg(gpu_mem_limit, static_cast<int>(arena_extend_strategy), -1, -1, -1)});
 
     // CUDA malloc/free is expensive so always use an arena
     return CreateAllocator(default_memory_info);
@@ -357,15 +353,7 @@ void CUDAExecutionProvider::ReleasePerThreadContext() const {
 
 AllocatorPtr CUDAExecutionProvider::GetAllocator(int id, OrtMemType mem_type) const {
   if (mem_type == OrtMemTypeDefault) {
-    auto cuda_alloc = IExecutionProvider::GetAllocator(id, mem_type);
-    if (!cuda_alloc) {
-      // this means the program invoke GetAllocator before RegsiterAllocators,
-      // which only happnens in some UTs.
-      // here is a hack to return another allocator instance.
-      // need to fix this in the future.
-      return CreateCudaAllocator(info_.device_id, info_.gpu_mem_limit, info_.arena_extend_strategy,
-                                 info_.external_allocator_info, info_.default_memory_arena_cfg);
-    }
+    return CreateCudaAllocator(info_.device_id, info_.gpu_mem_limit, info_.arena_extend_strategy, info_.external_allocator_info, info_.default_memory_arena_cfg);
   }
 
   return IExecutionProvider::GetAllocator(id, mem_type);
