@@ -152,8 +152,8 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
     if (found_subgraph_usage || consumer_node_to_input_index_map.size() == 0) {
       continue;
     }
-
-    std::cout << "handling initializer_name:" << initializer_name << " for " << graph.ModelPath() << std::endl;
+    std::string dp = ToUTF8String(graph.ModelPath().ToPathString());
+    std::cout << "handling initializer_name:" << initializer_name << " for " << dp << std::endl;
     onnxruntime::Initializer initializer{*tensor_proto, graph.ModelPath()};
     std::ostringstream pattern_key_oss;
     pattern_key_oss << data_type << "_";
@@ -182,7 +182,7 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
     // A string constructed by data type, value, and rank. Used as a key in type_value_plus_rank_to_shared_arg_map.
     std::string pattern_key = pattern_key_oss.str();
 
-    std::cout << "handling  1111111111111111 initializer_name:" << initializer_name << " for " << graph.ModelPath() << std::endl;
+    std::cout << "handling  1111111111111111 initializer_name:" << initializer_name << " for " << dp << std::endl;
 
     // If there is no such existing scalar pattern, add a new one.
     if (type_value_plus_rank_to_shared_arg_map.find(pattern_key) ==
@@ -196,14 +196,14 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
       type_value_plus_rank_to_shared_arg_map[pattern_key] = &shared_scalar_initializer_node_arg;
     }
 
-    std::cout << "handling  222222222222222 initializer_name:" << initializer_name << " for " << graph.ModelPath() << std::endl;
+    std::cout << "handling  222222222222222 initializer_name:" << initializer_name << " for " << dp << std::endl;
 
     // Replace the scalar reference using existing shared one.
     ReplaceInputsToUseSharedInitializer(graph, consumer_node_to_input_index_map, origin_initializer_node_arg,
                                         type_value_plus_rank_to_shared_arg_map[pattern_key]);
 
     modified = true;
-    std::cout << "done handling initializer_name:" << initializer_name << " for " << graph.ModelPath() << std::endl;
+    std::cout << "done handling initializer_name:" << initializer_name << " for " << dp << std::endl;
   }
 
   return Status::OK();
