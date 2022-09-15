@@ -187,7 +187,7 @@ InlinedVector<std::unique_ptr<GraphTransformer>> GenerateTransformers(
       // no filtering on execution provider for L1 optimizations as they only use official ONNX operators
 
 #ifdef ENABLE_TRAINING
-      transformers.emplace_back(std::make_unique<ConstantSharing>());
+      // transformers.emplace_back(std::make_unique<ConstantSharing>());
 #endif
       transformers.emplace_back(std::make_unique<CommonSubexpressionElimination>());
       transformers.emplace_back(std::make_unique<ConstantFolding>(cpu_execution_provider, !disable_quant_qdq));
