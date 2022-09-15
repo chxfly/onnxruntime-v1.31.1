@@ -102,7 +102,7 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
     NodeArg* origin_initializer_node_arg = graph.GetNodeArg(initializer_name);
 
     // Already handled, skip it.
-    if (origin_initializer_node_arg == nullptr && IsSharedInitializer(origin_initializer_node_arg)) {
+    if (origin_initializer_node_arg == nullptr || IsSharedInitializer(origin_initializer_node_arg)) {
       continue;
     }
 
