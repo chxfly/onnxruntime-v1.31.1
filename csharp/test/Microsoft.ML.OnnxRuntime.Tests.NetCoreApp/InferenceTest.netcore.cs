@@ -508,8 +508,10 @@ namespace Microsoft.ML.OnnxRuntime.Tests
 
                         using (var resultCollection = session.Run(inputContainer))
                         {
+                            Console.WriteLine("[TestPreTrainedModels] Session finish running model {0}, {1}", modelName, opset);
                             foreach (var result in resultCollection)
                             {
+                                Console.WriteLine("[TestPreTrainedModels] Session result check {0}, {1}", modelName, opset);
                                 Assert.True(session.OutputMetadata.ContainsKey(result.Name));
                                 var outputMeta = session.OutputMetadata[result.Name];
                                 NamedOnnxValue outputValue = null;
@@ -584,6 +586,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                                 {
                                     Assert.True(false, $"{nameof(TestPreTrainedModels)} cannot handle non-tensor outputs yet");
                                 }
+                                Console.WriteLine("[TestPreTrainedModels] Finish session result check {0}, {1}", modelName, opset);
                             }
                         }
                     }
