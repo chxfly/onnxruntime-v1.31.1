@@ -229,7 +229,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                 { "tf_resnet_v1_50", "result mismatch when Conv BN Fusion is applied" },
                 { "tf_resnet_v1_101", "result mismatch when Conv BN Fusion is applied" },
                 { "tf_resnet_v1_152", "result mismatch when Conv BN Fusion is applied" },
-                { "cntk_simple_seg", "Bad onnx test output caused by wrong SAME_UPPER/SAME_LOWER for ConvTranspose" },    
+                { "cntk_simple_seg", "Bad onnx test output caused by wrong SAME_UPPER/SAME_LOWER for ConvTranspose" },
                 { "coreml_Imputer-LogisticRegression_sklearn_load_breast_cancer", "Can't determine model file name" },
                 { "mask_rcnn_keras", "Model should be edited to remove the extra outputs" },
                 { "test_strnormalizer_export_monday_casesensintive_lower", "ElementType not currently supported"},
@@ -452,6 +452,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
         [MemberData(nameof(GetSkippedModelForTest), Skip = "Skipped due to Error, please fix the error and enable the test")]
         private void TestPreTrainedModels(string opset, string modelName)
         {
+            Console.WriteLine("[TestPreTrainedModels] Started running model {0}, {1}", modelName, opset);
             var modelsDir = GetTestModelsDir();
             string onnxModelFileName = null;
 
@@ -604,6 +605,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                     throw new Exception(msg + "\n" + ex.StackTrace);
                 }
             }
+            Console.WriteLine("[TestPreTrainedModels] Complated running model {0}, {1}", modelName, opset);
         }
 
         // Hint: .NET Core 3.1 has a 'NativeLibrary' class that can be used to free the library handle
