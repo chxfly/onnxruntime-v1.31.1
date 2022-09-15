@@ -24,6 +24,12 @@
 #include "core/framework/stream_handles.h"
 #include "core/framework/bfc_arena.h"
 
+#ifdef ENABLE_NVTX_PROFILE
+// This header is for profile using Nvidia's visual profilier.
+#include "core/providers/cuda/nvtx_profile.h"
+#include "core/providers/cuda/nvtx_profile_context.h"
+#endif
+
 using namespace onnxruntime::common;
 
 namespace onnxruntime {
@@ -570,7 +576,16 @@ Status ExecutionFrame::AllocateMLValueTensorSelfOwnBufferHelper(OrtValue& ort_va
 
   auto delete_fn = [alloc](void* buf) { if (buf) alloc->Free(buf); };
 
+#ifdef ENABLE_NVTX_PROFILE
+{
+  profile::NvtxRangeCreator alloc_MLValue_range(DataTypeImpl::ToString(element_type), profile::Color::Red);
+  alloc_MLValue_range.Begin();
+#endif
   Tensor::InitOrtValue(element_type, shape, alloc->Info(), create_fn, delete_fn, ort_value);
+#ifdef ENABLE_NVTX_PROFILE
+  alloc_MLValue_range.End();
+}
+#endif
 
   // trace the memory allocation.
   // don't trace the memory allocation on string tensors, as it need
