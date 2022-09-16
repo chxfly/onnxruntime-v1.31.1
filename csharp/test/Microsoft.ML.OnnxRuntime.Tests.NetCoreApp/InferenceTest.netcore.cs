@@ -439,7 +439,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                 {
                     if (skipModels.ContainsKey(modelDir.Name))
                     {
-                        //Console.WriteLine("Model {0} is skipped due to the error: {1}", modelDir.FullName, skipModels[modelDir.Name]);
+                        //output.WriteLine("Model {0} is skipped due to the error: {1}", modelDir.FullName, skipModels[modelDir.Name]);
                         yield return new object[] { modelDir.Parent.Name, modelDir.Name };
                     }
 
@@ -452,7 +452,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
         [MemberData(nameof(GetSkippedModelForTest), Skip = "Skipped due to Error, please fix the error and enable the test")]
         private void TestPreTrainedModels(string opset, string modelName)
         {
-            Console.WriteLine("[TestPreTrainedModels] Started running model {0}, {1}", modelName, opset);
+            output.WriteLine("[TestPreTrainedModels] Started running model {0}, {1}", modelName, opset);
             var modelsDir = GetTestModelsDir();
             string onnxModelFileName = null;
 
@@ -485,108 +485,143 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                     throw new Exception($"Opset {opset} Model {modelName}. Can't determine model file name. Found these :{modelNamesList}");
                 }
 
-                using (var session = new InferenceSession(onnxModelFileName))
-                {
-                    var inMeta = session.InputMetadata;
-                    string testDataDirNamePattern = "test_data*";
-                    if (opset == "opset9" && modelName == "LSTM_Seq_lens_unpacked")
-                    {
-                        testDataDirNamePattern = "seq_lens*"; // discrepancy in data directory
-                    }
-                    foreach (var testDataDir in modelDir.EnumerateDirectories(testDataDirNamePattern))
-                    {
-                        var inputContainer = new List<NamedOnnxValue>();
-                        var outputContainer = new List<NamedOnnxValue>();
-                        foreach (var f in testDataDir.EnumerateFiles("input_*.pb"))
-                        {
-                            inputContainer.Add(TestDataLoader.LoadTensorFromFilePb(f.FullName, inMeta));
-                        }
-                        foreach (var f in testDataDir.EnumerateFiles("output_*.pb"))
-                        {
-                            outputContainer.Add(TestDataLoader.LoadTensorFromFilePb(f.FullName, session.OutputMetadata));
-                        }
+                //var cudaProviderOptions = new OrtCUDAProviderOptions();
+                // cleanUp.Add(cudaProviderOptions);
 
-                        using (var resultCollection = session.Run(inputContainer))
+               //var providerOptionsDict = new Dictionary<string, string>();
+
+                //var resultProviderOptionsDict = new Dictionary<string, string>();
+                //ProviderOptionsValueHelper.StringToDict(cudaProviderOptions.GetOptions(), resultProviderOptionsDict);
+
+
+                // test correctness of provider options
+                // SessionOptions options = new SessionOptions();//.MakeSessionOptionWithCudaProvider(cudaProviderOptions);
+                // cleanUp.Add(options);
+
+                // var debugEnabled = Environment.GetEnvironmentVariable("VSTEST_RUNNER_DEBUG");
+                // if (!string.IsNullOrEmpty(debugEnabled) && debugEnabled.Equals("1", StringComparison.Ordinal))
+                // {
+                //     System.Diagnostics.Debug.WriteLine("Waiting for debugger attach...");
+
+                //     var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                //     System.Diagnostics.Debug.WriteLine(
+                //         string.Format("Process Id: {0}, Name: {1}", currentProcess.Id, currentProcess.ProcessName));
+
+                //     while (!System.Diagnostics.Debugger.IsAttached)
+                //     {
+                //         System.Threading.Thread.Sleep(1000);
+                //     }
+
+                //     System.Diagnostics.Debugger.Break();
+                // }
+
+                using (var options = new SessionOptions()) {
+                    // options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_VERBOSE;
+                    options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_WARNING;
+                    // System.Threading.Thread.Sleep(180000);
+                    using (var session = new InferenceSession(onnxModelFileName, options))
+                    {
+                        var inMeta = session.InputMetadata;
+                        string testDataDirNamePattern = "test_data*";
+                        if (opset == "opset9" && modelName == "LSTM_Seq_lens_unpacked")
                         {
-                            Console.WriteLine("[TestPreTrainedModels] Session finish running model {0}, {1}", modelName, opset);
-                            foreach (var result in resultCollection)
+                            testDataDirNamePattern = "seq_lens*"; // discrepancy in data directory
+                        }
+                        foreach (var testDataDir in modelDir.EnumerateDirectories(testDataDirNamePattern))
+                        {
+                            var inputContainer = new List<NamedOnnxValue>();
+                            var outputContainer = new List<NamedOnnxValue>();
+                            foreach (var f in testDataDir.EnumerateFiles("input_*.pb"))
                             {
-                                Console.WriteLine("[TestPreTrainedModels] Session result check {0}, {1}", modelName, opset);
-                                Assert.True(session.OutputMetadata.ContainsKey(result.Name));
-                                var outputMeta = session.OutputMetadata[result.Name];
-                                NamedOnnxValue outputValue = null;
-                                foreach (var o in outputContainer)
+                                inputContainer.Add(TestDataLoader.LoadTensorFromFilePb(f.FullName, inMeta));
+                            }
+                            foreach (var f in testDataDir.EnumerateFiles("output_*.pb"))
+                            {
+                                outputContainer.Add(TestDataLoader.LoadTensorFromFilePb(f.FullName, session.OutputMetadata));
+                            }
+
+                            using (var resultCollection = session.Run(inputContainer))
+                            {
+                                output.WriteLine("[TestPreTrainedModels] Session finish running model {0}, {1}", modelName, opset);
+                                foreach (var result in resultCollection)
                                 {
-                                    if (o.Name == result.Name)
+                                    output.WriteLine("[TestPreTrainedModels] Session result check {0}, {1}", modelName, opset);
+                                    Assert.True(session.OutputMetadata.ContainsKey(result.Name));
+                                    var outputMeta = session.OutputMetadata[result.Name];
+                                    NamedOnnxValue outputValue = null;
+                                    foreach (var o in outputContainer)
                                     {
-                                        outputValue = o;
-                                        break;
+                                        if (o.Name == result.Name)
+                                        {
+                                            outputValue = o;
+                                            break;
+                                        }
                                     }
-                                }
-                                if (outputValue == null)
-                                {
-                                    outputValue = outputContainer.First(); // in case the output data file does not contain the name
-                                }
-                                if (outputMeta.IsTensor)
-                                {
-                                    if (outputMeta.ElementType == typeof(float))
+                                    if (outputValue == null)
                                     {
-                                        Assert.Equal(result.AsTensor<float>(), outputValue.AsTensor<float>(), new FloatComparer());
+                                        outputValue = outputContainer.First(); // in case the output data file does not contain the name
                                     }
-                                    else if (outputMeta.ElementType == typeof(double))
+                                    if (outputMeta.IsTensor)
                                     {
-                                        Assert.Equal(result.AsTensor<double>(), outputValue.AsTensor<double>(), new DoubleComparer());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(int))
-                                    {
-                                        Assert.Equal(result.AsTensor<int>(), outputValue.AsTensor<int>(), new ExactComparer<int>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(uint))
-                                    {
-                                        Assert.Equal(result.AsTensor<uint>(), outputValue.AsTensor<uint>(), new ExactComparer<uint>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(short))
-                                    {
-                                        Assert.Equal(result.AsTensor<short>(), outputValue.AsTensor<short>(), new ExactComparer<short>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(ushort))
-                                    {
-                                        Assert.Equal(result.AsTensor<ushort>(), outputValue.AsTensor<ushort>(), new ExactComparer<ushort>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(long))
-                                    {
-                                        Assert.Equal(result.AsTensor<long>(), outputValue.AsTensor<long>(), new ExactComparer<long>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(ulong))
-                                    {
-                                        Assert.Equal(result.AsTensor<ulong>(), outputValue.AsTensor<ulong>(), new ExactComparer<ulong>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(byte))
-                                    {
-                                        Assert.Equal(result.AsTensor<byte>(), outputValue.AsTensor<byte>(), new ExactComparer<byte>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(bool))
-                                    {
-                                        Assert.Equal(result.AsTensor<bool>(), outputValue.AsTensor<bool>(), new ExactComparer<bool>());
-                                    }
-                                    else if (outputMeta.ElementType == typeof(Float16))
-                                    {
-                                        Assert.Equal(result.AsTensor<Float16>(), outputValue.AsTensor<Float16>(), new Float16Comparer { tolerance = 2 });
-                                    }
-                                    else if (outputMeta.ElementType == typeof(BFloat16))
-                                    {
-                                        Assert.Equal(result.AsTensor<BFloat16>(), outputValue.AsTensor<BFloat16>(), new BFloat16Comparer { tolerance = 2 });
+                                        if (outputMeta.ElementType == typeof(float))
+                                        {
+                                            Assert.Equal(result.AsTensor<float>(), outputValue.AsTensor<float>(), new FloatComparer());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(double))
+                                        {
+                                            Assert.Equal(result.AsTensor<double>(), outputValue.AsTensor<double>(), new DoubleComparer());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(int))
+                                        {
+                                            Assert.Equal(result.AsTensor<int>(), outputValue.AsTensor<int>(), new ExactComparer<int>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(uint))
+                                        {
+                                            Assert.Equal(result.AsTensor<uint>(), outputValue.AsTensor<uint>(), new ExactComparer<uint>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(short))
+                                        {
+                                            Assert.Equal(result.AsTensor<short>(), outputValue.AsTensor<short>(), new ExactComparer<short>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(ushort))
+                                        {
+                                            Assert.Equal(result.AsTensor<ushort>(), outputValue.AsTensor<ushort>(), new ExactComparer<ushort>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(long))
+                                        {
+                                            Assert.Equal(result.AsTensor<long>(), outputValue.AsTensor<long>(), new ExactComparer<long>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(ulong))
+                                        {
+                                            Assert.Equal(result.AsTensor<ulong>(), outputValue.AsTensor<ulong>(), new ExactComparer<ulong>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(byte))
+                                        {
+                                            Assert.Equal(result.AsTensor<byte>(), outputValue.AsTensor<byte>(), new ExactComparer<byte>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(bool))
+                                        {
+                                            Assert.Equal(result.AsTensor<bool>(), outputValue.AsTensor<bool>(), new ExactComparer<bool>());
+                                        }
+                                        else if (outputMeta.ElementType == typeof(Float16))
+                                        {
+                                            Assert.Equal(result.AsTensor<Float16>(), outputValue.AsTensor<Float16>(), new Float16Comparer { tolerance = 2 });
+                                        }
+                                        else if (outputMeta.ElementType == typeof(BFloat16))
+                                        {
+                                            Assert.Equal(result.AsTensor<BFloat16>(), outputValue.AsTensor<BFloat16>(), new BFloat16Comparer { tolerance = 2 });
+                                        }
+                                        else
+                                        {
+                                            Assert.True(false, $"{nameof(TestPreTrainedModels)} does not yet support output of type {outputMeta.ElementType}");
+                                        }
                                     }
                                     else
                                     {
-                                        Assert.True(false, $"{nameof(TestPreTrainedModels)} does not yet support output of type {outputMeta.ElementType}");
+                                        Assert.True(false, $"{nameof(TestPreTrainedModels)} cannot handle non-tensor outputs yet");
                                     }
+                                    output.WriteLine("[TestPreTrainedModels] Finish session result check {0}, {1}", modelName, opset);
                                 }
-                                else
-                                {
-                                    Assert.True(false, $"{nameof(TestPreTrainedModels)} cannot handle non-tensor outputs yet");
-                                }
-                                Console.WriteLine("[TestPreTrainedModels] Finish session result check {0}, {1}", modelName, opset);
                             }
                         }
                     }
@@ -605,10 +640,10 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                 }
                 else
                 {
-                    throw new Exception(msg + "\n" + ex.StackTrace);
+                    throw new Exception("pengwa88888888888888" + msg + "\n" + ex.StackTrace);
                 }
             }
-            Console.WriteLine("[TestPreTrainedModels] Complated running model {0}, {1}", modelName, opset);
+            output.WriteLine("[TestPreTrainedModels] Complated running model {0}, {1}", modelName, opset);
         }
 
         // Hint: .NET Core 3.1 has a 'NativeLibrary' class that can be used to free the library handle
