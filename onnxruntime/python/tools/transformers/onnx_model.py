@@ -897,8 +897,10 @@ class OnnxModel:
                             sorted_nodes.append(graph.node[node_idx])
                             end = end + 1
             start = start + 1
-
-        assert end == len(graph.node), "Graph is not a DAG"
+        
+        if end != len(graph.node):
+            raise RuntimeError(f"Graph is not a DAG: end={end}, len(graph.node)={len(graph.node)}, graph.node[end]={graph.node[end]}")
+         
         graph.ClearField("node")
         graph.node.extend(sorted_nodes)
 
