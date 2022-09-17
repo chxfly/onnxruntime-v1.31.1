@@ -89,7 +89,7 @@ void ReplaceInputsToUseSharedInitializer(Graph& graph,
 }  // namespace
 
 Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_level*/,
-                                  const logging::Logger& /*logger*/) const {
+                                  const logging::Logger& logger) const {
   // Accumulated map from type/value/rank to initializer:
   //   The key is a string representation of initializer's data type, value and rank.
   //   The value is newly created initializer NodeArg* to be shared.
