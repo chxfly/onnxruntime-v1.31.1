@@ -517,7 +517,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
 
                 using (var options = new SessionOptions()) {
                     // options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_VERBOSE;
-                    options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_WARNING;
+                    options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_ERROR;
                     // System.Threading.Thread.Sleep(180000);
                     using (var session = new InferenceSession(onnxModelFileName, options))
                     {

@@ -1188,15 +1188,15 @@ static Status VerifyEachNodeIsAssignedToAnEp(const Graph& graph, const logging::
 #if !defined(ORT_MINIMAL_BUILD)
   // print placement info
   if (is_verbose_mode) {
-    LOGS(logger, VERBOSE) << "Node placements";
+    std::cout << "Node placements" << std::endl;
     if (node_placements.size() == 1) {
       const auto& [provider, node_strs] = *node_placements.begin();
-      LOGS(logger, VERBOSE) << " All nodes placed on [" << provider << "]. Number of nodes: " << node_strs.size();
+      std::cout << " All nodes placed on [" << provider << "]. Number of nodes: " << node_strs.size() << std::endl;
     } else {
       for (const auto& [provider, node_strs] : node_placements) {
-        LOGS(logger, VERBOSE) << " Node(s) placed on [" << provider << "]. Number of nodes: " << node_strs.size();
+        std::cout << " Node(s) placed on [" << provider << "]. Number of nodes: " << node_strs.size() << std::endl;
         for (const auto& node_str : node_strs) {
-          LOGS(logger, VERBOSE) << "  " << node_str;
+          std::cout << "  " << node_str << std::endl;
         }
       }
     }
@@ -1211,6 +1211,19 @@ static Status VerifyEachNodeIsAssignedToAnEp(const Graph& graph, const logging::
     LOGS(logger, WARNING) << "Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.";
     if (!is_verbose_mode) {
       LOGS(logger, WARNING) << "Rerunning with verbose output on a non-minimal build will show node assignments.";
+      std::string dp = ToUTF8String(graph.ModelPath().ToPathString());
+      LOGS(logger, WARNING) << "Node placements for model " << dp;
+      if (node_placements.size() == 1) {
+        const auto& [provider, node_strs] = *node_placements.begin();
+        LOGS(logger, WARNING) << " All nodes placed on [" << provider << "]. Number of nodes: " << node_strs.size();
+      } else {
+        for (const auto& [provider, node_strs] : node_placements) {
+          LOGS(logger, WARNING) << " Node(s) placed on [" << provider << "]. Number of nodes: " << node_strs.size();
+          for (const auto& node_str : node_strs) {
+            LOGS(logger, WARNING) << "  " << node_str;
+          }
+        }
+      }
     }
   }
 

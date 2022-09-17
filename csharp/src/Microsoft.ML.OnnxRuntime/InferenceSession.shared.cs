@@ -60,12 +60,12 @@ namespace Microsoft.ML.OnnxRuntime
         }
 
         /// <summary>
-        /// Constructs an InferenceSession from a model file and it will use 
-        /// the provided pre-packed weights container to store and share pre-packed buffers 
+        /// Constructs an InferenceSession from a model file and it will use
+        /// the provided pre-packed weights container to store and share pre-packed buffers
         /// of shared initializers across sessions if any.
         /// </summary>
         /// <param name="modelPath">Model path</param>
-        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer. 
+        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer.
         /// Lifetime of 'prepackedWeightsContainer' must be
         /// managed by the user and it must outlive any sessions reliant on it</param>
         public InferenceSession(string modelPath, PrePackedWeightsContainer prepackedWeightsContainer)
@@ -88,12 +88,12 @@ namespace Microsoft.ML.OnnxRuntime
 
         /// <summary>
         /// Constructs an InferenceSession from a model file, with some additional session options
-        /// and it will use the provided pre-packed weights container to store and share pre-packed buffers 
+        /// and it will use the provided pre-packed weights container to store and share pre-packed buffers
         /// of shared initializers across sessions if any.
         /// </summary>
         /// <param name="modelPath">Model path</param>
         /// <param name="options">Session options</param>
-        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer. 
+        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer.
         /// Lifetime of 'prepackedWeightsContainer' must be
         /// managed by the user and it must outlive any sessions reliant on it</param>
         public InferenceSession(string modelPath, SessionOptions options,
@@ -113,12 +113,12 @@ namespace Microsoft.ML.OnnxRuntime
         }
 
         /// <summary>
-        /// Constructs an InferenceSession from a model data (in byte array) and it will use 
-        /// the provided pre-packed weights container to store and share pre-packed buffers 
+        /// Constructs an InferenceSession from a model data (in byte array) and it will use
+        /// the provided pre-packed weights container to store and share pre-packed buffers
         /// of shared initializers across sessions if any.
         /// </summary>
         /// <param name="model">Model as byte array</param>
-        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer. 
+        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer.
         /// Lifetime of 'prepackedWeightsContainer' must be
         /// managed by the user and it must outlive any sessions reliant on it</param>
         public InferenceSession(byte[] model, PrePackedWeightsContainer prepackedWeightsContainer)
@@ -144,7 +144,7 @@ namespace Microsoft.ML.OnnxRuntime
         /// </summary>
         /// <param name="model">Model as byte array</param>
         /// <param name="options">Session Options</param>
-        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer. 
+        /// <param name="prepackedWeightsContainer">Instance of PrepackedWeightsContainer.
         /// Lifetime of 'prepackedWeightsContainer' must be
         /// managed by the user and it must outlive any sessions reliant on it</param>
         public InferenceSession(byte[] model, SessionOptions options,
@@ -291,7 +291,7 @@ namespace Microsoft.ML.OnnxRuntime
 
         /// <summary>
         /// Runs the loaded model for the given inputs and outputs.
-        /// 
+        ///
         /// Outputs need to be created with correct type and dimension to accept the fetched data.
         /// </summary>
         /// <param name="inputNames">Specify a collection of string that indicates the input names. Should match <paramref name="inputValues"/>.</param>
@@ -309,7 +309,7 @@ namespace Microsoft.ML.OnnxRuntime
 
         /// <summary>
         /// Runs the loaded model for the given inputs and outputs. Uses the given RunOptions for this run.
-        /// 
+        ///
         /// Outputs need to be created with correct type and dimension to accept the fetched data.
         /// </summary>
         /// <param name="inputNames">Specify a collection of string that indicates the input names. Should match <paramref name="inputValues"/>.</param>
@@ -358,7 +358,7 @@ namespace Microsoft.ML.OnnxRuntime
 
         /// <summary>
         /// Runs the loaded model for the given inputs and outputs.
-        /// 
+        ///
         /// Outputs need to be created with correct type and dimension to receive the fetched data.
         /// </summary>
         /// <param name="inputs">Specify a collection of <see cref="NamedOnnxValue"/> that indicates the input values.</param>
@@ -407,7 +407,7 @@ namespace Microsoft.ML.OnnxRuntime
 
         /// <summary>
         /// Runs the loaded model for the given inputs and outputs.
-        /// 
+        ///
         /// Outputs need to be created with correct type and dimension to receive the fetched data.
         /// </summary>
         /// <param name="inputs">Specify a collection of <see cref="NamedOnnxValue"/> that indicates the input values.</param>
@@ -423,7 +423,7 @@ namespace Microsoft.ML.OnnxRuntime
 
         /// <summary>
         /// Runs the loaded model for the given inputs and outputs. Uses the given RunOptions for this run.
-        /// 
+        ///
         /// Outputs need to be created with correct type and dimension to receive the fetched data.
         /// </summary>
         /// <param name="inputs">Specify a collection of <see cref="NamedOnnxValue"/> that indicates the input values.</param>
@@ -537,7 +537,7 @@ namespace Microsoft.ML.OnnxRuntime
 
         /// <summary>
         /// This method runs inference on the OrtIoBinding instance
-        /// The method does not return anything. This is a lightweight version of 
+        /// The method does not return anything. This is a lightweight version of
         /// RunWithBindingAndNames(). When you bind pre-allocated buffers to the output values
         /// you may not want to fetch the outputs since you already have access to them so you can spare
         /// the expense of fetching them and pairing with names.
@@ -554,7 +554,7 @@ namespace Microsoft.ML.OnnxRuntime
         ///  This method return a collection of DisposableNamedOnnxValue as in other interfaces
         ///  Query names from OrtIoBinding object and pair then with the array of OrtValues returned
         /// from OrtIoBinding.GetOutputValues()
-        /// 
+        ///
         /// </summary>
         /// <param name="runOptions">RunOptions</param>
         /// <param name="ioBinding">OrtIoBinding instance with bindings</param>
@@ -770,12 +770,14 @@ namespace Microsoft.ML.OnnxRuntime
         {
             var envHandle = OrtEnv.Handle;
             var session = IntPtr.Zero;
-
+System.Diagnostics.Debug.WriteLine("InferenceSession.shared>>Init>> before OrtCreateSession");
             if (prepackedWeightsContainer == null)
             {
                     NativeApiStatus.VerifySuccess(NativeMethods.OrtCreateSession(envHandle, NativeOnnxValueHelper.GetPlatformSerializedString(modelPath),
                     options.Handle, out session));
             }
+
+
 
             else
             {
@@ -783,8 +785,9 @@ namespace Microsoft.ML.OnnxRuntime
                     envHandle, NativeOnnxValueHelper.GetPlatformSerializedString(modelPath),
                     options.Handle, prepackedWeightsContainer.Pointer, out session));
             }
-
+System.Diagnostics.Debug.WriteLine("InferenceSession.shared>>Init>> after OrtCreateSession");
             InitWithSessionHandle(session, options);
+            System.Diagnostics.Debug.WriteLine("InferenceSession.shared>>Init>> after InitWithSessionHandle");
         }
 
         private void Init(byte[] modelData, SessionOptions options,
@@ -871,7 +874,7 @@ namespace Microsoft.ML.OnnxRuntime
                 throw;
             }
 
-            _builtInRunOptions = new RunOptions();  // create a default built-in run option, and avoid creating a new one every run() call  
+            _builtInRunOptions = new RunOptions();  // create a default built-in run option, and avoid creating a new one every run() call
         }
 
 

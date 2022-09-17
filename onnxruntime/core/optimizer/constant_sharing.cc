@@ -8,6 +8,9 @@
 #include "core/optimizer/initializer.h"
 #include "core/optimizer/constant_sharing.h"
 #include "core/optimizer/utils.h"
+#include <random>
+#include <chrono>
+#include <thread>
 
 namespace onnxruntime {
 
@@ -61,7 +64,9 @@ void ReplaceInputsToUseSharedInitializer(Graph& graph,
                                          const NodeArg* origin_initializer_node_arg,
                                          NodeArg* shared_initializer_node_arg) {
   for (auto it = consumer_node_to_input_index_map.begin(); it != consumer_node_to_input_index_map.end(); ++it) {
+    ORT_ENFORCE(it->first, "it->first should not be nullptr.");
     Node* node = const_cast<Node*>(it->first);
+    ORT_ENFORCE(node, "Node should not be nullptr.");
     // Iterate all input defs to replace those that are equal to origin_initializer_node_arg,
     // Then it would be safe to remove the consumer node.
     for (int input_index : it->second) {
@@ -76,10 +81,10 @@ void ReplaceInputsToUseSharedInitializer(Graph& graph,
     }
   }
 
-  // Remove the initializer if no other consumer nodes.
-  if (graph.GetConsumerNodes(origin_initializer_node_arg->Name()).size() == 0) {
-    graph.RemoveInitializedTensor(origin_initializer_node_arg->Name());
-  }
+  // // Remove the initializer if no other consumer nodes.
+  // if (graph.GetConsumerNodes(origin_initializer_node_arg->Name()).size() == 0) {
+  //   graph.RemoveInitializedTensor(origin_initializer_node_arg->Name());
+  // }
 }
 }  // namespace
 
@@ -153,7 +158,7 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
       continue;
     }
     std::string dp = ToUTF8String(graph.ModelPath().ToPathString());
-    std::cout << "handling initializer_name:" << initializer_name << " for " << dp << std::endl;
+    LOGS(logger, WARNING) << "handling initializer_name:" << initializer_name << " for " << dp;
     onnxruntime::Initializer initializer{*tensor_proto, graph.ModelPath()};
     std::ostringstream pattern_key_oss;
     pattern_key_oss << data_type << "_";
@@ -182,7 +187,7 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
     // A string constructed by data type, value, and rank. Used as a key in type_value_plus_rank_to_shared_arg_map.
     std::string pattern_key = pattern_key_oss.str();
 
-    std::cout << "handling  1111111111111111 initializer_name:" << initializer_name << " for " << dp << std::endl;
+    LOGS(logger, WARNING) << "handling  1111111111111111 initializer_name:" << initializer_name << " for " << dp;
 
     // If there is no such existing scalar pattern, add a new one.
     if (type_value_plus_rank_to_shared_arg_map.find(pattern_key) ==
@@ -196,14 +201,21 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
       type_value_plus_rank_to_shared_arg_map[pattern_key] = &shared_scalar_initializer_node_arg;
     }
 
-    std::cout << "handling  222222222222222 initializer_name:" << initializer_name << " for " << dp << std::endl;
+    ORT_ENFORCE(type_value_plus_rank_to_shared_arg_map[pattern_key], "type_value_plus_rank_to_shared_arg_map[pattern_key] should not be null.");
 
+    LOGS(logger, WARNING) << "handling  222222222222222 initializer_name:" << initializer_name << " for " << dp;
+
+    // std::random_device rd;                          // obtain a random number from hardware
+    // std::mt19937 gen(rd());                         // seed the generator
+    // std::uniform_int_distribution<> distr(50, 500);  // define the range
+
+    // std::this_thread::sleep_for(std::chrono::milliseconds(distr(gen)));
     // Replace the scalar reference using existing shared one.
     ReplaceInputsToUseSharedInitializer(graph, consumer_node_to_input_index_map, origin_initializer_node_arg,
                                         type_value_plus_rank_to_shared_arg_map[pattern_key]);
 
     modified = true;
-    std::cout << "done handling initializer_name:" << initializer_name << " for " << dp << std::endl;
+    LOGS(logger, WARNING) << "done handling initializer_name:" << initializer_name << " for " << dp;
   }
 
   return Status::OK();
