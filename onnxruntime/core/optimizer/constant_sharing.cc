@@ -177,7 +177,7 @@ Status ConstantSharing::ApplyImpl(Graph& graph, bool& modified, int /*graph_leve
     LOGS(logger, WARNING) << "handling initializer_name:" << initializer_name << " for " << dp;
     onnxruntime::Initializer initializer{*tensor_proto, graph.ModelPath()};
 
-    std::string value_key;
+    std::int32_t value_key;
     // std::ostringstream pattern_key_oss;
     // pattern_key_oss << data_type << origin_initializer_node_arg->Shape()->dim_size();
 
