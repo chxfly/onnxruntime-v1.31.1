@@ -75,19 +75,19 @@ void ReplaceInputsToUseSharedInitializer(Graph& graph,
       myfile << "Replacing Node (name= " << node->Name() << ")'s " << input_index << " with " << shared_initializer_node_arg->Name() << std::endl;
       graph_utils::ReplaceNodeInput(*node, input_index, *shared_initializer_node_arg);
     }
-    // graph.RemoveConsumerNode(origin_initializer_node_arg->Name(), node);
+    graph.RemoveConsumerNode(origin_initializer_node_arg->Name(), node);
 
     // // Add consumer ref count for shared scalar initializer.
-    // std::vector<const Node*> consumers = graph.GetConsumerNodes(shared_initializer_node_arg->Name());
-    // if (std::find(consumers.begin(), consumers.end(), node) == consumers.end()) {
-    //   graph.AddConsumerNode(shared_initializer_node_arg->Name(), node);
-    // }
+    std::vector<const Node*> consumers = graph.GetConsumerNodes(shared_initializer_node_arg->Name());
+    if (std::find(consumers.begin(), consumers.end(), node) == consumers.end()) {
+      graph.AddConsumerNode(shared_initializer_node_arg->Name(), node);
+    }
   }
 
   // // Remove the initializer if no other consumer nodes.
-  // if (graph.GetConsumerNodes(origin_initializer_node_arg->Name()).size() == 0) {
-  //   graph.RemoveInitializedTensor(origin_initializer_node_arg->Name());
-  // }
+  if (graph.GetConsumerNodes(origin_initializer_node_arg->Name()).size() == 0) {
+    graph.RemoveInitializedTensor(origin_initializer_node_arg->Name());
+  }
 }
 
 int32_t GetNewValueKey() {
