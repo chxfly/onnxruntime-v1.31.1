@@ -170,9 +170,9 @@ class FusionReshape(Fusion):
 
         self.replace_reshape_node(shape, reshape_node, concat_node)
 
-        #TODO(tlwu): remove nodes in a safer way - only remove a node when its output is not used anymore.
-        #self.nodes_to_remove.extend(path0)
-        #self.nodes_to_remove.extend(path1)
-        #self.nodes_to_remove.extend(path2)
-        #self.nodes_to_remove.extend(path3)
+        # TODO(tlwu): remove nodes in a safer way - only remove a node when its output is not used anymore.
+        # self.nodes_to_remove.extend(path0)
+        # self.nodes_to_remove.extend(path1)
+        # self.nodes_to_remove.extend(path2)
+        # self.nodes_to_remove.extend(path3)
         self.prune_graph = True

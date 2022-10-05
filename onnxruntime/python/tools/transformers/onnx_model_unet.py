@@ -74,7 +74,7 @@ class UnetOnnxModel(BertOnnxModel):
 
         self.postprocess()
 
-        # Bias fusion is done after postprocess to avoid extra Reshape between bias and Gelu/FastGelu/SkipLayerNormalization
+        # Bias fusion is done after postprocess to avoid extra Reshape between bias and Gelu/FastGelu/SkipLayerNorm
         if (options is None) or options.enable_bias_gelu:
             # Fuse Gelu and Add Bias before it.
             self.fuse_bias_gelu(is_fastgelu=True)
