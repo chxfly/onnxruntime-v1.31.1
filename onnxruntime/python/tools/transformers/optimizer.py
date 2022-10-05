@@ -138,8 +138,8 @@ def optimize_by_fusion(
      Returns:
         object of an optimizer class.
     """
-    if model_type != "bert" and (num_heads == 0 or hidden_size == 0):
-        logger.warning("Please specify parameters of num_heads and hidden_size when model_type is not 'bert'")
+    if model_type not in ["bert", "unet"] and (num_heads == 0 or hidden_size == 0):
+        logger.warning(f"Please specify parameters of num_heads and hidden_size for model_type {model_type}")
 
     (optimizer_class, producer, _) = MODEL_TYPES[model_type]
 
@@ -217,9 +217,6 @@ def optimize_model(
         object of an optimizer class.
     """
     assert opt_level is None or opt_level in [0, 1, 2, 99]
-
-    if model_type not in ["bert", "unet"] and (num_heads == 0 or hidden_size == 0):
-        logger.warning(f"Please specify parameters of num_heads and hidden_size for model_type {model_type}")
 
     (optimizer_class, _producer, default_opt_level) = MODEL_TYPES[model_type]
 
