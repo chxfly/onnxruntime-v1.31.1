@@ -45,8 +45,9 @@ def optimize_stable_diffusion_onnx(source_dir, target_dir, float16):
         # Overwrite existing models when source_dir==target_dir. Otherwise, you might need copy non-onnx files manually.
         optimized_model_path = os.path.join(target_dir, name, "model.onnx")
         output_dir = os.path.dirname(optimized_model_path)
-        shutil.rmtree(output_dir)
-        os.mkdir(output_dir)
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        os.makedirs(output_dir)
 
         onnx.save_model(m.model, optimized_model_path)
 
