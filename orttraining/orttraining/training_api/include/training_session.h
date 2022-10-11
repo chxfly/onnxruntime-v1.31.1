@@ -66,7 +66,7 @@ class TrainingSession {
   size_t GetParametersSize(const bool trainable_only=true) const;
 
   Status CopyParametersToBuffer(OrtValue& parameters_buffer, const bool trainable_only=true);
-  
+
   Status CopyBufferToParameters(OrtValue& parameters_buffer, const bool trainable_only=true);
 
  private:
