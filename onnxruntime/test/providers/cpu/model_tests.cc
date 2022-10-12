@@ -590,20 +590,6 @@ TEST_P(ModelTest, Run) {
   (void)GetDirNameFromFilePath(model_path, model_dir);
   std::basic_string<PATH_CHAR_TYPE> test_case_name = GetLastComponent(model_dir);
 
-#ifdef _WIN32
-  if (provider_name == "cuda") {
-    std::string temp_name = ToUTF8String(test_case_name);
-    std::transform(temp_name.begin(), temp_name.end(), temp_name.begin(), [](char c) { return static_cast<char>(std::tolower(c)); });
-    
-    if (temp_name.find("int8") != std::string::npos || temp_name.find("fp16") != std::string::npos 
-        || temp_name.find("float16") != std::string::npos ) {
-      SkipTest("Windows CUDA doesn't support INT8 or FP16");
-      return;
-    }
-    
-  }
-#endif
-
   if (test_case_name.compare(0, 5, ORT_TSTR("test_")) == 0)
     test_case_name = test_case_name.substr(5);
   {
