@@ -43,7 +43,7 @@ stages:
         RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
         RunStaticCodeAnalysis: false
         ORT_EP_NAME: CUDA
-        MachinePool: onnxruntime-Win2019-GPU
+        MachinePool: Win-GPU-2019-beta
 
 - stage: training
   dependsOn: []
