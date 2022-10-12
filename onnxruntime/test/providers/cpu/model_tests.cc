@@ -594,7 +594,7 @@ TEST_P(ModelTest, Run) {
   if (provider_name == "cuda") {
     std::transform(test_case_name.begin(), test_case_name.end(), test_case_name.begin(), ::tolower);
     
-    if (test_case_name.find(ORT_TSTR("int8")) != std::string::npos || || test_case_name.find(ORT_TSTR("fp16")) || test_case_name.find(ORT_TSTR("float16"))) {
+    if (test_case_name.find(ORT_TSTR("int8")) != std::string::npos || test_case_name.find(ORT_TSTR("fp16")) || test_case_name.find(ORT_TSTR("float16"))) {
       SkipTest("Windows CUDA doesn't support INT8 or FP16");
       return;
     }
