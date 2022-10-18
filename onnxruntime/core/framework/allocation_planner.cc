@@ -20,6 +20,7 @@
 #include "core/framework/utils.h"
 #include "core/framework/op_kernel_context_internal.h"
 #include "core/framework/sequential_executor.h"
+#include "core/framework/sequential_execution_plan.h"
 
 using namespace onnxruntime::common;
 using namespace ONNX_NAMESPACE;
@@ -129,132 +130,6 @@ static const KernelCreateInfo& GetKernelCreateInfo(
 
   return *entry->second;
 }
-
-class BarrierStep : public SequentialExecutionPlan::ExecutionStep {
- public:
-  BarrierStep(size_t id) : SequentialExecutionPlan::ExecutionStep(),
-                           barrier_id{id} {}
-
-  Status Execute(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) override {
-    continue_flag = ctx->DecCountDownBarrier(barrier_id);
-    return Status::OK();
-  }
-
-  std::string Dump() const override {
-    std::stringstream ss;
-    ss << "Set a barrier with id: " << barrier_id << ", count: " << 2 << ". ";
-    return ss.str();
-  }
-
- private:
-  size_t barrier_id{0};
-};
-
-class WaitOnEPStep : public SequentialExecutionPlan::ExecutionStep {
- public:
-  WaitOnEPStep(WaitNotificationFn handle, NotificationIndex idx) : SequentialExecutionPlan::ExecutionStep(),
-                                                                   wait_handle(handle),
-                                                                   notification_idx(idx) {}
-
-  Status Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) override {
-    ORT_ENFORCE(wait_handle, "WaitOnEPStep.wait_handle is null");
-    wait_handle(*ctx->GetDeviceStream(stream_idx), *ctx->GetNotification(notification_idx));
-    // update streams clock status
-    if (ctx->GetDeviceStream(stream_idx)) {
-      ctx->GetDeviceStream(stream_idx)->UpdateStreamClock(ctx->GetNotification(notification_idx)->stream_clock_);
-    }
-    LOGS(ctx->GetLogger(), INFO) << "stream " << stream_idx << " wait on Notification with id: " << notification_idx;
-    continue_flag = true;
-    return Status::OK();
-  }
-
-  std::string Dump() const override {
-    std::stringstream ss;
-    ss << "WaitOnEPStep: wait on notification with id: " << notification_idx << ". ";
-    return ss.str();
-  }
-
- private:
-  WaitNotificationFn wait_handle;
-  NotificationIndex notification_idx;
-};
-
-class LaunchKernelStep : public SequentialExecutionPlan::ExecutionStep {
- public:
-  LaunchKernelStep(NodeIndex index) : SequentialExecutionPlan::ExecutionStep(),
-                                      node_index{index} {}
-
-  Status Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) override {
-    if (!continue_flag) {
-      LOGS(ctx->GetLogger(), WARNING) << "Exiting due to terminate flag being set to true.";
-      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Exiting due to terminate flag being set to true.");
-    }
-#ifdef ENABLE_TRAINING
-    auto* node_to_execute = ctx->GetNodeToExecute();
-    if (node_to_execute && node_to_execute->count(node_index) == 0) {
-      continue_flag = true;
-      return Status::OK();
-    }
-#endif
-    onnxruntime::Status status = ExecuteKernel(*ctx, node_index, stream_idx);
-    continue_flag = status.IsOK();
-    return status;
-  }
-
-  std::string Dump() const override {
-    std::stringstream ss;
-    ss << "Launch kernel with node id: " << node_index << ". ";
-    return ss.str();
-  }
-
- private:
-  NodeIndex node_index{0};
-};
-
-class ActivateNotificationStep : public SequentialExecutionPlan::ExecutionStep {
- public:
-  ActivateNotificationStep(NotificationIndex notification_index) : SequentialExecutionPlan::ExecutionStep(),
-                                                                   notification_idx(notification_index) {}
-
-  Status Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) override {
-    if (ctx->GetNotification(notification_idx)) {
-      ctx->GetNotification(notification_idx)->ActivateAndUpdate();
-    }
-    LOGS(ctx->GetLogger(), INFO) << "stream " << stream_idx << " activate notification with index " << notification_idx;
-    continue_flag = true;
-    return Status::OK();
-  }
-
-  virtual std::string Dump() const override {
-    std::stringstream ss;
-    ss << "ActivateNotificationStep: activate notification with id: " << notification_idx << ". ";
-    return ss.str();
-  }
-
- private:
-  NotificationIndex notification_idx;
-};
-
-class TriggerDownstreamStep : public SequentialExecutionPlan::ExecutionStep {
- public:
-  TriggerDownstreamStep(size_t trigger_point_index) : SequentialExecutionPlan::ExecutionStep(),
-                                                      trigger_point_index(trigger_point_index) {}
-
-  Status Execute(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) override {
-    ScheduleDownstream(*ctx, trigger_point_index, ctx->SingleThreadMode());
-    continue_flag = true;
-    return Status::OK();
-  }
-
-  virtual std::string Dump() const override {
-    std::stringstream ss;
-    ss << "TriggerDownstreamStep: trigger downstream of trigger point: " << trigger_point_index << ". ";
-    return ss.str();
-  }
-
- private:
-  size_t trigger_point_index;
-};
 
 class PlannerImpl {
  public:

@@ -3,6 +3,8 @@
 #include "core/framework/execution_frame.h"
 #include "core/framework/bfc_arena.h"
 #include "core/framework/session_state.h"
+#include "core/framework/sequential_execution_plan.h"
+#include "core/framework/sequential_executor.h"
 #include "core/common/spin_pause.h"
 
 namespace onnxruntime {
@@ -103,6 +105,104 @@ size_t DeviceStreamCollection::NumStreams() const {
 Status DeviceStreamCollection::CleanUp() {
   return impl_->CleanUp();
 }
+
+  Status BarrierStep::Execute(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) {
+    continue_flag = ctx->DecCountDownBarrier(barrier_id);
+    return Status::OK();
+  }
+
+  Status BarrierStep::ExecuteBarrierStep(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) {
+    continue_flag = ctx->DecCountDownBarrier(barrier_id);
+    return Status::OK();
+  }
+
+  Status WaitOnEPStep::Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) {
+    ORT_ENFORCE(wait_handle, "WaitOnEPStep.wait_handle is null");
+    wait_handle(*ctx->GetDeviceStream(stream_idx), *ctx->GetNotification(notification_idx));
+    // update streams clock status
+    if (ctx->GetDeviceStream(stream_idx)) {
+      ctx->GetDeviceStream(stream_idx)->UpdateStreamClock(ctx->GetNotification(notification_idx)->stream_clock_);
+    }
+    LOGS(ctx->GetLogger(), INFO) << "stream " << stream_idx << " wait on Notification with id: " << notification_idx;
+    continue_flag = true;
+    return Status::OK();
+  }
+
+  Status WaitOnEPStep::ExecuteWaitOnEPStep(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) {
+    ORT_ENFORCE(wait_handle, "WaitOnEPStep.wait_handle is null");
+    wait_handle(*ctx->GetDeviceStream(stream_idx), *ctx->GetNotification(notification_idx));
+    // update streams clock status
+    if (ctx->GetDeviceStream(stream_idx)) {
+      ctx->GetDeviceStream(stream_idx)->UpdateStreamClock(ctx->GetNotification(notification_idx)->stream_clock_);
+    }
+    LOGS(ctx->GetLogger(), INFO) << "stream " << stream_idx << " wait on Notification with id: " << notification_idx;
+    continue_flag = true;
+    return Status::OK();
+  }
+
+  Status LaunchKernelStep::Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) {
+    if (!continue_flag) {
+      LOGS(ctx->GetLogger(), WARNING) << "Exiting due to terminate flag being set to true.";
+      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Exiting due to terminate flag being set to true.");
+    }
+#ifdef ENABLE_TRAINING
+    auto* node_to_execute = ctx->GetNodeToExecute();
+    if (node_to_execute && node_to_execute->count(node_index) == 0) {
+      continue_flag = true;
+      return Status::OK();
+    }
+#endif
+    onnxruntime::Status status = ExecuteKernel(*ctx, node_index, stream_idx);
+    continue_flag = status.IsOK();
+    return status;
+  }
+
+  Status LaunchKernelStep::ExecuteLaunchKernelStep(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) {
+    if (!continue_flag) {
+      LOGS(ctx->GetLogger(), WARNING) << "Exiting due to terminate flag being set to true.";
+      return ORT_MAKE_STATUS(ONNXRUNTIME, FAIL, "Exiting due to terminate flag being set to true.");
+    }
+#ifdef ENABLE_TRAINING
+    auto* node_to_execute = ctx->GetNodeToExecute();
+    if (node_to_execute && node_to_execute->count(node_index) == 0) {
+      continue_flag = true;
+      return Status::OK();
+    }
+#endif
+    onnxruntime::Status status = ExecuteKernel(*ctx, node_index, stream_idx);
+    continue_flag = status.IsOK();
+    return status;
+  }
+
+  Status ActivateNotificationStep::Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) {
+    if (ctx->GetNotification(notification_idx)) {
+      ctx->GetNotification(notification_idx)->ActivateAndUpdate();
+    }
+    LOGS(ctx->GetLogger(), INFO) << "stream " << stream_idx << " activate notification with index " << notification_idx;
+    continue_flag = true;
+    return Status::OK();
+  }
+
+  Status ActivateNotificationStep::ExecuteActivateNotificationStep(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) {
+    if (ctx->GetNotification(notification_idx)) {
+      ctx->GetNotification(notification_idx)->ActivateAndUpdate();
+    }
+    LOGS(ctx->GetLogger(), INFO) << "stream " << stream_idx << " activate notification with index " << notification_idx;
+    continue_flag = true;
+    return Status::OK();
+  }
+
+  Status TriggerDownstreamStep::Execute(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) {
+    ScheduleDownstream(*ctx, trigger_point_index, ctx->SingleThreadMode());
+    continue_flag = true;
+    return Status::OK();
+  }
+
+  Status TriggerDownstreamStep::ExecuteTriggerDownstreamStep(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) {
+    ScheduleDownstream(*ctx, trigger_point_index, ctx->SingleThreadMode());
+    continue_flag = true;
+    return Status::OK();
+  }
 
 ExecutionContext::ExecutionContext(const SessionState& sess_state,
                                    int32_t num_streams,
@@ -248,7 +348,24 @@ void RunSince(size_t stream_idx, ExecutionContext& ctx, size_t since) {
     bool continue_flag = true;
     Status status;
     ORT_TRY {
-      status = logic_stream->steps_[since]->Execute(&ctx, stream_idx, continue_flag);
+      //status = logic_stream->steps_[since]->Execute(&ctx, stream_idx, continue_flag);
+      switch (logic_stream->steps_[since]->step_type_) {
+        case 1:
+          status = static_cast<BarrierStep*>(logic_stream->steps_[since].get())->ExecuteBarrierStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 2:
+          status = static_cast<WaitOnEPStep*>(logic_stream->steps_[since].get())->ExecuteWaitOnEPStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 3:
+          status = static_cast<LaunchKernelStep*>(logic_stream->steps_[since].get())->ExecuteLaunchKernelStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 4:
+          status = static_cast<ActivateNotificationStep*>(logic_stream->steps_[since].get())->ExecuteActivateNotificationStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 5:
+          status = static_cast<TriggerDownstreamStep*>(logic_stream->steps_[since].get())->ExecuteTriggerDownstreamStep(&ctx, stream_idx, continue_flag);
+          break;
+      }
     }
     ORT_CATCH(const std::exception& ex) {
       ORT_HANDLE_EXCEPTION([&]() {
@@ -285,7 +402,24 @@ void RunSince(size_t stream_idx, ExecutionContext& ctx, size_t since) {
     bool continue_flag = true;
     Status status;
     ORT_TRY {
-      status = logic_stream->steps_[since]->Execute(&ctx, stream_idx, continue_flag);
+      //status = logic_stream->steps_[since]->Execute(&ctx, stream_idx, continue_flag);
+      switch (logic_stream->steps_[since]->step_type_) {
+        case 1:
+          status = static_cast<BarrierStep*>(logic_stream->steps_[since].get())->ExecuteBarrierStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 2:
+          status = static_cast<WaitOnEPStep*>(logic_stream->steps_[since].get())->ExecuteWaitOnEPStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 3:
+          status = static_cast<LaunchKernelStep*>(logic_stream->steps_[since].get())->ExecuteLaunchKernelStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 4:
+          status = static_cast<ActivateNotificationStep*>(logic_stream->steps_[since].get())->ExecuteActivateNotificationStep(&ctx, stream_idx, continue_flag);
+          break;
+        case 5:
+          status = static_cast<TriggerDownstreamStep*>(logic_stream->steps_[since].get())->ExecuteTriggerDownstreamStep(&ctx, stream_idx, continue_flag);
+          break;
+      }
     }
     ORT_CATCH(const std::exception& ex) {
       ORT_HANDLE_EXCEPTION([&]() {

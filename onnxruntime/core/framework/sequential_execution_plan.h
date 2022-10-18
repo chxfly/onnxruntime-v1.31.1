@@ -104,6 +104,7 @@ struct SequentialExecutionPlan : public ExecutionPlanBase {
     virtual ~ExecutionStep() {}
     virtual Status Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) = 0;
     virtual std::string Dump() const = 0;
+    int step_type_;
   };
 
   struct LogicStream {
@@ -178,6 +179,102 @@ struct SequentialExecutionPlan : public ExecutionPlanBase {
     }
     return count;
   }
+};
+
+class BarrierStep : public SequentialExecutionPlan::ExecutionStep {
+ public:
+  BarrierStep(size_t id) : SequentialExecutionPlan::ExecutionStep(),
+                           barrier_id{id} { step_type_ = 1; }
+
+  Status Execute(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) override;
+
+  Status ExecuteBarrierStep(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag);
+
+  std::string Dump() const override {
+    std::stringstream ss;
+    ss << "Set a barrier with id: " << barrier_id << ", count: " << 2 << ". ";
+    return ss.str();
+  }
+
+ private:
+  size_t barrier_id{0};
+};
+
+class WaitOnEPStep : public SequentialExecutionPlan::ExecutionStep {
+ public:
+  WaitOnEPStep(WaitNotificationFn handle, NotificationIndex idx) : SequentialExecutionPlan::ExecutionStep(),
+                                                                   wait_handle(handle),
+                                                                   notification_idx(idx) { step_type_ = 2;}
+
+  Status Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) override;
+
+  Status ExecuteWaitOnEPStep(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag);
+
+  std::string Dump() const override {
+    std::stringstream ss;
+    ss << "WaitOnEPStep: wait on notification with id: " << notification_idx << ". ";
+    return ss.str();
+  }
+
+ private:
+  WaitNotificationFn wait_handle;
+  NotificationIndex notification_idx;
+};
+
+class LaunchKernelStep : public SequentialExecutionPlan::ExecutionStep {
+ public:
+  LaunchKernelStep(NodeIndex index) : SequentialExecutionPlan::ExecutionStep(),
+                                      node_index{index} { step_type_ = 3; }
+
+  Status Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) override;
+
+  Status ExecuteLaunchKernelStep(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag);
+
+  std::string Dump() const override {
+    std::stringstream ss;
+    ss << "Launch kernel with node id: " << node_index << ". ";
+    return ss.str();
+  }
+ private:
+  NodeIndex node_index{0};
+};
+
+class ActivateNotificationStep : public SequentialExecutionPlan::ExecutionStep {
+ public:
+  ActivateNotificationStep(NotificationIndex notification_index) : SequentialExecutionPlan::ExecutionStep(),
+                                                                   notification_idx(notification_index) { step_type_ = 4; }
+
+  Status Execute(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag) override;
+
+  Status ExecuteActivateNotificationStep(ExecutionContext* ctx, size_t stream_idx, bool& continue_flag);
+
+  virtual std::string Dump() const override {
+    std::stringstream ss;
+    ss << "ActivateNotificationStep: activate notification with id: " << notification_idx << ". ";
+    return ss.str();
+  }
+
+ private:
+  NotificationIndex notification_idx;
+};
+
+class TriggerDownstreamStep : public SequentialExecutionPlan::ExecutionStep {
+ public:
+  TriggerDownstreamStep(size_t trigger_point_index) : SequentialExecutionPlan::ExecutionStep(),
+                                                      trigger_point_index(trigger_point_index) { step_type_ = 5;}
+
+  Status Execute(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag) override;
+
+  Status ExecuteTriggerDownstreamStep(ExecutionContext* ctx, size_t /*stream_idx*/, bool& continue_flag);
+
+  virtual std::string Dump() const override {
+    std::stringstream ss;
+    ss << "TriggerDownstreamStep: trigger downstream of trigger point: " << trigger_point_index << ". ";
+    return ss.str();
+  }
+
+ private:
+  size_t trigger_point_index;
 };
 
 // Output details of an execution plan:

@@ -187,4 +187,5 @@ void RunSince(size_t stream_idx, ExecutionContext& ctx, size_t since);
 void ScheduleDownstream(ExecutionContext& ctx,
                         size_t trigger,
                         bool single_thread_mode);
+
 }  // namespace onnxruntime
