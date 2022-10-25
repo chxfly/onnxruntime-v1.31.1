@@ -81,13 +81,14 @@ class FusionAttentionUnet(Fusion):
         hidden_size: int,
         input: str,
         output: str,
+        is_cross_attention: bool,
     ) -> Union[NodeProto, None]:
         """Create an Attention node.
 
         Args:
             q_matmul (NodeProto): MatMul node in fully connection for Q
-            k_matmul (NodeProto): MatMul node in fully connection for  K
-            v_matmul (NodeProto): MatMul node in fully connection for  V
+            k_matmul (NodeProto): MatMul node in fully connection for K
+            v_matmul (NodeProto): MatMul node in fully connection for V
             q_add (NodeProto): Add bias node in fully connection for Q
             k_add (NodeProto): Add bias node in fully connection for K
             v_add (NodeProto): Add bias node in fully connection for V
@@ -100,10 +101,12 @@ class FusionAttentionUnet(Fusion):
             Union[NodeProto, None]: the node created or None if failed.
         """
         assert num_heads > 0
+        is_self_attention = not is_cross_attention
 
-        if q_matmul.input[0] != input or k_matmul.input[0] != input or q_matmul.input[0] != input:
-            logger.debug("q_matmul.input[0] != input or k_matmul.input[0] != input or q_matmul.input[0] != input")
-            return None
+        if not is_cross_attention:
+            if q_matmul.input[0] != input or k_matmul.input[0] != input or q_matmul.input[0] != input:
+                logger.debug("q_matmul.input[0] != input or k_matmul.input[0] != input or q_matmul.input[0] != input")
+                return None
 
         if hidden_size > 0 and (hidden_size % num_heads) != 0:
             logger.debug(f"input hidden size {hidden_size} is not a multiple of num of heads {num_heads}")
@@ -123,47 +126,49 @@ class FusionAttentionUnet(Fusion):
         qw = NumpyHelper.to_array(q_weight)
         kw = NumpyHelper.to_array(k_weight)
         vw = NumpyHelper.to_array(v_weight)
+        print("qw", qw.shape, "kw", kw.shape, "vw", vw.shape, "hidden_size", hidden_size)
 
         # assert q and k have same shape as expected
-        assert qw.shape == kw.shape
+        if is_self_attention:
+            if qw.shape != kw.shape or qw.shape != vw.shape:
+                return None
 
-        qw_in_size = qw.shape[0]
-        kw_in_size = kw.shape[0]
-        vw_in_size = vw.shape[0]
+            qw_in_size = qw.shape[0]
+            kw_in_size = kw.shape[0]
+            vw_in_size = vw.shape[0]
 
-        assert qw_in_size == kw_in_size == vw_in_size
+            assert qw_in_size == kw_in_size == vw_in_size
 
-        if hidden_size > 0 and hidden_size != qw_in_size:
-            logger.warning(
-                f"Input hidden size ({hidden_size}) is not same as weight matrix dimension of q,k,v ({qw_in_size}). "
-                "Please provide a correct input hidden size or pass in 0"
+            if hidden_size > 0 and hidden_size != qw_in_size:
+                raise ValueError(
+                    f"Input hidden size ({hidden_size}) is not same as weight dimension of q,k,v ({qw_in_size}). "
+                    "Please provide a correct input hidden size or pass in 0"
+                )
+
+            # All the matrices can have the same shape or q, k matrics can have the same shape with v being different
+            # For 2d weights, the shapes would be [in_size, out_size].
+            # For 3d weights, shape would be [in_size, a, b] where a*b = out_size
+            qw_out_size = np.prod(qw.shape[1:])
+
+            qkv_weight = np.stack((qw, kw, vw), axis=1)
+            qkv_weight_dim = 3 * qw_out_size
+
+            attention_node_name = self.model.create_node_name("Attention")
+
+            weight = helper.make_tensor(
+                name=attention_node_name + "_qkv_weight",
+                data_type=TensorProto.FLOAT,
+                dims=[qw_in_size, qkv_weight_dim],
+                vals=qkv_weight.flatten().tolist(),
             )
 
-        if qw.shape != vw.shape:
-            return None
-
-        # All the matrices can have the same shape or q, k matrics can have the same shape with v being different
-        # For 2d weights, the shapes would be [in_size, out_size].
-        # For 3d weights, shape would be [in_size, a, b] where a*b = out_size
-        qw_out_size = np.prod(qw.shape[1:])
-
-        qkv_weight = np.stack((qw, kw, vw), axis=1)
-        qkv_weight_dim = 3 * qw_out_size
+            self.model.add_initializer(weight, self.this_graph_name)
+        else:
+            attention_node_name = self.model.create_node_name("Attention")
 
         # No bias, use zeros
         qkv_bias = np.zeros([3, hidden_size], dtype=np.float32)
         qkv_bias_dim = 3 * hidden_size
-
-        attention_node_name = self.model.create_node_name("Attention")
-
-        weight = helper.make_tensor(
-            name=attention_node_name + "_qkv_weight",
-            data_type=TensorProto.FLOAT,
-            dims=[qw_in_size, qkv_weight_dim],
-            vals=qkv_weight.flatten().tolist(),
-        )
-
-        self.model.add_initializer(weight, self.this_graph_name)
 
         bias = helper.make_tensor(
             name=attention_node_name + "_qkv_bias",
@@ -175,7 +180,7 @@ class FusionAttentionUnet(Fusion):
 
         attention_inputs = [
             input,
-            attention_node_name + "_qkv_weight",
+            attention_node_name + "_qkv_weight" if is_self_attention else "",
             attention_node_name + "_qkv_bias",
         ]
         attention_inputs.append("")
@@ -194,11 +199,15 @@ class FusionAttentionUnet(Fusion):
     def fuse(self, normalize_node, input_name_to_nodes, output_name_to_node):
         assert normalize_node.op_type == "LayerNormalization"
 
-        reshape_before_instance_norm = self.model.match_parent(normalize_node, "Reshape", 0)
-        if reshape_before_instance_norm is None:
-            return
+        node_before_layernorm = self.model.match_parent(normalize_node, "Reshape", 0)  # self attention
+        if node_before_layernorm is None:
+            node_before_layernorm = self.model.match_parent(normalize_node, "Add", 0)  # cross attention
+            if node_before_layernorm is None:
+                return
 
-        root_input = reshape_before_instance_norm.output[0]
+        is_cross_attention = node_before_layernorm.op_type == "Add"
+
+        root_input = node_before_layernorm.output[0]
 
         children_nodes = input_name_to_nodes[root_input]
         skip_add = None
@@ -221,7 +230,7 @@ class FusionAttentionUnet(Fusion):
 
         (_, _, reshape_qkv, transpose_qkv, _, matmul_qkv) = qkv_nodes
 
-        # No bias
+        # No bias. For cross-attention, the input of the MatMul is encoder_hidden_states graph input.
         v_nodes = self.model.match_parent_path(matmul_qkv, ["Reshape", "Transpose", "Reshape", "MatMul"], [1, 0, 0, 0])
         if v_nodes is None:
             logger.debug("fuse_attention: failed to match v path")
@@ -263,6 +272,7 @@ class FusionAttentionUnet(Fusion):
             q_hidden_size,
             input=normalize_node.output[0],
             output=attention_last_node.output[0],
+            is_cross_attention=is_cross_attention,
         )
         if new_node is None:
             return
