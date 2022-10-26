@@ -183,7 +183,15 @@ class FusionAttentionUnet(Fusion):
             attention_node_name + "_qkv_weight" if is_self_attention else "",
             attention_node_name + "_qkv_bias",
         ]
-        attention_inputs.append("")
+        attention_inputs.append("")  # mask index
+
+        attention_inputs.append("")  # past
+
+        attention_inputs.append("")  # extra_add_qk
+
+        if is_cross_attention:
+            attention_inputs.append(k_matmul.output[0])  # key
+            attention_inputs.append(v_matmul.output[0])  # value
 
         attention_node = helper.make_node(
             "Attention",
