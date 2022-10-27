@@ -779,6 +779,9 @@ def test_gradient_correctness_conv1d(use_fp16, input_requires_grad, conv_algo_se
     if conv_algo_search is not None:
         os.environ["ORTMODULE_CONV_ALGO_SEARCH"] = conv_algo_search
 
+    e = os.environ["ORTMODULE_CONV_ALGO_SEARCH"] if "ORTMODULE_CONV_ALGO_SEARCH" in os.environ else None
+    print(f"pengwa 11111111111111 conv_algo_search {conv_algo_search}, input_requires_grad {input_requires_grad}, {e}")
+
     device = "cuda"
     N, seq_len, C_in, C_out, kernel_size = 32, 128, 1536, 1536, 3
     pt_model = NeuralNetConv1D(C_in, C_out, kernel_size, padding=1).to(device)
@@ -793,6 +796,8 @@ def test_gradient_correctness_conv1d(use_fp16, input_requires_grad, conv_algo_se
 
     torch.manual_seed(2333)
     for _ in range(10):
+        e = os.environ["ORTMODULE_CONV_ALGO_SEARCH"] if "ORTMODULE_CONV_ALGO_SEARCH" in os.environ else None
+        print(f"pengwa 2222222222222222 conv_algo_search {conv_algo_search}, input_requires_grad {input_requires_grad}, {e}")
         x = torch.randn(N, seq_len, C_in, device=device, requires_grad=input_requires_grad)
         pt_prediction = run_step(pt_model, x)
         ort_prediction = run_step(ort_model, x)
@@ -811,12 +816,19 @@ def test_gradient_correctness_conv1d(use_fp16, input_requires_grad, conv_algo_se
         ort_model._is_training()
     )._execution_agent._inference_session._provider_options
 
+    e = os.environ["ORTMODULE_CONV_ALGO_SEARCH"] if "ORTMODULE_CONV_ALGO_SEARCH" in os.environ else None
+    print(f"pengwa 33333333333333333 conv_algo_search {conv_algo_search}, input_requires_grad {input_requires_grad}, {e}")
+
     expected_conv_algo_search = "HEURISTIC" if conv_algo_search is None else conv_algo_search
     actual_conv_algo_search = None
     if "CUDAExecutionProvider" in provider_options:
         actual_conv_algo_search = provider_options["CUDAExecutionProvider"]["cudnn_conv_algo_search"]
     elif "ROCMExecutionProvider" in provider_options:
         actual_conv_algo_search = provider_options["ROCMExecutionProvider"]["cudnn_conv_algo_search"]
+
+    e = os.environ["ORTMODULE_CONV_ALGO_SEARCH"] if "ORTMODULE_CONV_ALGO_SEARCH" in os.environ else None
+    print(f"pengwa 4444444444444 conv_algo_search {conv_algo_search}, input_requires_grad {input_requires_grad}, {e}")
+
     assert actual_conv_algo_search == expected_conv_algo_search
 
     if conv_algo_search is not None:
