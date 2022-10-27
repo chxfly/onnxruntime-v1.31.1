@@ -4,7 +4,7 @@ jobs:
 - job: Onnxruntime_Linux_GPU_ORTModule_Distributed_Test
 
   timeoutInMinutes: 120
-  pool: 'Onnxruntime-Linux-GPU-NC24sv3'
+  pool: 'Onnxruntime-Linux-GPU-NC24sv3-beta'
 
   steps:
   - checkout: self
