@@ -234,5 +234,22 @@ export interface TensorConstructor {
   // #endregion
 }
 
+export declare namespace TensorFactory {
+  export interface FromPixelsOptions {
+    sourceFormat?: 'bitmap'|'jpeg'|'png';
+    sourceBitmapFormat?: 'rgb'|'rgba'|'rbg';
+  }
+}
+
+export interface TensorFactory {
+  /**
+   * Create a new tensor object from pixels data.
+   * @param paramA - Description of the first param
+   * @param ParamB - Description of the second param
+   * @param options - Description of the third param
+   */
+  fromPixels(paramA: number, ParamB: string, options?: TensorFactory.FromPixelsOptions): Tensor;
+}
+
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export const Tensor = TensorImpl as TensorConstructor;
+export const Tensor = TensorImpl as TensorConstructor & TensorFactory;

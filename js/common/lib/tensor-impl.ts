@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import {Tensor as TensorInterface} from './tensor';
+import {Tensor as TensorInterface, TensorFactory} from './tensor';
 
 type TensorType = TensorInterface.Type;
 type TensorDataType = TensorInterface.DataType;
@@ -164,6 +164,12 @@ export class Tensor implements TensorInterface {
     this.type = type;
     this.data = data;
     this.size = size;
+  }
+  // #endregion
+
+  // #region factory
+  static fromPixels(_paramA: number, _paramB: string, _paramC: TensorFactory.FromPixelsOptions): TensorInterface {
+    throw new Error('Method not implemented.');
   }
   // #endregion
 
