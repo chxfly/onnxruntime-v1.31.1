@@ -563,8 +563,7 @@ Status GreedySearchProcessLogits(
                                            cuda_stream);
 
 #ifdef DEBUG_GENERATION
-  //cudaDeviceSynchronize();
-  //dumper->Print("d_sorted_score_buffer", reinterpret_cast<T*>(d_sorted_score_buffer), batch_size, vocab_size);
+  dumper->Print("d_sorted_score_buffer", reinterpret_cast<T*>(d_sorted_score_buffer), batch_size, vocab_size);
   dumper->Print("d_index_buffer_in", d_index_buffer_in, batch_size, vocab_size);
   dumper->Print("d_index_buffer_out", d_index_buffer_out, batch_size, vocab_size);
 #endif
@@ -577,7 +576,6 @@ Status GreedySearchProcessLogits(
                                                                    parameters->batch_size);
 
 #ifdef DEBUG_GENERATION
-  //cudaDeviceSynchronize();
   dumper->Print("d_sorted_softmaxed_score_buffer", d_sorted_softmaxed_score_buffer, batch_size, vocab_size);
 #endif
 
@@ -591,8 +589,7 @@ Status GreedySearchProcessLogits(
                                           cuda_stream);
 
 #ifdef DEBUG_GENERATION
-  //cudaDeviceSynchronize();
-  //dumper->Print("next_token_scores after filtering logits", reinterpret_cast<T*>(next_token_scores.data()), batch_size, vocab_size);
+  dumper->Print("next_token_scores after filtering logits", reinterpret_cast<T*>(next_token_scores.data()), batch_size, vocab_size);
 #endif
 
     // bugbug: actually we can only do softmax at the very beginning and sort the softmaxed scores.
@@ -605,14 +602,14 @@ Status GreedySearchProcessLogits(
                                                                    parameters->batch_size);
 
 #ifdef DEBUG_GENERATION
-  //cudaDeviceSynchronize();
   dumper->Print("d_softmaxed_score_buffer", d_softmaxed_score_buffer, batch_size, vocab_size);
 #endif
 
     // multinomial sampling
-    std::default_random_engine generator = std::default_random_engine{gsl::narrow_cast<uint32_t>(parameters->seed)};
+    std::default_random_engine generator = std::default_random_engine{gsl::narrow_cast<uint32_t>(parameters->seed + step)};
     std::uniform_real_distribution<float> distribution(0.0, 1.0);
     std::vector<float> sampled(parameters->batch_size);
+    distribution(generator); // the first one is subnormal numbers
     for (int i = 0; i < parameters->batch_size; ++i) {
       sampled[i] = distribution(generator);
 #ifdef DEBUG_GENERATION
@@ -633,7 +630,6 @@ Status GreedySearchProcessLogits(
                                          cuda_stream);
 
 #ifdef DEBUG_GENERATION
-  //cudaDeviceSynchronize();
   dumper->Print("d_sampled", d_sampled, batch_size, 1);
   dumper->Print("d_indices", d_indices, batch_size, 1);
 #endif
@@ -682,9 +678,6 @@ Status GreedySearchProcessLogits(
     CUDA_RETURN_IF_ERROR(cudaStreamSynchronize(cuda_stream));
   }
 
-#ifdef DEBUG_GENERATION
-  dumper->Print("greedy_state->next_tokens", greedy_state->next_tokens.data(), batch_size, 1);
-#endif
   return Status::OK();
 }
 
