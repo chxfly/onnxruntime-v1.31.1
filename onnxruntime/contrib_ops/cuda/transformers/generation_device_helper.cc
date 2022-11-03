@@ -17,6 +17,10 @@
 #include "contrib_ops/cpu/transformers/subgraph_t5_decoder.h"
 #include "contrib_ops/cpu/transformers/subgraph_gpt.h"
 
+#ifdef DEBUG_GENERATION
+#include <iostream>
+#endif
+
 namespace onnxruntime {
 namespace concurrency {
 class ThreadPool;
@@ -505,6 +509,8 @@ Status GreedySearchProcessLogits(
   // TODO(wy): support output_scores in greedy search
   ORT_UNUSED_PARAMETER(output_scores);
 
+  BufferUniquePtr workspace_buffer;
+  BufferUniquePtr storage_buffer;
   if (do_sampling) {
     // bugbug: move this outside probably in execute()?
     size_t bytes = SafeInt<size_t>(sizeof(int)) * 2 * parameters->batch_size * parameters->vocab_size +
@@ -514,7 +520,8 @@ Status GreedySearchProcessLogits(
                    SafeInt<size_t>(sizeof(float)) * parameters->batch_size +
                    SafeInt<size_t>(sizeof(int64_t)) * parameters->batch_size;
     void* data = allocator->Alloc(bytes);
-    BufferUniquePtr workspace_buffer(data, BufferDeleter(allocator));
+    BufferUniquePtr workspace_buffer_temp(data, BufferDeleter(allocator));
+    workspace_buffer = std::move(workspace_buffer_temp);
     int* d_index_buffer_in = reinterpret_cast<int*>(workspace_buffer.get());
     int* d_index_buffer_out = d_index_buffer_in + parameters->batch_size * parameters->vocab_size;
     int* d_offset_buffer = d_index_buffer_out + parameters->batch_size * parameters->vocab_size;
@@ -543,8 +550,8 @@ Status GreedySearchProcessLogits(
 
     void* temp_storage = allocator->Alloc(temp_storage_bytes);
     BufferUniquePtr temp_storage_buffer(temp_storage, BufferDeleter(allocator));
-
-    cuda::LaunchSortPairsDescending<CudaT>(temp_storage_buffer.get(),
+    storage_buffer = std::move(temp_storage_buffer);
+    cuda::LaunchSortPairsDescending<CudaT>(storage_buffer.get(),
                                            temp_storage_bytes,
                                            reinterpret_cast<CudaT*>(next_token_scores.data()),
                                            d_sorted_score_buffer,
@@ -556,7 +563,8 @@ Status GreedySearchProcessLogits(
                                            cuda_stream);
 
 #ifdef DEBUG_GENERATION
-  dumper->Print("d_sorted_score_buffer", reinterpret_cast<T*>(d_sorted_score_buffer), batch_size, vocab_size);
+  //cudaDeviceSynchronize();
+  //dumper->Print("d_sorted_score_buffer", reinterpret_cast<T*>(d_sorted_score_buffer), batch_size, vocab_size);
   dumper->Print("d_index_buffer_in", d_index_buffer_in, batch_size, vocab_size);
   dumper->Print("d_index_buffer_out", d_index_buffer_out, batch_size, vocab_size);
 #endif
@@ -569,6 +577,7 @@ Status GreedySearchProcessLogits(
                                                                    parameters->batch_size);
 
 #ifdef DEBUG_GENERATION
+  //cudaDeviceSynchronize();
   dumper->Print("d_sorted_softmaxed_score_buffer", d_sorted_softmaxed_score_buffer, batch_size, vocab_size);
 #endif
 
@@ -582,7 +591,8 @@ Status GreedySearchProcessLogits(
                                           cuda_stream);
 
 #ifdef DEBUG_GENERATION
-  dumper->Print("next_token_scores after filtering logits", next_token_scores.data(), batch_size, vocab_size);
+  //cudaDeviceSynchronize();
+  //dumper->Print("next_token_scores after filtering logits", reinterpret_cast<T*>(next_token_scores.data()), batch_size, vocab_size);
 #endif
 
     // bugbug: actually we can only do softmax at the very beginning and sort the softmaxed scores.
@@ -595,6 +605,7 @@ Status GreedySearchProcessLogits(
                                                                    parameters->batch_size);
 
 #ifdef DEBUG_GENERATION
+  //cudaDeviceSynchronize();
   dumper->Print("d_softmaxed_score_buffer", d_softmaxed_score_buffer, batch_size, vocab_size);
 #endif
 
@@ -604,11 +615,11 @@ Status GreedySearchProcessLogits(
     std::vector<float> sampled(parameters->batch_size);
     for (int i = 0; i < parameters->batch_size; ++i) {
       sampled[i] = distribution(generator);
+#ifdef DEBUG_GENERATION
+  std::cout << "sampled value on cpu: " << sampled[i] << std::endl;
+#endif
     }
 
-#ifdef DEBUG_GENERATION
-  dumper->Print("sampled value on cpu", sampled.data(), batch_size, 1);
-#endif
     CUDA_RETURN_IF_ERROR(cudaMemcpyAsync(d_sampled,
                                          sampled.data(),
                                          sizeof(float) * parameters->batch_size,
@@ -622,6 +633,7 @@ Status GreedySearchProcessLogits(
                                          cuda_stream);
 
 #ifdef DEBUG_GENERATION
+  //cudaDeviceSynchronize();
   dumper->Print("d_sampled", d_sampled, batch_size, 1);
   dumper->Print("d_indices", d_indices, batch_size, 1);
 #endif
@@ -632,8 +644,6 @@ Status GreedySearchProcessLogits(
                                          cudaMemcpyDeviceToHost,
                                          cuda_stream));
     CUDA_RETURN_IF_ERROR(cudaStreamSynchronize(cuda_stream));
-
-    cudaDeviceSynchronize();
   } else {
     // next_tokens = torch.argmax(scores, dim=-1)
     int64_t next_token_scores_dims[] = {static_cast<int64_t>(batch_size), vocab_size};
