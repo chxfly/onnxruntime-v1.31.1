@@ -534,7 +534,7 @@ Status GreedySearchProcessLogits(
     size_t temp_storage_bytes = cuda::GetTempStorageSize<CudaT>(reinterpret_cast<CudaT*>(next_token_scores.data()),
                                                                 d_index_buffer_in,
                                                                 d_offset_buffer,
-                                                                parameters->vocab_size,
+                                                                parameters->batch_size * parameters->vocab_size,
                                                                 parameters->batch_size,
                                                                 cuda_stream);
 
@@ -548,6 +548,10 @@ Status GreedySearchProcessLogits(
                                   parameters->vocab_size,
                                   cuda_stream);
 
+#ifdef DEBUG_GENERATION
+  dumper->Print("d_offset_buffer", d_offset_buffer, batch_size + 1, 1);
+#endif
+
     void* temp_storage = allocator->Alloc(temp_storage_bytes);
     BufferUniquePtr temp_storage_buffer(temp_storage, BufferDeleter(allocator));
     storage_buffer = std::move(temp_storage_buffer);
@@ -557,7 +561,7 @@ Status GreedySearchProcessLogits(
                                            d_sorted_score_buffer,
                                            d_index_buffer_in,
                                            d_index_buffer_out,
-                                           parameters->vocab_size,
+                                           parameters->batch_size * parameters->vocab_size,
                                            parameters->batch_size,
                                            d_offset_buffer,
                                            cuda_stream);
