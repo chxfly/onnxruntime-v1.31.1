@@ -66,6 +66,7 @@ struct ISamplingCudaState {
   gsl::span<float> d_softmaxed_score;
   gsl::span<float> d_sampled;
   gsl::span<int64_t> d_indices;
+  gsl::span<int> d_presence_mask;
 
   BufferUniquePtr storage_buffer;
 };
