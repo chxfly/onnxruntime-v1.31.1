@@ -9,12 +9,14 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
+using XUnit.Project.Attributes;
 
 // This runs in a separate package built from EndToEndTests
 // and for this reason it can not refer to non-public members
 // of Onnxruntime package
 namespace Microsoft.ML.OnnxRuntime.Tests
 {
+    [TestCaseOrderer("XUnit.Project.Orderers.PriorityOrderer", "XUnit.Project")]
     public partial class InferenceTest
     {
         private readonly ITestOutputHelper output;
@@ -164,7 +166,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
         }
 #endif
 
-        [Fact(DisplayName = "TestRunOptions")]
+        [Fact(DisplayName = "TestRunOptions"), TestPriority(2)]
         public void TestRunOptions()
         {
             using (var opt = new RunOptions())

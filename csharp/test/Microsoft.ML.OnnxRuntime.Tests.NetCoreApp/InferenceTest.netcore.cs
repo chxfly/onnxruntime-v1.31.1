@@ -44,10 +44,11 @@ namespace XUnit.Project.Orderers
                     priority => sortedMethods[priority].OrderBy(
                         testCase => testCase.TestMethod.Method.Name)))
             {
+                Console.WriteLine("test case name is: {0}", testCase.TestMethod.Method.Name);
                 yield return testCase;
             }
         }
-
+#nullable enable
         private static TValue GetOrCreate<TKey, TValue>(
             IDictionary<TKey, TValue> dictionary, TKey key)
             where TKey : struct
@@ -56,6 +57,7 @@ namespace XUnit.Project.Orderers
                 ? result
                 : (dictionary[key] = new TValue());
     }
+#nullable disable
 }
 
 
@@ -81,44 +83,10 @@ namespace Microsoft.ML.OnnxRuntime.Tests
     }
   }
 
-  [TestCaseOrderer("XUnit.Project.Orderers.PriorityOrderer", "XUnit.Project")]
   public partial class InferenceTest
   {
         private const string module = "onnxruntime.dll";
         private const string propertiesFile = "Properties.txt";
-
-        [Fact(DisplayName = "CanCreateAndDisposeSessionWithModelPath")]
-        public void CanCreateAndDisposeSessionWithModelPath()
-        {
-            string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
-            using (var session = new InferenceSession(modelPath))
-            {
-                Assert.NotNull(session);
-                Assert.NotNull(session.InputMetadata);
-                Assert.Equal(1, session.InputMetadata.Count); // 1 input node
-                Assert.True(session.InputMetadata.ContainsKey("data_0")); // input node name
-                Assert.Equal(typeof(float), session.InputMetadata["data_0"].ElementType);
-                Assert.True(session.InputMetadata["data_0"].IsTensor);
-                var expectedInputDimensions = new int[] { 1, 3, 224, 224 };
-                Assert.Equal(expectedInputDimensions.Length, session.InputMetadata["data_0"].Dimensions.Length);
-                for (int i = 0; i < expectedInputDimensions.Length; i++)
-                {
-                    Assert.Equal(expectedInputDimensions[i], session.InputMetadata["data_0"].Dimensions[i]);
-                }
-
-                Assert.NotNull(session.OutputMetadata);
-                Assert.Equal(1, session.OutputMetadata.Count); // 1 output node
-                Assert.True(session.OutputMetadata.ContainsKey("softmaxout_1")); // output node name
-                Assert.Equal(typeof(float), session.OutputMetadata["softmaxout_1"].ElementType);
-                Assert.True(session.OutputMetadata["softmaxout_1"].IsTensor);
-                var expectedOutputDimensions = new int[] { 1, 1000, 1, 1 };
-                Assert.Equal(expectedOutputDimensions.Length, session.OutputMetadata["softmaxout_1"].Dimensions.Length);
-                for (int i = 0; i < expectedOutputDimensions.Length; i++)
-                {
-                    Assert.Equal(expectedOutputDimensions[i], session.OutputMetadata["softmaxout_1"].Dimensions[i]);
-                }
-            }
-        }
 
 #if USE_CUDA
 
@@ -184,6 +152,41 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             }
         }
 #endif
+
+        [Fact(DisplayName = "CanCreateAndDisposeSessionWithModelPath"), TestPriority(-1)]
+        public void CanCreateAndDisposeSessionWithModelPath()
+        {
+            string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
+            using (var session = new InferenceSession(modelPath))
+            {
+                Assert.NotNull(session);
+                Assert.NotNull(session.InputMetadata);
+                Assert.Equal(1, session.InputMetadata.Count); // 1 input node
+                Assert.True(session.InputMetadata.ContainsKey("data_0")); // input node name
+                Assert.Equal(typeof(float), session.InputMetadata["data_0"].ElementType);
+                Assert.True(session.InputMetadata["data_0"].IsTensor);
+                var expectedInputDimensions = new int[] { 1, 3, 224, 224 };
+                Assert.Equal(expectedInputDimensions.Length, session.InputMetadata["data_0"].Dimensions.Length);
+                for (int i = 0; i < expectedInputDimensions.Length; i++)
+                {
+                    Assert.Equal(expectedInputDimensions[i], session.InputMetadata["data_0"].Dimensions[i]);
+                }
+
+                Assert.NotNull(session.OutputMetadata);
+                Assert.Equal(1, session.OutputMetadata.Count); // 1 output node
+                Assert.True(session.OutputMetadata.ContainsKey("softmaxout_1")); // output node name
+                Assert.Equal(typeof(float), session.OutputMetadata["softmaxout_1"].ElementType);
+                Assert.True(session.OutputMetadata["softmaxout_1"].IsTensor);
+                var expectedOutputDimensions = new int[] { 1, 1000, 1, 1 };
+                Assert.Equal(expectedOutputDimensions.Length, session.OutputMetadata["softmaxout_1"].Dimensions.Length);
+                for (int i = 0; i < expectedOutputDimensions.Length; i++)
+                {
+                    Assert.Equal(expectedOutputDimensions[i], session.OutputMetadata["softmaxout_1"].Dimensions[i]);
+                }
+            }
+        }
+
+
 
 #if USE_TENSORRT
         [Fact(DisplayName = "CanRunInferenceOnAModelWithTensorRT")]
@@ -546,7 +549,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             }
         }
 
-        [Theory(DisplayName = "TestPreTrainedModels")]
+        [Theory(DisplayName = "TestPreTrainedModels"), TestPriority(1)]
         [MemberData(nameof(GetModelsForTest))]
         [MemberData(nameof(GetSkippedModelForTest), Skip = "Skipped due to Error, please fix the error and enable the test")]
         private void TestPreTrainedModels(string opsetDir, string modelName)
@@ -815,7 +818,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             }
         }
 
-        [Fact(DisplayName = "TestModelSerialization")]
+        [Fact(DisplayName = "TestModelSerialization"), TestPriority(4)]
         private void TestModelSerialization()
         {
             string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
