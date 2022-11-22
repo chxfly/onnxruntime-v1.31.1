@@ -27,7 +27,7 @@ namespace XUnit.Project.Orderers
         public IEnumerable<TTestCase> OrderTestCases<TTestCase>(
             IEnumerable<TTestCase> testCases) where TTestCase : ITestCase
         {
-            string assemblyName = typeof(TestPriorityAttribute).AssemblyQualifiedName!;
+            string assemblyName = typeof(TestPriorityAttribute).AssemblyQualifiedName;
             var sortedMethods = new SortedDictionary<int, List<TTestCase>>();
             foreach (TTestCase testCase in testCases)
             {
@@ -48,16 +48,16 @@ namespace XUnit.Project.Orderers
                 yield return testCase;
             }
         }
-#nullable enable
+
         private static TValue GetOrCreate<TKey, TValue>(
             IDictionary<TKey, TValue> dictionary, TKey key)
             where TKey : struct
             where TValue : new() =>
-            dictionary.TryGetValue(key, out TValue? result)
+            dictionary.TryGetValue(key, out TValue result)
                 ? result
                 : (dictionary[key] = new TValue());
     }
-#nullable disable
+
 }
 
 
