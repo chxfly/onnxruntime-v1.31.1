@@ -5,61 +5,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Xunit;
-using Xunit.Abstractions;
-using Xunit.Sdk;
-using XUnit.Project.Attributes;
-
-namespace XUnit.Project.Attributes
-{
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-    public class TestPriorityAttribute : Attribute
-    {
-        public int Priority { get; private set; } = 0;
-
-        public TestPriorityAttribute(int priority) => Priority = priority;
-    }
-}
-
-namespace XUnit.Project.Orderers
-{
-    public class PriorityOrderer : ITestCaseOrderer
-    {
-        public IEnumerable<TTestCase> OrderTestCases<TTestCase>(
-            IEnumerable<TTestCase> testCases) where TTestCase : ITestCase
-        {
-            string assemblyName = typeof(TestPriorityAttribute).AssemblyQualifiedName;
-            var sortedMethods = new SortedDictionary<int, List<TTestCase>>();
-            foreach (TTestCase testCase in testCases)
-            {
-                int priority = testCase.TestMethod.Method
-                    .GetCustomAttributes(assemblyName)
-                    .FirstOrDefault()
-                    ?.GetNamedArgument<int>(nameof(TestPriorityAttribute.Priority)) ?? 0;
-
-                GetOrCreate(sortedMethods, priority).Add(testCase);
-            }
-
-            foreach (TTestCase testCase in
-                sortedMethods.Keys.SelectMany(
-                    priority => sortedMethods[priority].OrderBy(
-                        testCase => testCase.TestMethod.Method.Name)))
-            {
-                Console.WriteLine("test case name is: {0}", testCase.TestMethod.Method.Name);
-                yield return testCase;
-            }
-        }
-
-        private static TValue GetOrCreate<TKey, TValue>(
-            IDictionary<TKey, TValue> dictionary, TKey key)
-            where TKey : struct
-            where TValue : new() =>
-            dictionary.TryGetValue(key, out TValue result)
-                ? result
-                : (dictionary[key] = new TValue());
-    }
-
-}
-
 
 namespace Microsoft.ML.OnnxRuntime.Tests
 {
@@ -83,15 +28,11 @@ namespace Microsoft.ML.OnnxRuntime.Tests
     }
   }
 
-  [TestCaseOrderer("XUnit.Project.Orderers.PriorityOrderer", "XUnit.Project")]
-  public partial class InferenceTest
+  [Collection("Sequential")]
+  public class CUDATest
   {
-        private const string module = "onnxruntime.dll";
-        private const string propertiesFile = "Properties.txt";
-
 #if USE_CUDA
-
-        [Fact(DisplayName = "TestCUDAProviderOptions"), TestPriority(5)]
+        [Fact(DisplayName = "TestCUDAProviderOptions"), TestPriority(-5)]
         private void TestCUDAProviderOptions()
         {
             string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
@@ -153,6 +94,13 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             }
         }
 #endif
+    }
+
+  [Collection("Sequential")]
+  public partial class InferenceTest
+  {
+        private const string module = "onnxruntime.dll";
+        private const string propertiesFile = "Properties.txt";
 
         [Fact(DisplayName = "CanCreateAndDisposeSessionWithModelPath"), TestPriority(-1)]
         public void CanCreateAndDisposeSessionWithModelPath()
@@ -186,8 +134,6 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                 }
             }
         }
-
-
 
 #if USE_TENSORRT
         [Fact(DisplayName = "CanRunInferenceOnAModelWithTensorRT")]
@@ -819,7 +765,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             }
         }
 
-        [Fact(DisplayName = "TestModelSerialization"), TestPriority(4)]
+        [Fact(DisplayName = "TestModelSerialization"), TestPriority(1)]
         private void TestModelSerialization()
         {
             string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
