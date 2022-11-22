@@ -128,6 +128,8 @@ jobs:
   dependsOn:
   - Linux_C_API_Packaging_GPU_x64
   - Linux_C_API_Packaging_GPU_TensorRT_x64
+  - Windows_Packaging_gpu
+  - Windows_Packaging_tensorrt
   condition: succeeded()
   steps:
   - checkout: self
@@ -449,12 +451,25 @@ jobs:
   variables:
     breakCodesignValidationInjection: ${{ parameters.DoEsrp }}
   dependsOn:
+  - Windows_Packaging_gpu
+  - Windows_Packaging_tensorrt
   - Linux_C_API_Packaging_GPU_x64
   - Linux_C_API_Packaging_GPU_TensorRT_x64
   condition: succeeded()
   steps:
   - checkout: self
     submodules: true
+  - task: DownloadPipelineArtifact@2
+    displayName: 'Download Pipeline Artifact - NuGet'
+    inputs:
+      artifactName: 'onnxruntime-win-x64-cuda'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
+
+  - task: DownloadPipelineArtifact@2
+    displayName: 'Download Pipeline Artifact - NuGet'
+    inputs:
+      artifactName: 'onnxruntime-win-x64-tensorrt'
+      targetPath: '$(Build.BinariesDirectory)/nuget-artifact'
 
   - task: DownloadPipelineArtifact@2
     displayName: 'Download Pipeline Artifact - NuGet'
