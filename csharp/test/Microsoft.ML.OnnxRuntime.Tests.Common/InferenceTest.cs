@@ -9,7 +9,6 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using XUnit.Project.Attributes;
 
 // This runs in a separate package built from EndToEndTests
 // and for this reason it can not refer to non-public members
@@ -165,7 +164,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
         }
 #endif
 
-        [Fact(DisplayName = "TestRunOptions"), TestPriority(2)]
+        [Fact(DisplayName = "TestRunOptions")]
         public void TestRunOptions()
         {
             using (var opt = new RunOptions())
