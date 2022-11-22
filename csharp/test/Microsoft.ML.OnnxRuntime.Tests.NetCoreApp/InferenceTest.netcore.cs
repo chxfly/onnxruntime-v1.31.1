@@ -83,6 +83,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
     }
   }
 
+  [TestCaseOrderer("XUnit.Project.Orderers.PriorityOrderer", "XUnit.Project")]
   public partial class InferenceTest
   {
         private const string module = "onnxruntime.dll";

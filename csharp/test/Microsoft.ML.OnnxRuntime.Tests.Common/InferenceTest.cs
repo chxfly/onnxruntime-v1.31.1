@@ -16,7 +16,6 @@ using XUnit.Project.Attributes;
 // of Onnxruntime package
 namespace Microsoft.ML.OnnxRuntime.Tests
 {
-    [TestCaseOrderer("XUnit.Project.Orderers.PriorityOrderer", "XUnit.Project")]
     public partial class InferenceTest
     {
         private readonly ITestOutputHelper output;
