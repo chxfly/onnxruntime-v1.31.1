@@ -32,7 +32,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
   public class CUDATest
   {
 #if USE_CUDA
-        [Fact(DisplayName = "TestCUDAProviderOptions"), TestPriority(-5)]
+        [Fact(DisplayName = "TestCUDAProviderOptions")]
         private void TestCUDAProviderOptions()
         {
             string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
@@ -102,7 +102,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
         private const string module = "onnxruntime.dll";
         private const string propertiesFile = "Properties.txt";
 
-        [Fact(DisplayName = "CanCreateAndDisposeSessionWithModelPath"), TestPriority(-1)]
+        [Fact(DisplayName = "CanCreateAndDisposeSessionWithModelPath")]
         public void CanCreateAndDisposeSessionWithModelPath()
         {
             string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
@@ -496,7 +496,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             }
         }
 
-        [Theory(DisplayName = "TestPreTrainedModels"), TestPriority(1)]
+        [Theory(DisplayName = "TestPreTrainedModels")]
         [MemberData(nameof(GetModelsForTest))]
         [MemberData(nameof(GetSkippedModelForTest), Skip = "Skipped due to Error, please fix the error and enable the test")]
         private void TestPreTrainedModels(string opsetDir, string modelName)
@@ -765,7 +765,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             }
         }
 
-        [Fact(DisplayName = "TestModelSerialization"), TestPriority(1)]
+        [Fact(DisplayName = "TestModelSerialization")]
         private void TestModelSerialization()
         {
             string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "squeezenet.onnx");
