@@ -102,7 +102,7 @@ stages:
         isTraining: false
         ORT_EP_NAME: CPU
         GenerateDocumentation: false
-        MachinePool: 'Win-CPU-2019'
+        MachinePool: 'Win-CPU-2019-beta'
 
 - stage: x86_release
   dependsOn: []
