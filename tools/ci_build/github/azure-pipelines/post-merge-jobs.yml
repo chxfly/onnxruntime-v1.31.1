@@ -1,38 +1,35 @@
 jobs:
-- stage: Windows_x64_mimalloc
-  dependsOn: []
-  jobs:
-    - template: templates/win-ci-vs-2019.yml
-      parameters:
-        BuildConfig: 'Debug'
-        EnvSetupScript: setup_env.bat
-        buildArch: x64
-        additionalBuildFlags: --build_wheel --disable_memleak_checker --use_mimalloc
-        msbuildPlatform: x64
-        isX86: false
-        job_name_suffix: x64_mimalloc
-        RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
-        RunStaticCodeAnalysis: false
-        isTraining: false
-        ORT_EP_NAME: CPU
-        GenerateDocumentation: false
-        MachinePool: 'Win-CPU-2021'
-        
-    - template: templates/win-ci-vs-2019.yml
-      parameters:
-        BuildConfig: 'Debug'
-        EnvSetupScript: setup_env.bat
-        buildArch: x64
-        additionalBuildFlags: --build_wheel --disable_memleak_checker --use_extensions
-        msbuildPlatform: x64
-        isX86: false
-        job_name_suffix: x64_ext
-        RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
-        RunStaticCodeAnalysis: false
-        isTraining: false
-        ORT_EP_NAME: CPU
-        GenerateDocumentation: false
-        MachinePool: 'Win-CPU-2021'
+- template: templates/win-ci-vs-2019.yml
+  parameters:
+    BuildConfig: 'Debug'
+    EnvSetupScript: setup_env.bat
+    buildArch: x64
+    additionalBuildFlags: --build_wheel --disable_memleak_checker --use_mimalloc
+    msbuildPlatform: x64
+    isX86: false
+    job_name_suffix: x64_mimalloc
+    RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
+    RunStaticCodeAnalysis: false
+    isTraining: false
+    ORT_EP_NAME: CPU
+    GenerateDocumentation: false
+    MachinePool: 'Win-CPU-2021'
+    
+- template: templates/win-ci-vs-2019.yml
+  parameters:
+    BuildConfig: 'Debug'
+    EnvSetupScript: setup_env.bat
+    buildArch: x64
+    additionalBuildFlags: --build_wheel --disable_memleak_checker --use_extensions
+    msbuildPlatform: x64
+    isX86: false
+    job_name_suffix: x64_ext
+    RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
+    RunStaticCodeAnalysis: false
+    isTraining: false
+    ORT_EP_NAME: CPU
+    GenerateDocumentation: false
+    MachinePool: 'Win-CPU-2021'
 
 - job: CodeCoverage
   workspace:
