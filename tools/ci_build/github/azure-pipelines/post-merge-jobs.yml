@@ -8,7 +8,7 @@ jobs:
     msbuildPlatform: x64
     isX86: false
     job_name_suffix: x64_mimalloc
-    RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
+    RunOnnxRuntimeTests: true
     RunStaticCodeAnalysis: false
     isTraining: false
     ORT_EP_NAME: CPU
@@ -24,7 +24,7 @@ jobs:
     msbuildPlatform: x64
     isX86: false
     job_name_suffix: x64_ext
-    RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
+    RunOnnxRuntimeTests: true
     RunStaticCodeAnalysis: false
     isTraining: false
     ORT_EP_NAME: CPU
