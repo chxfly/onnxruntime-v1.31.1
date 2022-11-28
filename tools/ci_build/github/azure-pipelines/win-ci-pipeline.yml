@@ -23,6 +23,24 @@ stages:
         ORT_EP_NAME: CPU
         GenerateDocumentation: false
         MachinePool: 'Win-CPU-2019'
+        EnablePython: false
+
+    - template: templates/win-ci-vs-2019.yml
+      parameters:
+        BuildConfig: 'Debug'
+        EnvSetupScript: setup_env.bat
+        buildArch: x64
+        additionalBuildFlags: --build_java --build_nodejs --build_wheel --disable_memleak_checker
+        msbuildPlatform: x64
+        isX86: false
+        job_name_suffix: x64_debug
+        RunOnnxRuntimeTests: ${{ parameters.RunOnnxRuntimeTests }}
+        RunStaticCodeAnalysis: false
+        isTraining: false
+        ORT_EP_NAME: CPU
+        GenerateDocumentation: false
+        MachinePool: 'Win-CPU-2019'
+        EnablePython: false
 
 - stage: x64_release
   dependsOn: []
