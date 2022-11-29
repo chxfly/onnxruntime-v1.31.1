@@ -186,7 +186,7 @@ jobs:
 
   - script: |
       python -m pip install py-cpuinfo
-      python -m cpu info
+      python -m cpuinfo
     displayName: 'Show CPU Info'
 
   # C# test isn't launched by build.py, so models link has to be added.
