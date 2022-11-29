@@ -184,6 +184,11 @@ jobs:
       msbuildArguments: '-p:OnnxRuntimeBuildDirectory="$(Build.BinariesDirectory)" -p:OrtPackageId=$(OrtPackageId) -p:DefineConstants=USE_${{ parameters.ORT_EP_NAME }}'
       workingDirectory: '$(Build.SourcesDirectory)\csharp'
 
+  - script: |
+      python -m pip install py-cpuinfo
+      python -m cpu info
+    displayName: 'Show CPU Info'
+
   # C# test isn't launched by build.py, so models link has to be added.
   - script: |
      mklink /D /J models C:\local\models
