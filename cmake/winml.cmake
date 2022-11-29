@@ -187,7 +187,7 @@ target_include_directories(winml_lib_telemetry PRIVATE ${winml_lib_telemetry_dir
 target_include_directories(winml_lib_telemetry PRIVATE ${winml_lib_common_dir}/inc)
 target_include_directories(winml_lib_telemetry PRIVATE ${ONNXRUNTIME_INCLUDE_DIR}/core/platform/windows)
 target_include_directories(winml_lib_telemetry PRIVATE ${REPO_ROOT}/winml)
-target_include_directories(winml_lib_telemetry PRIVATE ${GSL_INCLUDE_DIR})
+onnxruntime_add_include_to_target(winml_lib_telemetry ${GSL_TARGET})
 
 # Properties
 set_target_properties(winml_lib_telemetry
@@ -265,7 +265,7 @@ target_include_directories(winml_lib_ort PRIVATE ${winml_lib_api_ort_dir})
 target_include_directories(winml_lib_ort PRIVATE ${winml_lib_common_dir}/inc)
 target_include_directories(winml_lib_ort PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
 target_include_directories(winml_lib_ort PRIVATE ${ONNXRUNTIME_ROOT})
-target_include_directories(winml_lib_ort PRIVATE ${GSL_INCLUDE_DIR})
+onnxruntime_add_include_to_target(winml_adapter ${GSL_TARGET})
 
 set_target_properties(winml_lib_ort
   PROPERTIES
@@ -321,7 +321,7 @@ set_target_properties(winml_adapter PROPERTIES CXX_STANDARD 17)
 set_target_properties(winml_adapter PROPERTIES CXX_STANDARD_REQUIRED ON)
 
 # Compiler definitions
-onnxruntime_add_include_to_target(winml_adapter onnxruntime_common onnxruntime_framework onnx onnx_proto ${PROTOBUF_LIB} flatbuffers safeint_interface Boost::mp11)
+onnxruntime_add_include_to_target(winml_adapter onnxruntime_common onnxruntime_framework onnx onnx_proto ${PROTOBUF_LIB} ${GSL_TARGET} flatbuffers safeint_interface Boost::mp11)
 target_include_directories(winml_adapter PRIVATE ${ONNXRUNTIME_ROOT} ${eigen_INCLUDE_DIRS})
 add_dependencies(winml_adapter ${onnxruntime_EXTERNAL_DEPENDENCIES})
 
@@ -408,7 +408,7 @@ target_include_directories(winml_lib_image PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})  
 onnxruntime_add_include_to_target(winml_lib_image onnx onnx_proto ${PROTOBUF_LIB} re2::re2 flatbuffers Boost::mp11)
 target_include_directories(winml_lib_image PRIVATE ${ONNXRUNTIME_INCLUDE_DIR}/core/platform/windows)
 target_include_directories(winml_lib_image PRIVATE ${REPO_ROOT}/winml)
-target_include_directories(winml_lib_image PRIVATE ${GSL_INCLUDE_DIR})
+onnxruntime_add_include_to_target(winml_lib_image ${GSL_TARGET})
 
 # Properties
 set_target_properties(winml_lib_image
@@ -674,7 +674,7 @@ target_include_directories(winml_lib_common PRIVATE ${winml_lib_api_dir})
 target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(winml_lib_common PRIVATE ${winml_lib_common_dir}/inc)
 target_include_directories(winml_lib_common PRIVATE ${REPO_ROOT}/winml)
-target_include_directories(winml_lib_common PRIVATE ${GSL_INCLUDE_DIR})
+onnxruntime_add_include_to_target(winml_lib_common ${GSL_TARGET})
 target_precompiled_header(winml_lib_common lib/Common/inc/pch.h)
 
 # Properties
