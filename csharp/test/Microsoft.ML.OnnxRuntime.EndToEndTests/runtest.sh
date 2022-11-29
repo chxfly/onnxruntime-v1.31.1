@@ -11,8 +11,6 @@ RunTestNative=${RunTestNative:-true}
 
 set -x -e
 
-nvidia-smi
-
 pushd .
 cd $BUILD_SOURCESDIRECTORY
 
