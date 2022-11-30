@@ -454,7 +454,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
 #if USE_CUDA
                     if (!skipModels.ContainsKey(modelDir.Name))
 #else
-                    if (!(skipModels.ContainsKey(modelDir.Name) || 
+                    if (!(skipModels.ContainsKey(modelDir.Name) ||
                           modelDir.Name.Contains("int8", StringComparison.OrdinalIgnoreCase) ||
                           modelDir.Name.Contains("qdq", StringComparison.OrdinalIgnoreCase)))
 #endif
@@ -476,11 +476,11 @@ namespace Microsoft.ML.OnnxRuntime.Tests
                 foreach (var modelDir in opsetDir.EnumerateDirectories())
                 {
 #if USE_CUDA
-                    if (skipModels.ContainsKey(modelDir.Name))
-#else
                     if (skipModels.ContainsKey(modelDir.Name) ||
                         modelDir.Name.Contains("int8", StringComparison.OrdinalIgnoreCase) ||
                         modelDir.Name.Contains("qdq", StringComparison.OrdinalIgnoreCase))
+#else
+                    if (skipModels.ContainsKey(modelDir.Name))
 #endif
                     {
                         //Console.WriteLine("Model {0} is skipped due to the error: {1}", modelDir.FullName, skipModels[modelDir.Name]);
