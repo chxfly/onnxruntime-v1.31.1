@@ -470,6 +470,7 @@ namespace Microsoft.ML.OnnxRuntime.Tests
             foreach (var opsetDir in getOpsetDirectories(modelsDirInfo))
             {
                 foreach (var modelDir in opsetDir.EnumerateDirectories())
+                {
                     if (skipModels.ContainsKey(modelDir.Name) ||
                         modelDir.Name.Contains("int8", StringComparison.OrdinalIgnoreCase) ||
                         modelDir.Name.Contains("qdq", StringComparison.OrdinalIgnoreCase))
