@@ -1236,6 +1236,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<FusedNodeAnd
     auto trt_parser = tensorrt_ptr::unique_pointer<nvonnxparser::IParser>(nvonnxparser::createParser(*trt_network, trt_logger));
     trt_parser->parse(string_buf.data(), string_buf.size(), model_path_);
     trt_config->setMaxWorkspaceSize(max_workspace_size_);
+    trt_config->setFlag(nvinfer1::BuilderFlag::kENABLE_TACTIC_HEURISTIC);
 
     // Force Pow + Reduce ops in layer norm to run in FP32 to avoid overflow
     if (fp16_enable_ && layer_norm_fp32_fallback_) {
