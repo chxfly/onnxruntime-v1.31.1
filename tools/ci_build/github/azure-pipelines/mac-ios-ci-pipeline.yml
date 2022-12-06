@@ -19,15 +19,23 @@ jobs:
 
     - task: Cache@2
       inputs:
+        key: 'ccache | "$(Agent.OS)" | protocol'
+        path: $(CCACHE_DIR)
+        restoreKeys: |
+          ccache | "$(Agent.OS)" | protocol
+      displayName: ccache protocol
+
+    - script: |
+        $(Build.SourcesDirectory)/tools/ci_build/github/linux/docker/inference/x64/python/cpu/scripts/install_protobuf.sh -p $(Build.BinariesDirectory)/protobuf_install -d $(Build.SourcesDirectory)/cmake/deps.txt
+      displayName: Build Host Protoc
+
+    - task: Cache@2
+      inputs:
         key: 'ccache | "$(Agent.OS)" | cpu'
         path: $(CCACHE_DIR)
         restoreKeys: |
           ccache | "$(Agent.OS)" | cpu
       displayName: ccache cpu
-
-    - script: |
-        $(Build.SourcesDirectory)/tools/ci_build/github/linux/docker/inference/x64/python/cpu/scripts/install_protobuf.sh -p $(Build.BinariesDirectory)/protobuf_install -d $(Build.SourcesDirectory)/cmake/deps.txt
-      displayName: Build Host Protoc
 
     - script: |
         python3 $(Build.SourcesDirectory)/tools/ci_build/build.py \
@@ -50,6 +58,7 @@ jobs:
     vmImage: 'macOS-11'
   variables:
     MACOSX_DEPLOYMENT_TARGET: '10.14'
+    CCACHE_DIR: $(Pipeline.Workspace)/ccache
   timeoutInMinutes: 150
   steps:
     - script: |
@@ -59,11 +68,11 @@ jobs:
 
     - task: Cache@2
       inputs:
-        key: 'ccache | "$(Agent.OS)" | coreml'
+        key: 'ccache | "$(Agent.OS)" | protocol'
         path: $(CCACHE_DIR)
         restoreKeys: |
-          ccache | "$(Agent.OS)" | coreml
-      displayName: ccache coreml
+          ccache | "$(Agent.OS)" | protocol
+      displayName: ccache protocol
 
     - script: |
         /bin/bash $(Build.SourcesDirectory)/tools/ci_build/github/apple/build_host_protoc.sh \
@@ -71,6 +80,14 @@ jobs:
           $(Build.BinariesDirectory)/protobuf \
           $(Build.BinariesDirectory)/protobuf_install
       displayName: Build Host Protoc
+
+    - task: Cache@2
+      inputs:
+        key: 'ccache | "$(Agent.OS)" | coreml'
+        path: $(CCACHE_DIR)
+        restoreKeys: |
+          ccache | "$(Agent.OS)" | coreml
+      displayName: ccache coreml
 
     - script: |
         python3 $(Build.SourcesDirectory)/tools/ci_build/build.py \
@@ -93,6 +110,7 @@ jobs:
     vmImage: 'macOS-11'
   variables:
     MACOSX_DEPLOYMENT_TARGET: '10.14'
+    CCACHE_DIR: $(Pipeline.Workspace)/ccache
   timeoutInMinutes: 150
   condition: or(eq('${{parameters.BuildXnnpack}}', 'true'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   steps:
@@ -103,11 +121,11 @@ jobs:
 
     - task: Cache@2
       inputs:
-        key: 'ccache | "$(Agent.OS)" | xnnpack'
+        key: 'ccache | "$(Agent.OS)" | protocol'
         path: $(CCACHE_DIR)
         restoreKeys: |
-          ccache | "$(Agent.OS)" | xnnpack
-      displayName: ccache xnnpack
+          ccache | "$(Agent.OS)" | protocol
+      displayName: ccache protocol
 
     - script: |
         /bin/bash $(Build.SourcesDirectory)/tools/ci_build/github/apple/build_host_protoc.sh \
@@ -115,6 +133,14 @@ jobs:
           $(Build.BinariesDirectory)/protobuf \
           $(Build.BinariesDirectory)/protobuf_install
       displayName: Build Host Protoc
+
+    - task: Cache@2
+      inputs:
+        key: 'ccache | "$(Agent.OS)" | xnnpack'
+        path: $(CCACHE_DIR)
+        restoreKeys: |
+          ccache | "$(Agent.OS)" | xnnpack
+      displayName: ccache xnnpack
 
     - script: |
         python3 $(Build.SourcesDirectory)/tools/ci_build/build.py \
