@@ -47,3 +47,12 @@ T* GenerateArrayWithRandomValue(size_t batch_size, T low, T high) {
   }
   return data;
 }
+
+template <typename T>
+T* GenerateArrayWithZeroValue(size_t batch_size) {
+        T* data = (T*)aligned_alloc(sizeof(T) * batch_size, 64);
+        for (size_t i = 0; i != batch_size; ++i) {
+                data[i] = static_cast<T>(0);
+        }
+        return data;
+}

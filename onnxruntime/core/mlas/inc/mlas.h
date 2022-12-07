@@ -29,6 +29,7 @@ Abstract:
 #define MLASCALL __stdcall
 #else
 #define MLASCALL
+#include <arm_fp16.h>
 #endif
 
 //
@@ -195,6 +196,21 @@ struct MLAS_SGEMM_DATA_PARAMS {
 };
 
 /**
+ * @brief Supply matrices data information to single precision gemm functions
+ */
+struct MLAS_FP16GEMM_DATA_PARAMS {
+    const float16_t* A = nullptr; /**< Supplies the address of matrix A */
+    size_t lda = 0;           /**< Supplies the first dimension of matrix A. */
+    const float16_t* B = nullptr; /**< Supplies the address of matrix B */
+    size_t ldb = 0;           /**< Supplies the first dimension of matrix B. */
+    float16_t* C = nullptr;       /**< Supplies the address of matrix C */
+    size_t ldc = 0;           /**< Supplies the first dimension of matrix C. */
+    float16_t alpha = 1.0f;       /**< Supplies the scalar alpha multiplier (see SGEMM definition) */
+    float16_t beta = 0.0f;        /**< Supplies the scalar beta multiplier (see SGEMM definition) */
+    bool BIsPacked = false;   /**< Whether B is pre-packed */
+};
+
+/**
  * @brief  Batched single precision matrix/matrix multiply operation (SGEMM)
  *
  * @param TransA     Supplies the transpose operation for matrix A.
@@ -247,6 +263,66 @@ MlasGemm(
     )
 {
     MlasGemmBatch(TransA, TransB, M, N, K, &Data, 1, ThreadPool);
+}
+
+void
+MLASCALL
+MlasFP16GemmBatch(
+    CBLAS_TRANSPOSE TransA,
+    CBLAS_TRANSPOSE TransB,
+    size_t M,
+    size_t N,
+    size_t K,
+    const MLAS_FP16GEMM_DATA_PARAMS* Data,
+    size_t BatchSize,
+    MLAS_THREADPOOL* ThreadPool
+    );
+
+inline
+void
+MlasFP16Gemm(
+    CBLAS_TRANSPOSE TransA,
+    CBLAS_TRANSPOSE TransB,
+    size_t M,
+    size_t N,
+    size_t K,
+    const MLAS_FP16GEMM_DATA_PARAMS& Data,
+    MLAS_THREADPOOL* ThreadPool
+    )
+{
+    MlasFP16GemmBatch(TransA, TransB, M, N, K, &Data, 1, ThreadPool);
+}
+
+inline
+void
+MlasFP16Gemm(
+    CBLAS_TRANSPOSE TransA,
+    CBLAS_TRANSPOSE TransB,
+    size_t M,
+    size_t N,
+    size_t K,
+    float16_t alpha,
+    const float16_t* A,
+    size_t lda,
+    const float16_t* B,
+    size_t ldb,
+    float16_t beta,
+    float16_t* C,
+    size_t ldc,
+    MLAS_THREADPOOL* ThreadPool
+    )
+{
+    MLAS_FP16GEMM_DATA_PARAMS Data;
+    Data.alpha = alpha;
+    Data.A = A;
+    Data.lda = lda;
+    Data.B = B;
+    Data.ldb = ldb;
+    Data.beta = beta;
+    Data.C = C;
+    Data.ldc = ldc;
+
+    MlasFP16Gemm(TransA, TransB, M, N, K, Data, ThreadPool);
 }
 
 /**
@@ -551,7 +627,7 @@ private:
 /**
  * @brief Supply matrices shape and data type information to quantized gemm functions
  *
- ** NOTE: AIsSigned == true is not supported on non-ARM devices for now. 
+ ** NOTE: AIsSigned == true is not supported on non-ARM devices for now.
  **       AIsSigned == true is supported on ARM devices when BIsSigned is also true.
  *
 */
@@ -642,7 +718,7 @@ struct MLAS_SYMM_QGEMM_DATA_PARAMS {
  * @param [IN] DataParams   Array of data descriptors, one for each mutliplication
  *                          B must be prepacked
  * @param [IN] BatchN       Number of multiplications
- * @param [IN] ThreadPool 
+ * @param [IN] ThreadPool
 */
 void
 MLASCALL
@@ -699,8 +775,8 @@ MlasGemmPackB(
 
 /**
  * @brief For symmetric quantized GEMM, returns size of the
- *        packing buffer needed for right hand side        
- * @param N              Number of columns 
+ *        packing buffer needed for right hand side
+ * @param N              Number of columns
  * @param K              Number of rows
  * @param AIsSigned      Whether left hand size is signed int8_t
  * @return  size of the packing buffer,
@@ -710,7 +786,7 @@ size_t
 MLASCALL
 MlasSymmQgemmPackBSize(
     size_t N,
-    size_t K, 
+    size_t K,
     bool AIsSigned
     );
 
@@ -864,17 +940,17 @@ MlasConvSymDepthwiseGetKernelOutputCnt(
 
 /**
  * @brief Returns the stride M of depthwise conv kernel
- * 
- * Most optimized path is Symmetric conv. See 
+ *
+ * Most optimized path is Symmetric conv. See
  * MlasConvSymDepthwiseGetKernelOutputCnt(bool)
- * 
+ *
  * These kernels are implemented in qdwconv.cpp using
  * intrincic, all of them with stride val 1. We use
  * a slightly bigger value to improve cache reuse.
  *
  * This needs to be changed if we optimize depthwise
  * kernels.
- * 
+ *
  * @return
 */
 inline

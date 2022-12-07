@@ -21,7 +21,7 @@
 #include <iostream>
 #include <unordered_map>
 
-const OrtApi* g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+const OrtApi* g_ort;
 OrtEnv* env = nullptr;
 
 using namespace onnxruntime;
@@ -75,10 +75,14 @@ BENCHMARK(BM_ResolveGraph);
   } while (0);
 
 int main(int argc, char** argv) {
+  g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+  if(g_ort == nullptr)
+    return -1;
+  ORT_ABORT_ON_ERROR(g_ort->CreateEnv(ORT_LOGGING_LEVEL_ERROR, "test", &env));
+  //XXX: for unknown reason, it would crash at there if argv contains "--help"
   ::benchmark::Initialize(&argc, argv);
   if (::benchmark::ReportUnrecognizedArguments(argc, argv))
     return -1;
-  ORT_ABORT_ON_ERROR(g_ort->CreateEnv(ORT_LOGGING_LEVEL_ERROR, "test", &env));
   ::benchmark::RunSpecifiedBenchmarks();
   g_ort->ReleaseEnv(env);
   return 0;

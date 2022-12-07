@@ -76,6 +76,13 @@ ONNX_CPU_OPERATOR_TYPED_KERNEL(
 ONNX_CPU_OPERATOR_TYPED_KERNEL(
     MatMul,
     13,
+    MLFloat16,
+    KernelDefBuilder().TypeConstraint("T", DataTypeImpl::GetTensorType<MLFloat16>()),
+    MatMul<Eigen::half>);
+
+ONNX_CPU_OPERATOR_TYPED_KERNEL(
+    MatMul,
+    13,
     int32_t,
     KernelDefBuilder()
         .TypeConstraint("T", BuildKernelDefConstraints<int32_t, uint32_t>()),

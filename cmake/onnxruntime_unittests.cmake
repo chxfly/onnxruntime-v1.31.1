@@ -596,8 +596,8 @@ file(GLOB onnxruntime_test_framework_src CONFIGURE_DEPENDS
   ${onnxruntime_test_framework_src_patterns}
   )
 
-#This is a small wrapper library that shouldn't use any onnxruntime internal symbols(except onnxruntime_common). 
-#Because it could dynamically link to onnxruntime. Otherwise you will have two copies of onnxruntime in the same 
+#This is a small wrapper library that shouldn't use any onnxruntime internal symbols(except onnxruntime_common).
+#Because it could dynamically link to onnxruntime. Otherwise you will have two copies of onnxruntime in the same
 #process and you won't know which one you are testing.
 onnxruntime_add_static_library(onnxruntime_test_utils ${onnxruntime_test_utils_src})
 if(MSVC)
@@ -919,7 +919,8 @@ if (NOT onnxruntime_ENABLE_TRAINING_TORCH_INTEROP)
       ${BENCHMARK_DIR}/gelu.cc
       ${BENCHMARK_DIR}/activation.cc
       ${BENCHMARK_DIR}/quantize.cc
-      ${BENCHMARK_DIR}/reduceminmax.cc)
+      ${BENCHMARK_DIR}/reduceminmax.cc
+      ${BENCHMARK_DIR}/bench_imagenet_models_gemm.cc)
     target_include_directories(onnxruntime_benchmark PRIVATE ${ONNXRUNTIME_ROOT} ${onnxruntime_graph_header} ${ONNXRUNTIME_ROOT}/core/mlas/inc)
     if(WIN32)
       target_compile_options(onnxruntime_benchmark PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /wd4141>"
@@ -1065,7 +1066,7 @@ if (NOT onnxruntime_ENABLE_TRAINING_TORCH_INTEROP)
 
   if (onnxruntime_BUILD_SHARED_LIB)
     #It will dynamically link to onnxruntime. So please don't add onxruntime_graph/onxruntime_framework/... here.
-    #onnxruntime_common is kind of ok because it is thin, tiny and totally stateless. 
+    #onnxruntime_common is kind of ok because it is thin, tiny and totally stateless.
     set(onnxruntime_perf_test_libs
             onnx_test_runner_common onnxruntime_test_utils onnxruntime_common
             onnxruntime onnxruntime_flatbuffers onnx_test_data_proto
@@ -1239,8 +1240,8 @@ if (NOT onnxruntime_ENABLE_TRAINING_TORCH_INTEROP)
   endif()
   if (CMAKE_SYSTEM_NAME STREQUAL "Android")
     target_link_libraries(onnxruntime_mlas_test PRIVATE ${android_shared_libs})
-  endif()  
-  
+  endif()
+
   if(WIN32)
     target_link_libraries(onnxruntime_mlas_test PRIVATE debug Dbghelp Advapi32)
   endif()

@@ -47,6 +47,7 @@ EIGEN_MATMUL_FUNCTION(int32_t)
 EIGEN_MATMUL_FUNCTION(uint32_t)
 EIGEN_MATMUL_FUNCTION(int64_t)
 EIGEN_MATMUL_FUNCTION(uint64_t)
+EIGEN_MATMUL_FUNCTION(Eigen::half)
 
 ////////////////////////////////////////////////////////////////////////////////
 // BLAS alternatives.

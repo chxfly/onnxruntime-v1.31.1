@@ -215,7 +215,7 @@ TEST(MathOpTest, MatMulUint64Type) {
   RunMatMulTest<uint64_t>(9);
 }
 
-#if defined(USE_CUDA) || defined(USE_ROCM)
+
 TEST(MathOpTest, MatMul_Float16) {
 #ifdef USE_CUDA
   int min_cuda_architecture = 530;
@@ -242,11 +242,9 @@ TEST(MathOpTest, MatMul_Float16) {
   test.AddInput<MLFloat16>("A", {2, 4}, f_A);
   test.AddInput<MLFloat16>("B", {4, 3}, f_B);
   test.AddOutput<MLFloat16>("Y", {2, 3}, f_Y);
-  test.ConfigExcludeEps({kTensorrtExecutionProvider})  // TensorRT: fp16 is not supported
-      .Config(run_with_tunable_op)
-      .RunWithConfig();
+  test.RunWithConfig();
 }
-#endif
+
 
 #if defined(USE_CUDA) || defined(USE_ROCM) || defined(USE_DNNL)
 TEST(MathOpTest, MatMul_bfloat16) {

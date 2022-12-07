@@ -66,6 +66,8 @@ BENCHMARK(BM_FindMinMaxEigen)
     ->Arg(98304)
     ->Arg(160000);
 
+#if 0
+
 // MLAS sse2 implementation
 static void BM_FindMinMaxMlasSSE2(benchmark::State& state) {
   const size_t batch_size = static_cast<size_t>(state.range(0));
@@ -116,3 +118,4 @@ BENCHMARK(BM_FindMinMaxMlasAvx)
     ->Arg(98304)
     ->Arg(160000);
 
+#endif
