@@ -5,7 +5,6 @@ jobs:
   parameters:
     AgentPool : 'Onnxruntime-Linux-GPU-NC6sv3'
     JobName: 'Onnxruntime_Linux_GPU_Training'
-    SubmoduleCheckoutMode: 'recursive'
     RunDockerBuildArgs: >
       -o ubuntu20.04 -d gpu
       -t onnxruntime_orttraining_ortmodule_tests_image
@@ -13,13 +12,12 @@ jobs:
       -x "
       --enable_training
       --enable_training_torch_interop
-      --config $(buildConfig)
+      --config Release
       --use_cuda --cuda_version=11.6 --cuda_home=/usr/local/cuda-11.6 --cudnn_home=/usr/local/cuda-11.6
       --build_wheel
       --enable_nvtx_profile
       --cmake_extra_defines CMAKE_CUDA_ARCHITECTURES=70
       "
-    DoNugetPack: 'false'
     RunInjectedPipeline: 'true'
     InjectedPipeline: 'orttraining-linux-gpu-ortmodule-test-ci-pipeline.yml'
     DockerImageTag: 'onnxruntime_orttraining_ortmodule_tests_image'
@@ -29,8 +27,3 @@ jobs:
     # Enable unreleased onnx opsets in CI builds
     # This facilitates testing the implementation for the new opsets
     AllowReleasedOpsetOnly: '0'
-    Strategy:
-      maxParallel: 2
-      matrix:
-        Release:
-          buildConfig: Release
