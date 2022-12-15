@@ -60,6 +60,7 @@ jobs:
     ALLOW_RELEASED_ONNX_OPSET_ONLY: '0'
     DocUpdateNeeded: false  # Set to true during document generation if there are diffs
     skipComponentGovernanceDetection: true
+    CCACHE_DIR: $(Pipeline.Workspace)/ccache
   workspace:
     clean: all
   pool: ${{ parameters.MachinePool }}
@@ -74,6 +75,21 @@ jobs:
       versionSpec: '3.7'
       addToPath: true
       architecture: ${{ parameters.buildArch }}
+
+  - script: |
+      choco install ccache -y
+      echo "##vso[task.prependpath]C:\ProgramData\chocolatey\lib\ccache\tools"
+    displayName: Install ccache and update PATH to use linked versions of gcc, cc, etc
+
+  - task: Cache@2
+    inputs:
+      key: '"ccache" | "${{ parameters.job_name_suffix }}" | "$(Build.SourceBranch)" | "$(Build.SourceVersion)"'
+      path: $(CCACHE_DIR)
+      restoreKeys: |
+        "ccache" | "${{ parameters.job_name_suffix }}" | "$(Build.SourceBranch)"
+        "ccache" | "${{ parameters.job_name_suffix }}"
+      cacheHitVar: CACHE_RESTORED
+    displayName: Cach Task
 
   - template: download-deps.yml
 
@@ -153,7 +169,7 @@ jobs:
     displayName: 'Generate cmake config'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
-      arguments: '--config ${{ parameters.BuildConfig }} --build_dir $(Build.BinariesDirectory) --skip_submodule_sync --build_shared_lib --build_csharp --update --cmake_generator "Visual Studio 16 2019"  --build_shared_lib --enable_onnx_tests ${{ parameters.additionalBuildFlags }}'
+      arguments: '--config ${{ parameters.BuildConfig }} --build_dir $(Build.BinariesDirectory) --skip_submodule_sync --build_shared_lib --build_csharp --update --use_cache --cmake_generator "Visual Studio 16 2019"  --build_shared_lib --enable_onnx_tests ${{ parameters.additionalBuildFlags }}'
       workingDirectory: '$(Build.BinariesDirectory)'
 
   - task: VSBuild@1
