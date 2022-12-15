@@ -62,39 +62,44 @@ jobs:
   - task: NodeTool@0
     inputs:
       versionSpec: '16.x'
+
   - task: BatchScript@1
     displayName: 'setup env'
     inputs:
       filename: '$(Build.SourcesDirectory)\tools\ci_build\github\windows\$(EnvSetupScript)'
       modifyEnvironment: true
       workingFolder: '$(Build.BinariesDirectory)'
-  - script: |
-     python -m pip install -q setuptools wheel numpy ninja
-    workingDirectory: '$(Build.BinariesDirectory)'
-    displayName: 'Install python modules'
+
+  - task: PowerShell@2
+    displayName: 'Install ONNX'
+    inputs:
+      filePath: '$(Build.SourcesDirectory)/tools/ci_build/github/windows/install_third_party_deps.ps1'
+      workingDirectory: '$(Build.BinariesDirectory)'
+      arguments: -cpu_arch x64 -install_prefix $(Build.BinariesDirectory)\installed -build_config Release
+
   - task: PythonScript@0
     displayName: 'Build and test'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
-      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm'
+      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm --path_to_protoc_exe $(Build.BinariesDirectory)\installed\bin\protoc.exe'
       workingDirectory: '$(Build.BinariesDirectory)'
   - task: PythonScript@0
     displayName: 'Build and test (threads)'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
-      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_threads'
+      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_threads --path_to_protoc_exe $(Build.BinariesDirectory)\installed\bin\protoc.exe --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
   - task: PythonScript@0
     displayName: 'Build and test (simd + threads)'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
-      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd_threads --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_simd --enable_wasm_threads'
+      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd_threads --path_to_protoc_exe $(Build.BinariesDirectory)\installed\bin\protoc.exe --enable_wasm_simd --enable_wasm_threads'
       workingDirectory: '$(Build.BinariesDirectory)'
   - task: PythonScript@0
     displayName: 'Build and test (simd)'
     inputs:
       scriptPath: '$(Build.SourcesDirectory)\tools\ci_build\build.py'
-      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd --path_to_protoc_exe $(Build.BinariesDirectory)\wasm\host_protoc\Release\protoc.exe --enable_wasm_simd'
+      arguments: '$(CommonBuildArgs) --build_dir $(Build.BinariesDirectory)\wasm_simd --path_to_protoc_exe $(Build.BinariesDirectory)\installed\bin\protoc.exe --enable_wasm_simd'
       workingDirectory: '$(Build.BinariesDirectory)'
   - ${{ if eq(parameters.SkipPublish, false) }}:
     - script: |
