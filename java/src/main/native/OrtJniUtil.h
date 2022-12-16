@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 #include <jni.h>
+#include <stdlib.h>
 #include "onnxruntime/core/session/onnxruntime_c_api.h"
 
 #ifndef __ONNXUtil_h
@@ -94,14 +95,14 @@ jsize safecast_int64_to_jsize(int64_t v);
 
 #ifdef _WIN32
 #include <Intsafe.h>
-static void* allocarray(size_t nmemb, size_t size) {
+inline void* allocarray(size_t nmemb, size_t size) {
   size_t out;
   HRESULT hr = SIZETMult(nmemb, size, &out);
   if (hr != S_OK) return NULL;
   return malloc(out);
 }
 #else
-static void* allocarray(size_t nmemb, size_t size) {
+inline void* allocarray(size_t nmemb, size_t size) {
   return reallocarray(NULL, nmemb, size)
 }
 #endif
