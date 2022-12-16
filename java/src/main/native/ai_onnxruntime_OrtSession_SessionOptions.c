@@ -613,10 +613,10 @@ JNIEXPORT void JNICALL Java_ai_onnxruntime_OrtSession_00024SessionOptions_addExe
   OrtSessionOptions* options = (OrtSessionOptions*)optionsHandle;
   int keyCount = (*jniEnv)->GetArrayLength(jniEnv, configKeyArr);
 
-  const char** keyArray = (const char**)malloc(keyCount * sizeof(const char*));
-  const char** valueArray = (const char**)malloc(keyCount * sizeof(const char*));
-  jstring* jkeyArray = (jstring*)malloc(keyCount * sizeof(jstring));
-  jstring* jvalueArray = (jstring*)malloc(keyCount * sizeof(jstring));
+  const char** keyArray = (const char**)allocarray(keyCount, sizeof(const char*));
+  const char** valueArray = (const char**)allocarray(keyCount, sizeof(const char*));
+  jstring* jkeyArray = (jstring*)allocarray(keyCount, sizeof(jstring));
+  jstring* jvalueArray = (jstring*)allocarray(keyCount, sizeof(jstring));
 
   for (int i = 0; i < keyCount; i++) {
     jkeyArray[i] = (jstring)((*jniEnv)->GetObjectArrayElement(jniEnv, configKeyArr, i));
