@@ -42,6 +42,24 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_
   message(FATAL_ERROR  "GCC version must not less than 7")
 endif()
 
+if (MSVC AND WIN32)
+  find_program(ccache_exe ccache)
+  if (ccache_exe)
+    file(COPY_FILE
+      ${ccache_exe} ${CMAKE_BINARY_DIR}/cl.exe
+      ONLY_IF_DIFFERENT)
+
+    set(CMAKE_VS_GLOBALS
+      "CLToolExe=cl.exe"
+      "CLToolPath=${CMAKE_BINARY_DIR}"
+      "TrackFileAccess=false"
+      "UseMultiToolTask=true"
+      "DebugInformationFormat=OldStyle"
+    )
+
+  endif()
+endif()
+
 # Options
 option(onnxruntime_RUN_ONNX_TESTS "Enable ONNX Compatibility Testing" OFF)
 option(onnxruntime_GENERATE_TEST_REPORTS "Enable test report generation" OFF)
