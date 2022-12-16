@@ -4,6 +4,7 @@
  */
 #include <jni.h>
 #include <stdlib.h>
+#include "onnxruntime_config.h"
 #include "onnxruntime/core/session/onnxruntime_c_api.h"
 
 #ifndef __ONNXUtil_h
@@ -103,7 +104,11 @@ inline void* allocarray(size_t nmemb, size_t size) {
 }
 #else
 inline void* allocarray(size_t nmemb, size_t size) {
-  return reallocarray(NULL, nmemb, size)
+#ifdef HAS_REALLOCARRAY
+  return reallocarray(NULL, nmemb, size);
+#else
+  return malloc(nmemb * size);
+#endif
 }
 #endif
 #ifdef __cplusplus
