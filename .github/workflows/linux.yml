@@ -26,3 +26,22 @@ jobs:
        - name: 'Build and Test'
          run: |
            python3 ${{ github.workspace }}/tools/ci_build/build.py --build_dir build --config Release --skip_submodule_sync --parallel --enable_pybind --disable_contrib_ops --disable_ml_ops --skip_onnx_tests --use_tvm --use_tvm_hash --ctest_path ""
+
+  Onnxruntime-Ubuntu2204-CPU:
+    runs-on: ubuntu-latest
+    steps:
+       - uses: actions/checkout@v3
+         with:
+           submodules: false
+       - uses: actions/setup-python@v3
+         with:
+           python-version: '3.8.x'
+           architecture: 'x64'
+       - name: 'Install required software'
+         run: |
+           set -e -x
+           sudo apt-get update
+           sudo apt-get install -y zlib1g-dev build-essential libflatbuffers-dev 
+       - name: 'Build and Test'
+         run: |
+           python3 ${{ github.workspace }}/tools/ci_build/build.py --build_dir build --config Debug --skip_submodule_sync --parallel --enable_pybind  --ctest_path ""
