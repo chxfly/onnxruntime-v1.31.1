@@ -86,12 +86,6 @@ jobs:
       C:\ProgramData\chocolatey\tools\shimgen.exe -p ccache -c cl -o ccache-cl.exe
     displayName: Install ccache and update PATH to use linked versions of gcc, cc, etc
 
-  - script: |
-      set -x
-      where ccache
-      ccache -s
-    displayName: Show Cache -stats
-
   - task: Cache@2
     inputs:
       key: '"ccache" | "${{ parameters.job_name_suffix }}" | "$(Build.SourceBranch)" | "$(Build.SourceVersion)"'
@@ -101,6 +95,11 @@ jobs:
         "ccache" | "${{ parameters.job_name_suffix }}"
       cacheHitVar: CACHE_RESTORED
     displayName: Cach Task
+
+  - script: |
+      where ccache
+      ccache -s
+    displayName: Show Cache -stats
 
   - template: download-deps.yml
 
