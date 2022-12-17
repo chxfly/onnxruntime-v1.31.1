@@ -37,7 +37,7 @@ if($build_config -eq 'Release'){
   $compile_flags += "/O1", "/Ob1", "/DNDEBUG", "/Gw", "/GL"
 }
 # cmake args that applies to every 3rd-party library
-[string[]]$cmake_extra_args="-DCMAKE_CXX_STANDARD=17 `"-DCMAKE_CXX_FLAGS=$compile_flags /EHsc`" ", "`"-DCMAKE_C_FLAGS=$compile_flags`"", "--compile-no-warning-as-error", "--fresh", "-Wno-dev"
+[string[]]$cmake_extra_args="-DCMAKE_CXX_STANDARD=17 `"-DCMAKE_CXX_FLAGS=$compile_flags /EHsc`" ", "`"-DCMAKE_C_FLAGS=$compile_flags`",", "`"-DCMAKE_CXX_COMPILER_LAUNCHER=ccache`",", "`"-DCMAKE_C_COMPILER_LAUNCHER=ccache`",","--compile-no-warning-as-error", "--fresh", "-Wno-dev"
 if($cpu_arch -eq 'x86'){
   $cmake_extra_args +=  "-A", "Win32", "-T", "host=x64"
   $linker_flags += '/machine:x86'
