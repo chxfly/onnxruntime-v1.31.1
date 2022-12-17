@@ -82,9 +82,15 @@ jobs:
 
   - script: |
       choco install ccache -y
-      echo "##vso[task.prependpath]C:\ProgramData\chocolatey\lib\ccache\tools"
+      echo "##vso[task.prependpath]C:\ProgramData\chocolatey\bin"
       C:\ProgramData\chocolatey\tools\shimgen.exe -p ccache -c cl -o ccache-cl.exe
+      dir C:\ProgramData\chocolatey\bin
     displayName: Install ccache and update PATH to use linked versions of gcc, cc, etc
+
+  - script: |
+      where ccache
+      ccache -s
+    displayName: Show Cache -stats
 
   - task: Cache@2
     inputs:
@@ -124,11 +130,6 @@ jobs:
       filename: '$(Build.SourcesDirectory)\tools\ci_build\github\windows\${{ parameters.EnvSetupScript }}'
       modifyEnvironment: true
       workingFolder: '$(Build.BinariesDirectory)'
-
-  - script: |
-      where ccache
-      ccache -s
-    displayName: Show Cache -stats
 
   - script: |
      set ORT_DOXY_SRC=$(Build.SourcesDirectory)
