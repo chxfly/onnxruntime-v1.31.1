@@ -83,6 +83,8 @@ jobs:
   - script: |
       choco install ccache -y
       echo "##vso[task.prependpath]C:\ProgramData\chocolatey\lib\ccache\tools"
+      where ccache
+      C:\ProgramData\chocolatey\tools\shimgen.exe -p ccache -c cl -o ccache-cl.exe
     displayName: Install ccache and update PATH to use linked versions of gcc, cc, etc
 
   - task: Cache@2
@@ -146,6 +148,9 @@ jobs:
           filePath: '$(Build.SourcesDirectory)/tools/ci_build/github/windows/install_third_party_deps.ps1'
           workingDirectory: '$(Build.BinariesDirectory)'
           arguments: -cpu_arch ${{ parameters.buildArch }} -install_prefix $(Build.BinariesDirectory)\${{ parameters.BuildConfig }}\installed -build_config ${{ parameters.BuildConfig }}
+          envs: |
+            CC: ccache-cl
+            CXX: ccache-cl
 
       #Build.py disables running training python frontend tests on Windows, so here we don't install pytorch.
       - ${{ if eq(parameters.isTraining, true) }}:
