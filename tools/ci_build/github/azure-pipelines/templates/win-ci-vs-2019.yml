@@ -96,11 +96,6 @@ jobs:
       cacheHitVar: CACHE_RESTORED
     displayName: Cach Task
 
-  - script: |
-      where ccache
-      ccache -s
-    displayName: Show Cache -stats
-
   - template: download-deps.yml
 
   - task: PythonScript@0
@@ -129,6 +124,11 @@ jobs:
       filename: '$(Build.SourcesDirectory)\tools\ci_build\github\windows\${{ parameters.EnvSetupScript }}'
       modifyEnvironment: true
       workingFolder: '$(Build.BinariesDirectory)'
+
+  - script: |
+      where ccache
+      ccache -s
+    displayName: Show Cache -stats
 
   - script: |
      set ORT_DOXY_SRC=$(Build.SourcesDirectory)
