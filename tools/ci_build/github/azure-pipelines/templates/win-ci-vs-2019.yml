@@ -83,12 +83,11 @@ jobs:
   - script: |
       choco install ccache -y
       echo "##vso[task.prependpath]C:\ProgramData\chocolatey\bin"
-      C:\ProgramData\chocolatey\tools\shimgen.exe -p ccache -c cl -o ccache-cl.exe
+      C:\ProgramData\chocolatey\tools\shimgen.exe -p C:\ProgramData\chocolatey\bin\ccache -c cl -o ccache-cl.exe
       dir C:\ProgramData\chocolatey\bin
     displayName: Install ccache and update PATH to use linked versions of gcc, cc, etc
 
   - script: |
-      where ccache
       ccache -s
     displayName: Show Cache -stats
 
