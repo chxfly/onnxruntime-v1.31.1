@@ -104,7 +104,7 @@ if [ $DEVICE_TYPE = "gpu" ]; then
 fi
 
 echo "Installing rust from https://sh.rustup.rs"
-curl https://sh.rustup.rs -sSf | sh
+curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 cd /
 rm -rf /tmp/src
