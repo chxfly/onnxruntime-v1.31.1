@@ -105,6 +105,7 @@ fi
 
 echo "Installing rust from https://sh.rustup.rs"
 curl https://sh.rustup.rs -sSf | sh -s -- -y
+source ~/.bashrc
 
 cd /
 rm -rf /tmp/src
