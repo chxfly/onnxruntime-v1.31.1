@@ -4,8 +4,13 @@ on:
     branches:
       - master
       - main
+      - snnn/fb
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+  
 jobs:
   Onnxruntime-TVM:
     runs-on: ubuntu-latest
@@ -28,7 +33,7 @@ jobs:
            python3 ${{ github.workspace }}/tools/ci_build/build.py --build_dir build --config Release --skip_submodule_sync --parallel --enable_pybind --disable_contrib_ops --disable_ml_ops --skip_onnx_tests --use_tvm --use_tvm_hash --ctest_path ""
 
   Onnxruntime-Ubuntu2204-CPU:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "1ES.Pool=onnxruntime-github-ubuntu-22-04-cpu-mms"]
     steps:
        - uses: actions/checkout@v3
          with:
