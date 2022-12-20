@@ -46,7 +46,7 @@ jobs:
          run: |
            set -e -x
            sudo apt-get update
-           sudo apt-get install -y zlib1g-dev build-essential libflatbuffers-dev 
+           sudo apt-get install -y zlib1g-dev build-essential libflatbuffers-dev python3-numpy python3-dev
        - name: 'Build and Test'
          run: |
            python3 ${{ github.workspace }}/tools/ci_build/build.py --build_dir build --config Debug --skip_submodule_sync --parallel --enable_pybind  --ctest_path ""
