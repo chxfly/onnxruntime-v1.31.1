@@ -162,8 +162,10 @@ jobs:
             displayName: 'Install python modules'
 
   - script: |
-      ccache -s
+      echo %PATH%
+      C:\ProgramData\chocolatey\bin\ccache -s
     displayName: Show Cache -stats
+    workingDirectory: '$(Build.BinariesDirectory)'
 
   - task: NuGetToolInstaller@0
     displayName: Use Nuget 5.7.0
