@@ -60,6 +60,7 @@ jobs:
     ALLOW_RELEASED_ONNX_OPSET_ONLY: '0'
     DocUpdateNeeded: false  # Set to true during document generation if there are diffs
     skipComponentGovernanceDetection: true
+    CCACHE_DIR: $(Pipeline.Workspace)/ccache
   workspace:
     clean: all
   pool: ${{ parameters.MachinePool }}
@@ -76,6 +77,14 @@ jobs:
       architecture: ${{ parameters.buildArch }}
 
   - template: download-deps.yml
+
+  - script: |
+      choco install ccache -y
+      choco install ninja -y
+      echo "##vso[task.prependpath]C:\ProgramData\chocolatey\bin"
+      C:\ProgramData\chocolatey\tools\shimgen.exe -p C:\ProgramData\chocolatey\bin\ccache.exe -c cl.exe -o C:\ProgramData\chocolatey\bin\ccache-cl.exe
+      dir C:\ProgramData\chocolatey\bin
+    displayName: Install ccache and update PATH to use linked versions of gcc, cc, etc
 
   - task: PythonScript@0
     displayName: 'Update deps.txt'
@@ -119,6 +128,23 @@ jobs:
     workingDirectory: '$(Build.BinariesDirectory)'
     displayName: 'Install python modules'
 
+  - task: Cache@2
+    inputs:
+      key: '"ccache" | 3party | "${{ parameters.job_name_suffix }}" | "$(Build.SourceBranch)" | "$(Build.SourceVersion)"'
+      path: $(CCACHE_DIR)
+      restoreKeys: |
+        "ccache" | 3party | "${{ parameters.job_name_suffix }}" | "$(Build.SourceBranch)"
+        "ccache" | 3party | "${{ parameters.job_name_suffix }}"
+      cacheHitVar: CACHE_RESTORED
+    displayName: Cach Task
+
+  - task: BatchScript@1
+    inputs:
+      filename: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat"
+      arguments:  "x64"
+      modifyEnvironment: true
+      workingFolder: '$(Build.BinariesDirectory)'
+
   - ${{ if or(eq(parameters.RunOnnxRuntimeTests, true), eq(parameters.GenerateDocumentation, true)) }}:
       - task: PowerShell@2
         displayName: 'Install ONNX'
@@ -134,6 +160,10 @@ jobs:
              python -m pip install -r $(Build.SourcesDirectory)\tools\ci_build\github\linux\docker\scripts\training\requirements.txt
             workingDirectory: '$(Build.BinariesDirectory)'
             displayName: 'Install python modules'
+
+  - script: |
+      ccache -s
+    displayName: Show Cache -stats
 
   - task: NuGetToolInstaller@0
     displayName: Use Nuget 5.7.0

@@ -30,7 +30,7 @@ $linker_flags=@('/guard:cf')
 if($build_config -eq 'Release'){
   $compile_flags += "/O2", "/Ob2", "/DNDEBUG", "/Gw", "/GL"
 } elseif($build_config -eq 'RelWithDebInfo'){
-  $compile_flags += "/Zi", "/O2", "/Ob1", "/DNDEBUG", "/Gw", "/GL"
+  $compile_flags += "/Z7", "/O2", "/Ob1", "/DNDEBUG", "/Gw", "/GL"
 } elseif($build_config -eq 'Debug'){
   $compile_flags += "/Zi", "/Ob0", "/Od", "/RTC1"
 } elseif($build_config -eq 'MinSizeRel'){
@@ -50,9 +50,15 @@ if($cpu_arch -eq 'x86'){
 
 $cmake_extra_args += "-DCMAKE_EXE_LINKER_FLAGS=`"$linker_flags`""
 
+$cmake_extra_args += "-GNinja"
+$cmake_extra_args += "`"-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=/MD /Z7 /O2 /Ob1 /DNDEBUG`""
+
 # Find the full path of cmake.exe
-$cmake_command = Get-Command -CommandType Application cmake
+$cmake_command = (Get-Command -CommandType Application cmake)[0]
 $cmake_path = $cmake_command.Path
+
+$Env:CC = "ccache-cl"
+$Env:CXX = "ccache-cl"
 
 Install-Pybind -cmake_path $cmake_path -src_root $ort_src_root -build_config $build_config  -cmake_extra_args $cmake_extra_args
 

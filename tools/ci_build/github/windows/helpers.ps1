@@ -336,12 +336,20 @@ function Install-Pybind {
         Write-Host -Object "CMake command failed. Exitcode: $exitCode"
         exit $exitCode
     }
-    $cmake_args = "--build", ".",  "--parallel", "--config", $build_config, "--target", "INSTALL"
+    $cmake_args = "--build", ".",  "--parallel", "--config", $build_config
     $p = Start-Process -FilePath $cmake_path -ArgumentList $cmake_args -NoNewWindow -Wait -PassThru
     $exitCode = $p.ExitCode
     if ($exitCode -ne 0) {
         Write-Host -Object "CMake command failed. Exitcode: $exitCode"
-        exit $exitCode
+       exit $exitCode
+    }
+
+    $cmake_args = "--install", "."
+    $p = Start-Process -FilePath $cmake_path -ArgumentList $cmake_args -NoNewWindow -Wait -PassThru
+    $exitCode = $p.ExitCode
+    if ($exitCode -ne 0) {
+        Write-Host -Object "CMake command failed. Exitcode: $exitCode"
+       exit $exitCode
     }
     popd
 }
@@ -391,12 +399,20 @@ function Install-Protobuf {
         Write-Host -Object "CMake command failed. Exitcode: $exitCode"
         exit $exitCode
     }
-    $cmake_args = "--build", ".",  "--parallel", "--config", $build_config, "--target", "INSTALL"
+    $cmake_args = "--build", ".",  "--parallel", "--config", $build_config
     $p = Start-Process -FilePath $cmake_path -ArgumentList $cmake_args -NoNewWindow -Wait -PassThru
     $exitCode = $p.ExitCode
     if ($exitCode -ne 0) {
         Write-Host -Object "CMake command failed. Exitcode: $exitCode"
-        exit $exitCode
+       exit $exitCode
+    }
+
+    $cmake_args = "--install", "."
+    $p = Start-Process -FilePath $cmake_path -ArgumentList $cmake_args -NoNewWindow -Wait -PassThru
+    $exitCode = $p.ExitCode
+    if ($exitCode -ne 0) {
+        Write-Host -Object "CMake command failed. Exitcode: $exitCode"
+       exit $exitCode
     }
     popd
 }
