@@ -391,8 +391,7 @@ function Install-Protobuf {
         Write-Host -Object "CMake command failed. Exitcode: $exitCode"
         exit $exitCode
     }
-    $core_num =  (get-wmiobject win32_processor).NumberOfCores
-    $cmake_args = "--build", ".",  "--parallel", "--config", $build_config, "--target", "INSTALL", "--", "/p:CL_MPCount=$core_num"
+    $cmake_args = "--build", ".",  "--parallel", "--config", $build_config, "--target", "INSTALL"
     $p = Start-Process -FilePath $cmake_path -ArgumentList $cmake_args -NoNewWindow -Wait -PassThru
     $exitCode = $p.ExitCode
     if ($exitCode -ne 0) {
