@@ -344,7 +344,7 @@ function Install-Pybind {
        exit $exitCode
     }
 
-    $cmake_args = "--install", "."
+    $cmake_args = "--install", ".", "--config", $build_config
     $p = Start-Process -FilePath $cmake_path -ArgumentList $cmake_args -NoNewWindow -Wait -PassThru
     $exitCode = $p.ExitCode
     if ($exitCode -ne 0) {
@@ -407,7 +407,7 @@ function Install-Protobuf {
        exit $exitCode
     }
 
-    $cmake_args = "--install", "."
+    $cmake_args = "--install", ".", "--config", $build_config
     $p = Start-Process -FilePath $cmake_path -ArgumentList $cmake_args -NoNewWindow -Wait -PassThru
     $exitCode = $p.ExitCode
     if ($exitCode -ne 0) {
