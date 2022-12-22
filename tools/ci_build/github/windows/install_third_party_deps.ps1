@@ -30,7 +30,7 @@ $linker_flags=@('/guard:cf')
 if($build_config -eq 'Release'){
   $compile_flags += "/O2", "/Ob2", "/DNDEBUG", "/Gw", "/GL"
 } elseif($build_config -eq 'RelWithDebInfo'){
-  $compile_flags += "/Zi", "/O2", "/Ob1", "/DNDEBUG", "/Gw", "/GL"
+  $compile_flags += "/Z7", "/O2", "/Ob1", "/DNDEBUG", "/Gw", "/GL"
 } elseif($build_config -eq 'Debug'){
   $compile_flags += "/Zi", "/Ob0", "/Od", "/RTC1"
 } elseif($build_config -eq 'MinSizeRel'){
@@ -47,7 +47,7 @@ if($cpu_arch -eq 'x86'){
   throw "$cpu_arch is not supported"
 }
 
-
+$cmake_extra_args += "`"-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=/MD /Z7 /O2 /Ob1 /DNDEBUG`""
 $cmake_extra_args += "-DCMAKE_EXE_LINKER_FLAGS=`"$linker_flags`""
 
 # Find the full path of cmake.exe
