@@ -21,7 +21,7 @@ struct GreedySearchState : public IGreedySearchState<T> {
             int vocab_size,
             int sequence_length,
             int max_length,
-            bool /*is_cuda*/) {
+            bool is_cuda) {
     // below buffers are on cpu
     this->sequences_space = AllocateBuffer<int32_t>(cpu_allocator,
                                                     sequences_space_buffer_,
@@ -33,15 +33,24 @@ struct GreedySearchState : public IGreedySearchState<T> {
     this->eos_meet = AllocateBuffer<bool>(cpu_allocator, eos_meet_buffer_, batch_size);
     memset(this->eos_meet.data(), 0, this->eos_meet.size_bytes());
 
-    this->next_tokens_cpu = AllocateBuffer<int64_t>(cpu_allocator,
-                                                    next_tokens_cpu_buffer_,
-                                                    SafeInt<size_t>(batch_size));
     this->next_tokens = AllocateBuffer<int32_t>(cpu_allocator, next_tokens_buffer_, SafeInt<size_t>(batch_size));
 
     // below buffers are on cpu or cuda
     size_t next_token_size = SafeInt<size_t>(batch_size) * vocab_size;
     this->next_token_scores = AllocateBuffer<T>(allocator, next_token_scores_buffer_, next_token_size);
     this->next_positions = AllocateBuffer<int32_t>(allocator, next_positions_buffer_, batch_size);
+
+    if (is_cuda) {
+      AllocateTempBufferForGetGreedySearchTop1<T>(
+          batch_size,
+          allocator,
+          this->temp_topk_buffer_,
+          this->temp_topk_scores_buffer,
+          this->temp_topk_tokens_buffer,
+          this->topk_scores_buffer,
+          this->topk_tokens_buffer);
+    }
+
   }
 
   void SetSequence(gsl::span<const int32_t> input_ids_in_cpu,
@@ -62,9 +71,9 @@ struct GreedySearchState : public IGreedySearchState<T> {
   BufferUniquePtr sequence_lengths_buffer_;
   BufferUniquePtr next_token_scores_buffer_;
   BufferUniquePtr next_tokens_buffer_;
-  BufferUniquePtr next_tokens_cpu_buffer_;
   BufferUniquePtr next_positions_buffer_;
   BufferUniquePtr eos_meet_buffer_;
+  BufferUniquePtr temp_topk_buffer_;
 };
 
 // Base class of gready search implementation that is common for both GPT-2 and Bart/T5.
@@ -177,10 +186,6 @@ Status GreedySearchBase<T>::GenerateNextToken(
   ORT_RETURN_IF_ERROR(ProcessLogits(logits, greedy_state, this->temp_space_allocator_, counter));
 
   next_tokens = greedy_state.next_tokens;
-  for (size_t i = 0; i < next_tokens.size(); i++) {
-    next_tokens[i] = gsl::narrow_cast<int32_t>(greedy_state.next_tokens_cpu[i]);
-  }
-
   gsl::span<bool>& eos_meet = greedy_state.eos_meet;
   for (size_t batch_id = 0; batch_id < next_tokens.size(); ++batch_id) {
     if (next_tokens[batch_id] == eos_token_id || eos_meet[batch_id] == true) {

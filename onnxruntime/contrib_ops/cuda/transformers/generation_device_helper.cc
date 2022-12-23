@@ -17,6 +17,7 @@
 #include "contrib_ops/cuda/transformers/beam_search_topk.h"
 #include "core/providers/cuda/nvtx_profile.h"
 #include "core/providers/cuda/nvtx_profile_context.h"
+#include "contrib_ops/cuda/transformers/greedy_search_topk.h"
 
 namespace onnxruntime {
 namespace concurrency {
@@ -628,7 +629,7 @@ Status GreedySearchProcessLogits(
 
   // TODO(wy): support output_scores in greedy search
   ORT_UNUSED_PARAMETER(output_scores);
-
+  #if 0
   // next_tokens = torch.argmax(scores, dim=-1)
   int64_t next_token_scores_dims[] = {static_cast<int64_t>(batch_size),
                                       is_reuse_logits_buffer ? padded_vocab_size : vocab_size};
@@ -656,16 +657,29 @@ Status GreedySearchProcessLogits(
   ORT_RETURN_IF_ERROR(TopK(&input, axis, top_k, largest, sorted, allocator, stream, thread_pool,
                            *topk_scores, *topk_indices));
 
+  #endif
+  const CudaT* top1_input = is_reuse_logits_buffer ? const_cast<CudaT*>(logits_data)
+                                                   : reinterpret_cast<CudaT*>(next_token_scores.data());
+  cuda::GreedySearchTop1(
+      top1_input,
+      batch_size,
+      is_reuse_logits_buffer ? padded_vocab_size : vocab_size,
+      reinterpret_cast<CudaT*>(greedy_state->temp_topk_scores_buffer.data()),
+      greedy_state->temp_topk_tokens_buffer.data(),
+      reinterpret_cast<CudaT*>(greedy_state->topk_scores_buffer.data()),
+      greedy_state->topk_tokens_buffer.data(),
+      cuda_stream);
+
 #ifdef DEBUG_GENERATION
   dumper->Print("topk_scores", *(topk_scores.get()));
   dumper->Print("topk_indices", *(topk_indices.get()));
 #endif
 
-  const int64_t* next_token_indices = topk_indices->Data<int64_t>();
+  // const int64_t* next_token_indices = topk_indices->Data<int64_t>();
 
-  CUDA_RETURN_IF_ERROR(cudaMemcpyAsync(greedy_state->next_tokens_cpu.data(),
-                                       next_token_indices,
-                                       greedy_state->next_tokens_cpu.size_bytes(),
+  CUDA_RETURN_IF_ERROR(cudaMemcpyAsync(greedy_state->next_tokens.data(),
+                                       greedy_state->topk_tokens_buffer.data(),
+                                       greedy_state->next_tokens.size_bytes(),
                                        cudaMemcpyDeviceToHost,
                                        cuda_stream));
   CUDA_RETURN_IF_ERROR(cudaStreamSynchronize(cuda_stream));
