@@ -162,7 +162,7 @@ jobs:
       solution: '$(Build.BinariesDirectory)\${{ parameters.BuildConfig }}\onnxruntime.sln'
       platform: ${{ parameters.msbuildPlatform }}
       configuration: ${{ parameters.BuildConfig }}
-      msbuildArgs: -maxcpucount
+      msbuildArgs: '-maxcpucount /p:CL_MPCount=8'
       msbuildArchitecture: ${{ parameters.buildArch }}
       maximumCpuCount: true
       logProjectEvents: false
